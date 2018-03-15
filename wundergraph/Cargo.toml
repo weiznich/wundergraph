@@ -1,0 +1,21 @@
+[package]
+name = "wundergraph"
+version = "0.1.0"
+authors = ["Georg Semmler <georg_semmler_05@web.de>"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+diesel = { version = "=1.1.1", features = ["r2d2"]}
+juniper = "=0.9.2"
+ordermap = "0.2"
+wundergraph_derive = { path = "../wundergraph_derive" }
+clippy = { version = "0.0.187", optional = true }
+uuid = { version = "0.5", optional = true }
+chrono = { version = "0.4", optional = true }
+
+[features]
+default = ["sqlite", "postgres", "extras"]
+lint = ["clippy"]
+sqlite = ["diesel/sqlite"]
+postgres = ["diesel/postgres"]
+extras = ["chrono", "uuid"]

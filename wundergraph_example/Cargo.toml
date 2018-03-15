@@ -1,0 +1,16 @@
+[package]
+authors = ["Georg Semmler <georg_semmler_05@web.de>"]
+name = "wundergraph_example"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+diesel = { version = "=1.1.1", features = ["r2d2", "sqlite", "chrono", "postgres"]}
+diesel_migrations = "1"
+juniper = "=0.9.2"
+juniper_rocket = "=0.1.2"
+rocket = "0.3"
+rocket_codegen = "0.3"
+ordermap = "0.2"
+wundergraph = { path = "../wundergraph" }
+clippy = { version = "0.0.187", optional = true }

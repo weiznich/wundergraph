@@ -1,0 +1,19 @@
+[package]
+name = "wundergraph_derive"
+version = "0.1.0"
+authors = ["Georg Semmler <georg_semmler_05@web.de>"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+syn = { version = "0.12.11", features = ["full", "fold", "printing", "extra-traits"] }
+quote = "0.4"
+proc-macro2 = "0.2"
+clippy = { version = "0.0.187", optional = true }
+
+[lib]
+proc-macro = true
+
+[features]
+default = []
+nightly = ["proc-macro2/nightly"]
+lint = ["clippy"]
