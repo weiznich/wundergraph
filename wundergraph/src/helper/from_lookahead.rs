@@ -87,7 +87,7 @@ extern crate chrono;
 #[cfg(feature = "chrono")]
 impl FromLookAheadValue for self::chrono::NaiveDateTime {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
-        if let LookAheadValue::String(ref s) = *v {
+        if let LookAheadValue::String(s) = *v {
             Self::parse_from_str(s, RFC3339_PARSE_FORMAT).ok()
         } else {
             None
@@ -98,7 +98,7 @@ impl FromLookAheadValue for self::chrono::NaiveDateTime {
 #[cfg(feature = "chrono")]
 impl FromLookAheadValue for self::chrono::NaiveDate {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
-        if let LookAheadValue::String(ref s) = *v {
+        if let LookAheadValue::String(s) = *v {
             Self::parse_from_str(s, RFC3339_FORMAT).ok()
         } else {
             None
@@ -112,7 +112,7 @@ extern crate uuid;
 #[cfg(feature = "uuid")]
 impl FromLookAheadValue for self::uuid::Uuid {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
-        if let LookAheadValue::String(ref s) = *v {
+        if let LookAheadValue::String(s) = *v {
             Self::parse_str(s).ok()
         } else {
             None

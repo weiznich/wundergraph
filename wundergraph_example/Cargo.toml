@@ -13,4 +13,8 @@ rocket = "0.3"
 rocket_codegen = "0.3"
 ordermap = "0.2"
 wundergraph = { path = "../wundergraph" }
-clippy = { version = "0.0.187", optional = true }
+clippy = { version = "0.0.188", optional = true }
+
+[features]
+default = []
+lint = ["clippy"]

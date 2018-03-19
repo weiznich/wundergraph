@@ -24,7 +24,6 @@ where
     }
 }
 
-
 impl<'a, T, DB> Default for OrCollector<'a, T, DB> {
     fn default() -> Self {
         OrCollector(None)

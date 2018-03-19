@@ -2,7 +2,7 @@ language: rust
 sudo: required
 dist: trusty
 rust:
-  - nightly-2018-03-06
+  - nightly-2018-03-18
 cache: cargo
 addons:
   postgresql: '9.5'
