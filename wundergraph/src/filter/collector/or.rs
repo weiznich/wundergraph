@@ -38,7 +38,7 @@ where
     fn append_filter<F, C>(&mut self, f: F, t: C)
     where
         C: Transformator,
-        F: BuildFilter + 'a,
+        F: BuildFilter<DB> + 'a,
         F::Ret: SelectableExpression<T> + QueryFragment<DB> + 'a,
     {
         let f = f.into_filter(t);
@@ -52,7 +52,10 @@ where
     }
 }
 
-impl<'a, T, DB> BuildFilter for OrCollector<'a, T, DB> {
+impl<'a, T, DB> BuildFilter<DB> for OrCollector<'a, T, DB>
+where
+    DB: Backend,
+{
     type Ret = Box<BoxableExpression<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>;
 
     fn into_filter<C>(self, _t: C) -> Option<Self::Ret>

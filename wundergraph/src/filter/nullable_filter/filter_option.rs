@@ -20,17 +20,17 @@ use helper::{FromLookAheadValue, NameBuilder, Nameable};
 use super::IsNull;
 
 #[derive(Debug)]
-pub struct NullableFilter<V, C, DB>
+pub struct NullableFilter<V, C>
 where
-    V: FilterValue<C, DB>,
+    V: FilterValue<C>,
 {
-    is_null: Option<IsNull<C, DB>>,
+    is_null: Option<IsNull<C>>,
     additional: V::AdditionalFilter,
 }
 
-impl<V, C, DB> Clone for NullableFilter<V, C, DB>
+impl<V, C> Clone for NullableFilter<V, C>
 where
-    V: FilterValue<C, DB>,
+    V: FilterValue<C>,
     V::AdditionalFilter: Clone,
 {
     fn clone(&self) -> Self {
@@ -41,22 +41,23 @@ where
     }
 }
 
-impl<V, C, DB> BuildFilter for NullableFilter<V, C, DB>
+impl<V, C, DB> BuildFilter<DB> for NullableFilter<V, C>
 where
     C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C::SqlType: SingleValue,
     C::Table: 'static,
     DB: Backend + 'static,
-    V: FilterValue<C, DB> + 'static,
-    V::AdditionalFilter: BuildFilter,
-    <V::AdditionalFilter as BuildFilter>::Ret: SelectableExpression<C::Table> + QueryFragment<DB>,
+    V: FilterValue<C> + 'static,
+    V::AdditionalFilter: BuildFilter<DB>,
+    <V::AdditionalFilter as BuildFilter<DB>>::Ret: SelectableExpression<C::Table>
+        + QueryFragment<DB>,
     V::RawValue: AsExpression<C::SqlType> + 'static,
     <V::RawValue as AsExpression<C::SqlType>>::Expression: SelectableExpression<C::Table>
         + NonAggregate
         + QueryFragment<DB>
         + 'static,
-    IsNull<C, DB>: BuildFilter,
-    <IsNull<C, DB> as BuildFilter>::Ret: SelectableExpression<C::Table> + QueryFragment<DB>,
+    IsNull<C>: BuildFilter<DB>,
+    <IsNull<C> as BuildFilter<DB>>::Ret: SelectableExpression<C::Table> + QueryFragment<DB>,
 {
     type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
 
@@ -71,20 +72,19 @@ where
     }
 }
 
-impl<V, C, DB> Nameable for NullableFilter<V, C, DB>
+impl<V, C> Nameable for NullableFilter<V, C>
 where
-    V: Nameable + FilterValue<C, DB>,
+    V: Nameable + FilterValue<C>,
 {
     fn name() -> String {
         format!("NullableFilter_{}_", V::name())
     }
 }
 
-impl<V, C, DB> InnerFilter for NullableFilter<V, C, DB>
+impl<V, C> InnerFilter for NullableFilter<V, C>
 where
-    V: FilterValue<C, DB>,
+    V: FilterValue<C> + Nameable,
     V::AdditionalFilter: InnerFilter,
-    Self: BuildFilter + Nameable,
 {
     type Context = ();
 

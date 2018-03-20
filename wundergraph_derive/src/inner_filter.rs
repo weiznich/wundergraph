@@ -8,18 +8,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     let item_name = item.ident;
     let model = Model::from_item(item)?;
 
-    let (impl_generics, ty_generics, _) = item.generics.split_for_impl();
-    let mut generics = item.generics.clone();
-    {
-        // TODO: improve this
-        // maybe try to remove the explicit Backend bound and
-        // replace it with with the next level of bounds?
-        let where_clause = generics.where_clause.get_or_insert(parse_quote!(where));
-        where_clause
-            .predicates
-            .push(parse_quote!(DB: Backend + 'static));
-    }
-    let (_, _, where_clause) = generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
     let field_count = model.fields().len();
 
     let from_inner_input_value = build_from_inner_input_value(&model)?;

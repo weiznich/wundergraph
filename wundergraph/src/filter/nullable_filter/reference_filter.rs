@@ -26,13 +26,13 @@ use helper::{FromLookAheadValue, NameBuilder, Nameable};
 use super::IsNull;
 
 #[derive(Debug)]
-pub struct NullableReferenceFilter<C, DB, I, C2> {
-    is_null: Option<IsNull<C, DB>>,
+pub struct NullableReferenceFilter<C, I, C2> {
+    is_null: Option<IsNull<C>>,
     inner: Box<I>,
     p: ::std::marker::PhantomData<C2>,
 }
 
-impl<C, DB, I, C2> Clone for NullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> Clone for NullableReferenceFilter<C, I, C2>
 where
     I: Clone,
 {
@@ -45,13 +45,13 @@ where
     }
 }
 
-impl<C, DB, I, C2> BuildFilter for NullableReferenceFilter<C, DB, I, C2>
+impl<C, DB, I, C2> BuildFilter<DB> for NullableReferenceFilter<C, I, C2>
 where
     C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C::Table: 'static,
     C::SqlType: SingleValue,
     DB: Backend + 'static,
-    I: BuildFilter + Clone + InnerFilter,
+    I: BuildFilter<DB> + Clone + InnerFilter,
     C2::Table: HasTable<Table = C2::Table>,
     C2: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C2::SqlType: NotNull,
@@ -62,8 +62,8 @@ where
         + 'static,
     IntoBoxed<'static, Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, Nullable<C2>>, DB>: AsInExpression<C::SqlType>,
     <IntoBoxed<'static, Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, Nullable<C2>>, DB> as AsInExpression<C::SqlType>>::InExpression: SelectableExpression<C::Table> + QueryFragment<DB>,
-       IsNull<C, DB>: BuildFilter,
-<IsNull<C, DB> as BuildFilter>::Ret: SelectableExpression<C::Table> + QueryFragment<DB>,
+       IsNull<C>: BuildFilter<DB>,
+<IsNull<C> as BuildFilter<DB>>::Ret: SelectableExpression<C::Table> + QueryFragment<DB>,
 EqAny<C,
       IntoBoxed<'static, Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, Nullable<C2>>, DB>>: SelectableExpression<C::Table, SqlType = Bool>,
 Or<NeAny<C,
@@ -100,7 +100,7 @@ Or<NeAny<C,
     }
 }
 
-impl<C, DB, I, C2> Nameable for NullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> Nameable for NullableReferenceFilter<C, I, C2>
 where
     I: Nameable,
 {
@@ -109,7 +109,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> FromInputValue for NullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> FromInputValue for NullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -134,7 +134,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> ToInputValue for NullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> ToInputValue for NullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -146,7 +146,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> FromLookAheadValue for NullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> FromLookAheadValue for NullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -168,7 +168,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> GraphQLType for NullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> GraphQLType for NullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -189,21 +189,9 @@ where
     }
 }
 
-impl<C, I, DB, C2> InnerFilter for NullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> InnerFilter for NullableReferenceFilter<C, I, C2>
 where
-    C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
-    C::SqlType: SingleValue,
-    DB: Backend + 'static,
     I: InnerFilter,
-    NullableReferenceFilter<C, DB, I, C2>: BuildFilter,
-    C2::Table: HasTable<Table = C2::Table>,
-    C2: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
-    C2::SqlType: NotNull,
-    <C2::Table as AsQuery>::Query: FilterDsl<I::Ret>,
-    Filter<<C2::Table as AsQuery>::Query, I::Ret>: QueryDsl + SelectDsl<Nullable<C2>>,
-    Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, Nullable<C2>>: QueryDsl
-        + BoxedDsl<'static, DB>
-        + 'static,
 {
     type Context = I::Context;
 

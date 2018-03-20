@@ -26,20 +26,20 @@ use self::eq_any::EqAny;
 use self::not_eq::NotEq;
 
 #[derive(Debug)]
-pub struct FilterOption<T, C, DB>
+pub struct FilterOption<T, C>
 where
-    T: FilterValue<C, DB>,
+    T: FilterValue<C>,
 {
-    eq: Eq<T::RawValue, C, DB>,
-    neq: NotEq<T::RawValue, C, DB>,
-    eq_any: EqAny<T::RawValue, C, DB>,
+    eq: Eq<T::RawValue, C>,
+    neq: NotEq<T::RawValue, C>,
+    eq_any: EqAny<T::RawValue, C>,
     // TODO: implement more
     additional: T::AdditionalFilter,
 }
 
-impl<T, C, DB> Clone for FilterOption<T, C, DB>
+impl<T, C> Clone for FilterOption<T, C>
 where
-    T: Clone + FilterValue<C, DB>,
+    T: Clone + FilterValue<C>,
     T::AdditionalFilter: Clone,
 {
     fn clone(&self) -> Self {
@@ -52,26 +52,16 @@ where
     }
 }
 
-impl<V, C, DB> InnerFilter for FilterOption<V, C, DB>
+impl<V, C> InnerFilter for FilterOption<V, C>
 where
     V: GraphQLType<TypeInfo = ()>
         + FromInputValue
         + ToInputValue
         + FromLookAheadValue
-        + FilterValue<C, DB>
+        + FilterValue<C>
         + 'static,
     Self: Nameable,
-    DB: Backend + 'static,
-    V::RawValue: AsExpression<C::SqlType>,
     V::AdditionalFilter: InnerFilter,
-    <V::AdditionalFilter as BuildFilter>::Ret: SelectableExpression<C::Table> + QueryFragment<DB>,
-    <V::RawValue as AsExpression<C::SqlType>>::Expression: NonAggregate
-        + SelectableExpression<C::Table>
-        + QueryFragment<DB>,
-    C: QueryFragment<DB> + NonAggregate + Column + Default + 'static,
-    C::SqlType: SingleValue,
-    C::Table: 'static,
-    Self: BuildFilter,
 {
     type Context = V::Context;
 
@@ -159,9 +149,9 @@ where
     }
 }
 
-impl<T, C, DB> FromInputValue for FilterOption<T, C, DB>
+impl<T, C> FromInputValue for FilterOption<T, C>
 where
-    T: FilterValue<C, DB>,
+    T: FilterValue<C>,
     Self: InnerFilter,
 {
     fn from_input_value(v: &InputValue) -> Option<Self> {
@@ -173,9 +163,9 @@ where
     }
 }
 
-impl<T, C, DB> ToInputValue for FilterOption<T, C, DB>
+impl<T, C> ToInputValue for FilterOption<T, C>
 where
-    T: FilterValue<C, DB>,
+    T: FilterValue<C>,
     Self: InnerFilter,
 {
     fn to_input_value(&self) -> InputValue {
@@ -185,9 +175,9 @@ where
     }
 }
 
-impl<T, C, DB> GraphQLType for FilterOption<T, C, DB>
+impl<T, C> GraphQLType for FilterOption<T, C>
 where
-    T: FilterValue<C, DB>,
+    T: FilterValue<C>,
     T: GraphQLType,
     Self: InnerFilter<Context = T::Context> + Nameable,
 {
@@ -206,18 +196,18 @@ where
     }
 }
 
-impl<V, C, DB> Nameable for FilterOption<V, C, DB>
+impl<V, C> Nameable for FilterOption<V, C>
 where
-    V: Nameable + FilterValue<C, DB>,
+    V: Nameable + FilterValue<C>,
 {
     fn name() -> String {
         format!("Filter_{}_", V::name())
     }
 }
 
-impl<T, C, DB> FromLookAheadValue for FilterOption<T, C, DB>
+impl<T, C> FromLookAheadValue for FilterOption<T, C>
 where
-    T: FromLookAheadValue + FilterValue<C, DB>,
+    T: FromLookAheadValue + FilterValue<C>,
     C: Column,
     Self: InnerFilter,
 {
@@ -230,12 +220,12 @@ where
     }
 }
 
-impl<T, C, DB> BuildFilter for FilterOption<T, C, DB>
+impl<T, C, DB> BuildFilter<DB> for FilterOption<T, C>
 where
     DB: Backend + 'static,
-    T: FilterValue<C, DB>,
-    T::AdditionalFilter: BuildFilter + 'static,
-    <T::AdditionalFilter as BuildFilter>::Ret: SelectableExpression<C::Table>
+    T: FilterValue<C>,
+    T::AdditionalFilter: BuildFilter<DB> + 'static,
+    <T::AdditionalFilter as BuildFilter<DB>>::Ret: SelectableExpression<C::Table>
         + QueryFragment<DB>
         + 'static,
     T::RawValue: AsExpression<C::SqlType> + 'static,

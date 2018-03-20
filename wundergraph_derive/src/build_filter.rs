@@ -8,18 +8,16 @@ use field::Field;
 pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     let item_name = item.ident;
     let model = Model::from_item(item)?;
-    let (impl_generics, ty_generics, _) = item.generics.split_for_impl();
+    let (_, ty_generics, _) = item.generics.split_for_impl();
     let mut generics = item.generics.clone();
+    generics.params.push(parse_quote!(__DB));
     {
-        // TODO: improve this
-        // maybe try to remove the explicit Backend bound and
-        // replace it with with the next level of bounds?
         let where_clause = generics.where_clause.get_or_insert(parse_quote!(where));
         where_clause
             .predicates
-            .push(parse_quote!(DB: Backend + 'static));
+            .push(parse_quote!(__DB: diesel::backend::Backend + 'static));
     }
-    let (_, _, where_clause) = generics.split_for_impl();
+    let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let table = model.table_type()?;
 
@@ -37,12 +35,13 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
             use self::wundergraph::filter::collector::AndCollector;
             use self::wundergraph::diesel::expression::BoxableExpression;
             use self::wundergraph::diesel::sql_types::Bool;
+            use self::wundergraph::diesel;
             use self::wundergraph::filter::transformator::Transformator;
 
-            impl #impl_generics BuildFilter for #item_name #ty_generics
+            impl #impl_generics BuildFilter<__DB> for #item_name #ty_generics
                 #where_clause
             {
-                type Ret = Box<BoxableExpression<#table::table, DB, SqlType = Bool>>;
+                type Ret = Box<BoxableExpression<#table::table, __DB, SqlType = Bool>>;
 
                 fn into_filter<__T>(self, t: __T) -> Option<Self::Ret>
                 where
@@ -62,5 +61,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
 
 fn build_field_filter(field: &Field) -> Result<quote::Tokens, Diagnostic> {
     let field_access = field.name.access();
-    Ok(quote!(<_ as self::wundergraph::filter::collector::FilterCollector<_, _>>::append_filter(&mut and, self #field_access, t);))
+    Ok(
+        quote!(<_ as self::wundergraph::filter::collector::FilterCollector<_, _>>::append_filter(&mut and, self #field_access, t);),
+    )
 }

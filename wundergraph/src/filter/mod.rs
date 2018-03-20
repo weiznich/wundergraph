@@ -38,14 +38,14 @@ use self::build_filter::BuildFilter;
 use self::inner_filter::InnerFilter;
 
 #[derive(Debug)]
-pub struct Filter<F, DB, T> {
-    and: Option<Vec<Filter<F, DB, T>>>,
-    or: Option<Vec<Filter<F, DB, T>>>,
+pub struct Filter<F, T> {
+    and: Option<Vec<Filter<F, T>>>,
+    or: Option<Vec<Filter<F, T>>>,
     inner: F,
-    p: ::std::marker::PhantomData<(DB, T)>,
+    p: ::std::marker::PhantomData<(T)>,
 }
 
-impl<F, DB, T> Nameable for Filter<F, DB, T>
+impl<F, T> Nameable for Filter<F, T>
 where
     F: Nameable,
 {
@@ -54,7 +54,7 @@ where
     }
 }
 
-impl<F, DB, T> Clone for Filter<F, DB, T>
+impl<F, T> Clone for Filter<F, T>
 where
     F: Clone,
 {
@@ -68,7 +68,7 @@ where
     }
 }
 
-impl<F, DB, T> FromInputValue for Filter<F, DB, T>
+impl<F, T> FromInputValue for Filter<F, T>
 where
     F: InnerFilter,
 {
@@ -104,7 +104,7 @@ where
     }
 }
 
-impl<F, DB, T> ToInputValue for Filter<F, DB, T>
+impl<F, T> ToInputValue for Filter<F, T>
 where
     F: InnerFilter,
 {
@@ -117,7 +117,7 @@ where
     }
 }
 
-impl<F, DB, T> GraphQLType for Filter<F, DB, T>
+impl<F, T> GraphQLType for Filter<F, T>
 where
     F: InnerFilter,
 {
@@ -129,8 +129,8 @@ where
     }
 
     fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
-        let and = registry.arg_with_default::<Option<Vec<Filter<F, DB, T>>>>("and", &None, info);
-        let or = registry.arg_with_default::<Option<Vec<Filter<F, DB, T>>>>("or", &None, info);
+        let and = registry.arg_with_default::<Option<Vec<Filter<F, T>>>>("and", &None, info);
+        let or = registry.arg_with_default::<Option<Vec<Filter<F, T>>>>("or", &None, info);
         let mut fields = vec![and, or];
         fields.extend(F::register_fields(&Default::default(), registry));
         registry
@@ -139,7 +139,7 @@ where
     }
 }
 
-impl<F, DB, T> FromLookAheadValue for Filter<F, DB, T>
+impl<F, T> FromLookAheadValue for Filter<F, T>
 where
     F: InnerFilter,
 {
@@ -167,10 +167,10 @@ where
     }
 }
 
-impl<F, DB, T> BuildFilter for Filter<F, DB, T>
+impl<F, DB, T> BuildFilter<DB> for Filter<F, T>
 where
     DB: Backend + 'static,
-    F: InnerFilter + BuildFilter<Ret = Box<BoxableExpression<T, DB, SqlType = Bool>>> + 'static,
+    F: InnerFilter + BuildFilter<DB, Ret = Box<BoxableExpression<T, DB, SqlType = Bool>>> + 'static,
     T: 'static,
 {
     type Ret = F::Ret;
@@ -198,19 +198,19 @@ where
     }
 }
 
-impl<F, D, T> Filter<F, D, T>
+impl<F, T> Filter<F, T>
 where
     F: InnerFilter,
-    Self: BuildFilter,
 {
-    pub fn apply_filter<'a, ST, B>(
+    pub fn apply_filter<'a, ST, DB>(
         self,
-        mut q: BoxedSelectStatement<'a, ST, T, B>,
-    ) -> BoxedSelectStatement<'a, ST, T, B>
+        mut q: BoxedSelectStatement<'a, ST, T, DB>,
+    ) -> BoxedSelectStatement<'a, ST, T, DB>
     where
         T: Table + 'a,
-        B: Backend + 'a,
-        <Self as BuildFilter>::Ret: AppearsOnTable<T> + QueryFragment<B> + 'a,
+        DB: Backend + 'a,
+        Self: BuildFilter<DB>,
+        <Self as BuildFilter<DB>>::Ret: AppearsOnTable<T> + QueryFragment<DB> + 'a,
     {
         if let Some(f) = self.into_filter(NoTransformator) {
             q = <BoxedSelectStatement<_, _, _> as QueryDsl>::filter(q, f);

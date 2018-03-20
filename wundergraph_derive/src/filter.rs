@@ -36,7 +36,6 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
                 Some(Ok(quote!{
                     #field_name: Option<#reference_ty<
                     #table_ty::#field_name,
-                    DB,
                     #remote_filter,
                     #remote_table::id,
                     >>
@@ -59,7 +58,6 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
                 Some(Ok(quote!{
                     #field_name: Option<#reference_ty<
                     #table_ty::id,
-                    DB,
                     #remote_filter,
                     #remote_table::#foreign_key,
                     >>
@@ -69,41 +67,19 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
                     #field_name: Option<self::wundergraph::filter::FilterOption<
                         #field_ty,
                         #table_ty::#field_name,
-                        DB
                     >>
                 }))
             }
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let clone_fields = model.fields().iter().filter_map(|f| {
-        if f.has_flag("skip") {
-            None
-        } else {
-            let field_name = &f.name;
-            let field_access = field_name.access();
-            Some(quote!{
-                #field_name: self#field_access.clone()
-            })
-        }
-    });
-
     Ok(wrap_in_dummy_mod_with_reeport(
         dummy_mod,
         &quote! {
-
-            #[derive(Nameable, BuildFilter, InnerFilter, Debug)]
+            #[derive(Nameable, BuildFilter, InnerFilter, Debug, Clone)]
             #[wundergraph(table_name = #table)]
-            pub struct #filter_name<DB> {
+            pub struct #filter_name {
                 #(#fields,)*
-            }
-
-            impl<DB> Clone for #filter_name<DB> {
-                fn clone(&self) -> Self {
-                    Self {
-                        #(#clone_fields,)*
-                    }
-                }
             }
         },
         &[quote!(#filter_name)],

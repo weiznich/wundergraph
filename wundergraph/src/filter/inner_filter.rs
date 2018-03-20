@@ -1,11 +1,10 @@
-use filter::build_filter::BuildFilter;
 use helper::{NameBuilder, Nameable};
 
 use ordermap::OrderMap;
 use juniper::{InputValue, LookAheadValue, Registry};
 use juniper::meta::Argument;
 
-pub trait InnerFilter: Sized + BuildFilter + Nameable {
+pub trait InnerFilter: Sized + Nameable {
     type Context;
 
     const FIELD_COUNT: usize;

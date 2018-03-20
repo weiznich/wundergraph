@@ -4,6 +4,7 @@ use filter::transformator::Transformator;
 
 use diesel::{BoxableExpression, Column};
 use diesel::sql_types::Bool;
+use diesel::backend::Backend;
 
 use juniper::{FromInputValue, InputValue, LookAheadValue, Registry, ToInputValue};
 use juniper::meta::Argument;
@@ -16,11 +17,11 @@ mod like;
 use self::like::Like;
 
 #[derive(Debug)]
-pub struct StringFilter<C, DB> {
-    like: Like<C, DB>,
+pub struct StringFilter<C> {
+    like: Like<C>,
 }
 
-impl<C, DB> Clone for StringFilter<C, DB> {
+impl<C> Clone for StringFilter<C> {
     fn clone(&self) -> Self {
         Self {
             like: self.like.clone(),
@@ -28,16 +29,17 @@ impl<C, DB> Clone for StringFilter<C, DB> {
     }
 }
 
-impl<C, DB> Nameable for StringFilter<C, DB> {
+impl<C> Nameable for StringFilter<C> {
     fn name() -> String {
         String::new()
     }
 }
 
-impl<C, DB> BuildFilter for StringFilter<C, DB>
+impl<C, DB> BuildFilter<DB> for StringFilter<C>
 where
+    DB: Backend,
     C: Column,
-    Like<C, DB>: BuildFilter<Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>>,
+    Like<C>: BuildFilter<DB, Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>>,
 {
     type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
 
@@ -49,10 +51,7 @@ where
     }
 }
 
-impl<C, DB> InnerFilter for StringFilter<C, DB>
-where
-    Self: BuildFilter,
-{
+impl<C> InnerFilter for StringFilter<C> {
     type Context = ();
 
     const FIELD_COUNT: usize = 1;

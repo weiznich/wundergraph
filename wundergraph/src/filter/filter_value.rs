@@ -3,50 +3,50 @@ use helper::FromLookAheadValue;
 use filter::string_filter::StringFilter;
 use filter::nullable_filter::NullableFilter;
 
-pub trait FilterValue<C, DB> {
+pub trait FilterValue<C> {
     type RawValue: Clone + FromInputValue + FromLookAheadValue + ToInputValue;
     type AdditionalFilter;
 }
 
-impl<C, DB> FilterValue<C, DB> for i32 {
+impl<C> FilterValue<C> for i32 {
     type RawValue = i32;
     type AdditionalFilter = ();
 }
 
-impl<C, DB> FilterValue<C, DB> for String {
+impl<C> FilterValue<C> for String {
     type RawValue = String;
-    type AdditionalFilter = StringFilter<C, DB>;
+    type AdditionalFilter = StringFilter<C>;
 }
 
-impl<C, DB> FilterValue<C, DB> for bool {
+impl<C> FilterValue<C> for bool {
     type RawValue = bool;
     type AdditionalFilter = ();
 }
 
-impl<C, DB> FilterValue<C, DB> for f64 {
+impl<C> FilterValue<C> for f64 {
     type RawValue = f64;
     type AdditionalFilter = ();
 }
 
-impl<V, C, DB> FilterValue<C, DB> for Option<V>
+impl<V, C> FilterValue<C> for Option<V>
 where
-    V: Clone + FromInputValue + FromLookAheadValue + ToInputValue + FilterValue<C, DB>,
+    V: Clone + FromInputValue + FromLookAheadValue + ToInputValue + FilterValue<C>,
 {
     type RawValue = V;
-    type AdditionalFilter = NullableFilter<V, C, DB>;
+    type AdditionalFilter = NullableFilter<V, C>;
 }
 
 #[cfg(feature = "chrono")]
 extern crate chrono;
 
 #[cfg(feature = "chrono")]
-impl<C, DB> FilterValue<C, DB> for self::chrono::NaiveDateTime {
+impl<C> FilterValue<C> for self::chrono::NaiveDateTime {
     type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 #[cfg(feature = "chrono")]
-impl<C, DB> FilterValue<C, DB> for self::chrono::NaiveDate {
+impl<C> FilterValue<C> for self::chrono::NaiveDate {
     type RawValue = Self;
     type AdditionalFilter = ();
 }
@@ -55,7 +55,7 @@ impl<C, DB> FilterValue<C, DB> for self::chrono::NaiveDate {
 extern crate uuid;
 
 #[cfg(feature = "uuid")]
-impl<C, DB> FilterValue<C, DB> for self::uuid::Uuid {
+impl<C> FilterValue<C> for self::uuid::Uuid {
     type RawValue = Self;
     type AdditionalFilter = ();
 }

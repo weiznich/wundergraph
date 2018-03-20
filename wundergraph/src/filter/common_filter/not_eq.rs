@@ -10,15 +10,15 @@ use diesel::sql_types::Bool;
 use juniper::{InputValue, ToInputValue};
 
 #[derive(Debug)]
-pub(super) struct NotEq<T, C, DB>(Option<T>, ::std::marker::PhantomData<(DB, C)>);
+pub(super) struct NotEq<T, C>(Option<T>, ::std::marker::PhantomData<C>);
 
-impl<T, C, DB> NotEq<T, C, DB> {
+impl<T, C> NotEq<T, C> {
     pub(super) fn new(v: Option<T>) -> Self {
         NotEq(v, Default::default())
     }
 }
 
-impl<T, C, DB> Clone for NotEq<T, C, DB>
+impl<T, C> Clone for NotEq<T, C>
 where
     T: Clone,
 {
@@ -27,7 +27,7 @@ where
     }
 }
 
-impl<C, T, DB> BuildFilter for NotEq<T, C, DB>
+impl<C, T, DB> BuildFilter<DB> for NotEq<T, C>
 where
     C: ExpressionMethods + NonAggregate + Column + QueryFragment<DB> + Default + 'static,
     T: AsExpression<C::SqlType>,
@@ -50,7 +50,7 @@ where
     }
 }
 
-impl<T, C, DB> ToInputValue for NotEq<T, C, DB>
+impl<T, C> ToInputValue for NotEq<T, C>
 where
     T: ToInputValue,
 {

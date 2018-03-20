@@ -15,6 +15,6 @@ pub trait FilterCollector<'a, T, DB: Backend> {
     fn append_filter<F, C>(&mut self, f: F, t: C)
     where
         C: Transformator,
-        F: BuildFilter + 'a,
+        F: BuildFilter<DB> + 'a,
         F::Ret: SelectableExpression<T> + QueryFragment<DB> + 'a;
 }

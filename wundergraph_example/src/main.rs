@@ -29,7 +29,6 @@ use rocket::http::Status;
 use rocket::request::{self, FromRequest};
 use rocket::{Outcome, Request, State};
 
-use diesel::sqlite::SqliteConnection;
 use diesel::serialize::{self, ToSql};
 use diesel::deserialize::{self, FromSql};
 use diesel::backend::Backend;
@@ -118,19 +117,16 @@ table! {
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity,
-         WundergraphFilter)]
+         WundergraphFilter, Copy)]
 #[primary_key(hero_id, episode)]
 #[table_name = "appears_in"]
-pub struct AppearsIn<DB> {
+pub struct AppearsIn {
     #[wundergraph(skip)]
     hero_id: i32,
     episode: Episode,
-    #[diesel(default)]
-    #[wundergraph(skip)]
-    p: ::std::marker::PhantomData<DB>,
 }
 
-impl<DB> BelongsTo<Hero<DB>> for AppearsIn<DB> {
+impl BelongsTo<Hero> for AppearsIn {
     type ForeignKey = i32;
     type ForeignKeyColumn = appears_in::hero_id;
 
@@ -147,17 +143,14 @@ impl<DB> BelongsTo<Hero<DB>> for AppearsIn<DB> {
          WundergraphFilter)]
 #[table_name = "friends"]
 #[primary_key(hero_id)]
-pub struct Friend<DB> {
+pub struct Friend {
     #[wundergraph(skip)]
     hero_id: i32,
     #[wundergraph(remote_table = "heros")]
-    friend_id: HasOne<i32, Hero<DB>>,
-    #[diesel(default)]
-    #[wundergraph(skip)]
-    p: ::std::marker::PhantomData<DB>,
+    friend_id: HasOne<i32, Hero>,
 }
 
-impl<DB> BelongsTo<Hero<DB>> for Friend<DB> {
+impl BelongsTo<Hero> for Friend {
     type ForeignKey = i32;
     type ForeignKeyColumn = friends::hero_id;
 
@@ -173,41 +166,35 @@ impl<DB> BelongsTo<Hero<DB>> for Friend<DB> {
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity,
          WundergraphFilter)]
 #[table_name = "home_worlds"]
-pub struct HomeWorld<DB> {
+pub struct HomeWorld {
     id: i32,
     name: String,
     #[diesel(default)]
     #[wundergraph(remote_table = "heros", is_nullable_reference = "true",
                   foreign_key = "home_world")]
-    heros: HasMany<Hero<DB>>,
-    #[diesel(default)]
-    #[wundergraph(skip)]
-    p: ::std::marker::PhantomData<DB>,
+    heros: HasMany<Hero>,
 }
 
 #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
          WundergraphFilter)]
 #[table_name = "heros"]
-pub struct Hero<DB> {
+pub struct Hero {
     id: i32,
     name: String,
     hair_color: Option<String>,
     #[wundergraph(remote_table = "species")]
-    species: HasOne<i32, Species<DB>>,
+    species: HasOne<i32, Species>,
     #[wundergraph(remote_table = "home_worlds")]
-    home_world: HasOne<Option<i32>, Option<HomeWorld<DB>>>,
+    home_world: HasOne<Option<i32>, Option<HomeWorld>>,
     #[diesel(default)]
     #[wundergraph(remote_table = "appears_in", foreign_key = "hero_id")]
-    appears_in: HasMany<AppearsIn<DB>>,
+    appears_in: HasMany<AppearsIn>,
     #[diesel(default)]
     #[wundergraph(remote_table = "friends", foreign_key = "hero_id")]
-    friends: HasMany<Friend<DB>>,
-    #[diesel(default)]
-    #[wundergraph(skip)]
-    p: ::std::marker::PhantomData<DB>,
+    friends: HasMany<Friend>,
 }
 
-impl<DB> BelongsTo<Species<DB>> for Hero<DB> {
+impl BelongsTo<Species> for Hero {
     type ForeignKey = i32;
     type ForeignKeyColumn = heros::species;
 
@@ -223,7 +210,7 @@ impl<DB> BelongsTo<Species<DB>> for Hero<DB> {
     }
 }
 
-impl<DB> BelongsTo<HomeWorld<DB>> for Hero<DB> {
+impl BelongsTo<HomeWorld> for Hero {
     type ForeignKey = i32;
     type ForeignKeyColumn = heros::home_world;
 
@@ -242,15 +229,12 @@ impl<DB> BelongsTo<HomeWorld<DB>> for Hero<DB> {
 #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
          WundergraphFilter)]
 #[table_name = "species"]
-pub struct Species<DB> {
+pub struct Species {
     id: i32,
     name: String,
     #[diesel(default)]
     #[wundergraph(remote_table = "heros", foreign_key = "species")]
-    heros: HasMany<Hero<DB>>,
-    #[diesel(default)]
-    #[wundergraph(skip)]
-    p: ::std::marker::PhantomData<DB>,
+    heros: HasMany<Hero>,
 }
 
 wundergraph_query_object!{
@@ -296,8 +280,8 @@ fn graphiql() -> content::Html<String> {
     juniper_rocket::graphiql_source("/graphql")
 }
 
-//type DBConnection = PgConnection;
-type DBConnection = SqliteConnection;
+//type DBConnection = ::diesel::PgConnection;
+type DBConnection = ::diesel::SqliteConnection;
 
 #[get("/graphql?<request>")]
 #[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]

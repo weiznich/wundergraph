@@ -1,17 +1,24 @@
 use diesel::expression::{BoxableExpression, Expression, NonAggregate, SqlLiteral};
+use diesel::query_builder::QueryFragment;
 use filter::transformator::Transformator;
 use diesel::sql_types::Bool;
+use diesel::backend::Backend;
 
-pub trait BuildFilter {
-    type Ret: Expression<SqlType = ::diesel::sql_types::Bool> + NonAggregate;
+pub trait BuildFilter<DB>
+where
+    DB: Backend,
+{
+    type Ret: Expression<SqlType = ::diesel::sql_types::Bool> + NonAggregate + QueryFragment<DB>;
 
     fn into_filter<T>(self, t: T) -> Option<Self::Ret>
     where
         T: Transformator;
 }
 
-impl<'a, T, DB> BuildFilter
+impl<'a, T, DB> BuildFilter<DB>
     for Box<BoxableExpression<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>
+where
+    DB: Backend,
 {
     type Ret = Self;
     fn into_filter<C>(self, _t: C) -> Option<Self::Ret>
@@ -22,9 +29,10 @@ impl<'a, T, DB> BuildFilter
     }
 }
 
-impl<T> BuildFilter for Option<T>
+impl<T, DB> BuildFilter<DB> for Option<T>
 where
-    T: BuildFilter,
+    T: BuildFilter<DB>,
+    DB: Backend,
 {
     type Ret = T::Ret;
 
@@ -36,21 +44,10 @@ where
     }
 }
 
-// impl<T> BuildFilter for Box<T>
-// where
-//     T: BuildFilter,
-// {
-//     type Ret = T::Ret;
-
-//     fn into_filter<C>(self, t: C) -> Option<Self::Ret>
-//     where
-//         C: Transformator,
-//     {
-//         T::into_filter(*self, t)
-//     }
-// }
-
-impl BuildFilter for () {
+impl<DB> BuildFilter<DB> for ()
+where
+    DB: Backend,
+{
     type Ret = SqlLiteral<Bool>;
 
     fn into_filter<C>(self, _t: C) -> Option<Self::Ret> {

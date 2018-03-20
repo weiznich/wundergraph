@@ -23,12 +23,12 @@ use ordermap::OrderMap;
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
 #[derive(Debug)]
-pub struct ReverseNullableReferenceFilter<C, DB, I, C2> {
+pub struct ReverseNullableReferenceFilter<C, I, C2> {
     inner: Box<I>,
-    p: ::std::marker::PhantomData<(C, DB, C2)>,
+    p: ::std::marker::PhantomData<(C, C2)>,
 }
 
-impl<C, DB, I, C2> Clone for ReverseNullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> Clone for ReverseNullableReferenceFilter<C, I, C2>
 where
     I: Clone,
 {
@@ -40,13 +40,13 @@ where
     }
 }
 
-impl<C, DB, I, C2> BuildFilter for ReverseNullableReferenceFilter<C, DB, I, C2>
+impl<C, DB, I, C2> BuildFilter<DB> for ReverseNullableReferenceFilter<C, I, C2>
 where
     C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C::SqlType: SingleValue + NotNull,
     Nullable<C>: SelectableExpression<C::Table> + ExpressionMethods,
     DB: Backend + 'static,
-    I: BuildFilter + Clone + InnerFilter,
+    I: BuildFilter<DB> + Clone + InnerFilter,
     C::Table: 'static,
     C2::Table: HasTable<Table = C2::Table> + 'static,
     C2: Column + ExpressionMethods + NonAggregate + QueryFragment<DB> + Default + 'static,
@@ -97,7 +97,7 @@ where
     }
 }
 
-impl<C, DB, I, C2> Nameable for ReverseNullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> Nameable for ReverseNullableReferenceFilter<C, I, C2>
 where
     I: Nameable,
 {
@@ -106,7 +106,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> FromInputValue for ReverseNullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> FromInputValue for ReverseNullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -122,7 +122,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> ToInputValue for ReverseNullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> ToInputValue for ReverseNullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -133,7 +133,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> FromLookAheadValue for ReverseNullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> FromLookAheadValue for ReverseNullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -150,7 +150,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> GraphQLType for ReverseNullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> GraphQLType for ReverseNullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -169,24 +169,9 @@ where
     }
 }
 
-impl<C, I, DB, C2> InnerFilter for ReverseNullableReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> InnerFilter for ReverseNullableReferenceFilter<C, I, C2>
 where
-    C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
-    C::SqlType: SingleValue + NotNull,
-    Nullable<C>: SelectableExpression<C::Table> + ExpressionMethods,
-    DB: Backend + 'static,
-    I: BuildFilter + Clone + InnerFilter,
-    C::Table: 'static,
-    C2::Table: HasTable<Table = C2::Table>,
-    C2: Column + ExpressionMethods + NonAggregate + QueryFragment<DB> + Default + 'static,
-    <C2::Table as AsQuery>::Query: FilterDsl<I::Ret>,
-    Filter<<C2::Table as AsQuery>::Query, I::Ret>: FilterDsl<IsNotNull<C2>> + SelectDsl<C2>,
-    Filter<Filter<<C2::Table as AsQuery>::Query, I::Ret>, IsNotNull<C2>>: SelectDsl<C2>,
-    Select<Filter<Filter<<C2::Table as AsQuery>::Query, I::Ret>, IsNotNull<C2>>, C2>: BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>
-        + QueryDsl,
-    Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>: BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>
-        + QueryDsl,
-    ReverseNullableReferenceFilter<C, DB, I, C2>: BuildFilter,
+    I: InnerFilter,
 {
     type Context = I::Context;
 

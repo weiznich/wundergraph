@@ -66,7 +66,7 @@ impl Model {
     }
 
     pub fn filter_type(&self) -> Option<syn::Path> {
-        let filter_name = format!("{}Filter<DB>", self.name);
+        let filter_name = format!("{}Filter", self.name);
         if let Ok(filter) = self.flags.nested_item("filter") {
             match filter.bool_value() {
                 Ok(true) => syn::parse_str(&filter_name).ok(),

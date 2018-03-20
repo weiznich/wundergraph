@@ -10,21 +10,21 @@ use diesel::sql_types::Bool;
 use juniper::{InputValue, ToInputValue};
 
 #[derive(Debug)]
-pub struct Like<C, DB>(Option<String>, ::std::marker::PhantomData<(C, DB)>);
+pub struct Like<C>(Option<String>, ::std::marker::PhantomData<C>);
 
-impl<C, DB> Like<C, DB> {
+impl<C> Like<C> {
     pub(super) fn new(v: Option<String>) -> Self {
         Like(v, Default::default())
     }
 }
 
-impl<C, DB> Clone for Like<C, DB> where {
+impl<C> Clone for Like<C> where {
     fn clone(&self) -> Self {
         Like(self.0.clone(), Default::default())
     }
 }
 
-impl<C, DB> BuildFilter for Like<C, DB>
+impl<C, DB> BuildFilter<DB> for Like<C>
 where
     C: TextExpressionMethods + NonAggregate + Column + QueryFragment<DB> + Default + 'static,
     String: AsExpression<C::SqlType>,
@@ -50,7 +50,7 @@ where
     }
 }
 
-impl<C, DB> ToInputValue for Like<C, DB> {
+impl<C> ToInputValue for Like<C> {
     fn to_input_value(&self) -> InputValue {
         self.0.to_input_value()
     }

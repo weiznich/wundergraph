@@ -11,15 +11,15 @@ use diesel::sql_types::Bool;
 use juniper::{InputValue, ToInputValue};
 
 #[derive(Debug)]
-pub(super) struct EqAny<T, C, DB>(Option<Vec<T>>, ::std::marker::PhantomData<(DB, C)>);
+pub(super) struct EqAny<T, C>(Option<Vec<T>>, ::std::marker::PhantomData<C>);
 
-impl<T, C, DB> EqAny<T, C, DB> {
+impl<T, C> EqAny<T, C> {
     pub(super) fn new(v: Option<Vec<T>>) -> Self {
         EqAny(v, Default::default())
     }
 }
 
-impl<T, C, DB> Clone for EqAny<T, C, DB>
+impl<T, C> Clone for EqAny<T, C>
 where
     T: Clone,
 {
@@ -28,7 +28,7 @@ where
     }
 }
 
-impl<C, T, DB> BuildFilter for EqAny<T, C, DB>
+impl<C, T, DB> BuildFilter<DB> for EqAny<T, C>
 where
     DB: Backend + 'static,
     C: ExpressionMethods + NonAggregate + Column + QueryFragment<DB> + Default + 'static,
@@ -51,7 +51,7 @@ where
     }
 }
 
-impl<T, C, DB> ToInputValue for EqAny<T, C, DB>
+impl<T, C> ToInputValue for EqAny<T, C>
 where
     T: ToInputValue,
 {

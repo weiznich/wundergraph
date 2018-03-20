@@ -55,12 +55,12 @@ impl Field {
     pub fn filter(&self) -> Option<syn::Path> {
         let filter_name = if let Some(n) = inner_ty_arg(&self.ty, "HasMany", 0) {
             format!(
-                "{}Filter<DB>",
+                "{}Filter",
                 ty_name(inner_of_option_ty(n)).expect("Invalid type")
             )
         } else if let Some(n) = inner_ty_arg(&self.ty, "HasOne", 1) {
             format!(
-                "{}Filter<DB>",
+                "{}Filter",
                 ty_name(inner_of_option_ty(n)).expect("Invalid type")
             )
         } else {

@@ -22,12 +22,12 @@ use ordermap::OrderMap;
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
 #[derive(Debug)]
-pub struct ReferenceFilter<C, DB, I, C2> {
+pub struct ReferenceFilter<C, I, C2> {
     inner: Box<I>,
-    p: ::std::marker::PhantomData<(C, DB, I, C2)>,
+    p: ::std::marker::PhantomData<(C, I, C2)>,
 }
 
-impl<C, DB, I, C2> Clone for ReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> Clone for ReferenceFilter<C, I, C2>
 where
     I: Clone,
 {
@@ -39,13 +39,13 @@ where
     }
 }
 
-impl<C, DB, I, C2> BuildFilter for ReferenceFilter<C, DB, I, C2>
+impl<C, DB, I, C2> BuildFilter<DB> for ReferenceFilter<C, I, C2>
 where
     C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C::SqlType: SingleValue,
     C::Table: 'static,
     DB: Backend + 'static,
-    I: BuildFilter + Clone + InnerFilter,
+    I: BuildFilter<DB> + Clone + InnerFilter,
     C2: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C2::Table: HasTable<Table = C2::Table>,
     <C2::Table as AsQuery>::Query: FilterDsl<I::Ret>,
@@ -84,7 +84,7 @@ where
     }
 }
 
-impl<C, DB, I, C2> Nameable for ReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> Nameable for ReferenceFilter<C, I, C2>
 where
     I: Nameable,
 {
@@ -93,7 +93,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> FromInputValue for ReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> FromInputValue for ReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -109,7 +109,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> ToInputValue for ReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> ToInputValue for ReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -120,7 +120,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> FromLookAheadValue for ReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> FromLookAheadValue for ReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -137,7 +137,7 @@ where
     }
 }
 
-impl<C, I, DB, C2> GraphQLType for ReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> GraphQLType for ReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -156,21 +156,9 @@ where
     }
 }
 
-impl<C, I, DB, C2> InnerFilter for ReferenceFilter<C, DB, I, C2>
+impl<C, I, C2> InnerFilter for ReferenceFilter<C, I, C2>
 where
-    C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
-    C::Table: 'static,
-    C::SqlType: SingleValue,
-    DB: Backend + 'static,
-    I: BuildFilter + Clone + InnerFilter,
-    C2: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
-    C2::Table: HasTable<Table = C2::Table>,
-    <C2::Table as AsQuery>::Query: FilterDsl<I::Ret>,
-    Filter<<C2::Table as AsQuery>::Query, I::Ret>: QueryDsl + SelectDsl<C2>,
-    Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>: QueryDsl
-        + BoxedDsl<'static, DB>
-        + 'static,
-    ReferenceFilter<C, DB, I, C2>: BuildFilter,
+    I: InnerFilter,
 {
     type Context = I::Context;
 

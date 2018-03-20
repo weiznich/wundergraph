@@ -10,15 +10,15 @@ use diesel::sql_types::Bool;
 use juniper::{InputValue, ToInputValue};
 
 #[derive(Debug)]
-pub struct Eq<T, C, DB>(Option<T>, ::std::marker::PhantomData<(C, DB)>);
+pub struct Eq<T, C>(Option<T>, ::std::marker::PhantomData<C>);
 
-impl<T, C, DB> Eq<T, C, DB> {
+impl<T, C> Eq<T, C> {
     pub(super) fn new(v: Option<T>) -> Self {
         Eq(v, Default::default())
     }
 }
 
-impl<T, C, DB> Clone for Eq<T, C, DB>
+impl<T, C> Clone for Eq<T, C>
 where
     T: Clone,
 {
@@ -27,7 +27,7 @@ where
     }
 }
 
-impl<C, T, DB> BuildFilter for Eq<T, C, DB>
+impl<C, T, DB> BuildFilter<DB> for Eq<T, C>
 where
     C: ExpressionMethods + NonAggregate + Column + QueryFragment<DB> + Default + 'static,
     T: AsExpression<C::SqlType>,
@@ -50,7 +50,7 @@ where
     }
 }
 
-impl<T, C, DB> ToInputValue for Eq<T, C, DB>
+impl<T, C> ToInputValue for Eq<T, C>
 where
     T: ToInputValue,
 {

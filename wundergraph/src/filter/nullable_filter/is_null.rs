@@ -10,21 +10,21 @@ use diesel::sql_types::Bool;
 use juniper::{InputValue, ToInputValue};
 
 #[derive(Debug)]
-pub struct IsNull<C, DB>(bool, ::std::marker::PhantomData<(C, DB)>);
+pub struct IsNull<C>(bool, ::std::marker::PhantomData<C>);
 
-impl<C, DB> IsNull<C, DB> {
+impl<C> IsNull<C> {
     pub(crate) fn new(v: bool) -> Self {
         IsNull(v, Default::default())
     }
 }
 
-impl<C, DB> Clone for IsNull<C, DB> {
+impl<C> Clone for IsNull<C> {
     fn clone(&self) -> Self {
         IsNull(self.0, Default::default())
     }
 }
 
-impl<C, DB> BuildFilter for IsNull<C, DB>
+impl<C, DB> BuildFilter<DB> for IsNull<C>
 where
     C: Column + ExpressionMethods + NonAggregate + QueryFragment<DB> + Default + 'static,
     DB: Backend + 'static,
@@ -52,7 +52,7 @@ where
     }
 }
 
-impl<C, DB> ToInputValue for IsNull<C, DB> {
+impl<C> ToInputValue for IsNull<C> {
     fn to_input_value(&self) -> InputValue {
         self.0.to_input_value()
     }

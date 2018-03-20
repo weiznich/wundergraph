@@ -95,16 +95,17 @@ macro_rules! wundergraph_query_object {
                 registry: &mut $crate::juniper::Registry<'r>
             ) -> $crate::juniper::meta::MetaType<'r> {
                 $(
-                    let mut $graphql_struct = registry.field::<Vec<$graphql_struct<Conn::Backend>>>(
+                    let mut $graphql_struct = registry.field::<Vec<$graphql_struct>>(
                         stringify!($graphql_struct),
                         info
                     );
 
                     $(
                         let filter = registry.arg_with_default::<Option<
-                            $crate::filter::Filter<$filter_name<Conn::Backend>,
-                                   Conn::Backend,
-                                   <$graphql_struct<Conn::Backend> as $crate::LoadingHandler<Conn>>::Table>>>
+                            $crate::filter::Filter<
+                                   $filter_name,
+                                   <$graphql_struct as $crate::LoadingHandler<Conn>>::Table>>
+                            >
                             ("filter", &None, &Default::default());
                         $graphql_struct = $graphql_struct.argument(filter);
                     )*
@@ -128,10 +129,10 @@ macro_rules! wundergraph_query_object {
                 use $crate::diesel::QueryDsl;
                 match field_name {
                     $(
-                        stringify!($graphql_struct) => self.handle::<$graphql_struct<Conn::Backend>>(
+                        stringify!($graphql_struct) => self.handle::<$graphql_struct>(
                             executor,
                             executor.look_ahead(),
-                            <$graphql_struct<Conn::Backend> as $crate::LoadingHandler<Conn>>::Table::table().into_boxed(),
+                            <$graphql_struct as $crate::LoadingHandler<Conn>>::Table::table().into_boxed(),
                         ),
                     )*
                     e => Err($crate::juniper::FieldError::new(

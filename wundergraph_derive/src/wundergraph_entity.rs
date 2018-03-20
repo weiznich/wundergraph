@@ -31,22 +31,19 @@ fn derive_loading_handler(
     let mut generics = item.generics.clone();
     generics.params.push(parse_quote!(__C));
     {
-        // TODO: improve this
-        // maybe try to remove the explicit Backend bound and
-        // replace it with with the next level of bounds?
         let where_clause = generics.where_clause.get_or_insert(parse_quote!(where));
         where_clause
             .predicates
-            .push(parse_quote!(__C: Connection<Backend = DB> + 'static));
+            .push(parse_quote!(__C: Connection + 'static));
         where_clause
             .predicates
-            .push(parse_quote!(DB: Backend + Clone + 'static));
+            .push(parse_quote!(__C::Backend: Clone + 'static));
         where_clause
             .predicates
             .push(parse_quote!(Self: Queryable<<#table::table as AsQuery>::SqlType, __C::Backend>));
-        where_clause
-            .predicates
-            .push(parse_quote!(DB::QueryBuilder: Default));
+        where_clause.predicates.push(parse_quote!(
+            <__C::Backend as Backend>::QueryBuilder: Default
+        ));
 
         // TODO: add more types
         let supported_types = [
@@ -57,9 +54,10 @@ fn derive_loading_handler(
             (quote!(i16), quote!(SmallInt)),
         ];
         for &(ref rust_ty, ref diesel_ty) in &supported_types {
-            where_clause
-                .predicates
-                .push(parse_quote!(#rust_ty: FromSql<#diesel_ty, DB>));
+            where_clause.predicates.push(
+                parse_quote!(#rust_ty: diesel::deserialize::FromSql<#diesel_ty, __C::Backend>),
+            );
+        }
         }
     }
     let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -67,7 +65,7 @@ fn derive_loading_handler(
     let filter = if let Some(filter) = model.filter_type() {
         Some(quote!{
            if let Some(f) = select.argument("filter") {
-               source = <self::wundergraph::filter::Filter<#filter, DB, #table::table> as
+               source = <self::wundergraph::filter::Filter<#filter, #table::table> as
                    self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(f.value())
                    .ok_or(Error::CouldNotBuildFilterArgument)?
                    .apply_filter(source);
@@ -304,18 +302,7 @@ fn derive_graphql_object(
     item: &syn::DeriveInput,
 ) -> Result<quote::Tokens, Diagnostic> {
     let item_name = item.ident;
-    let (impl_generics, ty_generics, _) = item.generics.split_for_impl();
-    let mut generics = item.generics.clone();
-    {
-        // TODO: improve this
-        // maybe try to remove the explicit Backend bound and
-        // replace it with with the next level of bounds?
-        let where_clause = generics.where_clause.get_or_insert(parse_quote!(where));
-        where_clause
-            .predicates
-            .push(parse_quote!(DB: Backend + 'static));
-    }
-    let (_, _, where_clause) = generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
 
     let field_count = model
         .fields()
@@ -417,11 +404,11 @@ fn derive_graphql_object(
                             Some(Ok(quote!{
                                 let filter = registry.arg_with_default::<Option<
                                     self::wundergraph::filter::Filter<
-                                    #filter, DB, #table::table>>>(
-                                    "filter",
-                                    &None,
-                                    &Default::default(),
-                                );
+                                    #filter,  #table::table>>>(
+                                        "filter",
+                                        &None,
+                                        &Default::default(),
+                                    );
                                 #field
                                 let #field_name = #field_name.argument(filter)
                             }))

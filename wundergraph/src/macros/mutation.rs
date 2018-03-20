@@ -38,7 +38,7 @@ macro_rules! __wundergraph_delete_key_names {
 #[macro_export]
 macro_rules! __wundergraph_mutation_expand_delete {
     ($entity: ident, $executor: ident, $arguments: ident, $primary_key:tt, true, ) => {
-            handle_delete::<Conn, $entity<_>, _, _, _>(
+            handle_delete::<Conn, $entity, _, _, _>(
                 $executor,
                 $arguments,
                 __wundergraph_delete_key_names!($entity, $primary_key)
@@ -123,7 +123,7 @@ macro_rules! __wundergraph_mutation_register_delete_args{
 macro_rules! __wundergraph_mutation_register_delete {
     ($fields: ident, $registry: ident, $info: ident,
      $entity_name: ident, $primary_key: tt, true, ) => {
-        let mut delete = $registry.field::<Option<$entity_name<Conn::Backend>>>(concat!("Delete", stringify!($entity_name)), $info);
+        let mut delete = $registry.field::<Option<$entity_name>>(concat!("Delete", stringify!($entity_name)), $info);
         __wundergraph_mutation_register_delete_args!($entity_name, $registry, $info, delete, $primary_key);
         $fields.push(delete);
     };
@@ -167,7 +167,7 @@ macro_rules! wundergraph_mutation_object {
                     Conn,
                     $insert,
                     $table,
-                    $entity_name<Conn::Backend>,
+                    $entity_name,
                     $primary_key,
                 >,
             )*
@@ -177,7 +177,7 @@ macro_rules! wundergraph_mutation_object {
                 Conn,
                 $table,
                 $primary_key,
-                $entity_name<Conn::Backend>
+                $entity_name
             >,
         )*
         $(
@@ -185,11 +185,12 @@ macro_rules! wundergraph_mutation_object {
                 Conn::Backend: $crate::mutations::HandleUpdate<
                     Conn,
                     $update,
-                    $entity_name<Conn::Backend>>,
+                    $entity_name
+                    >,
             )*
         )*
         $(
-            $entity_name<Conn::Backend>: $crate::LoadingHandler<Conn, SqlType = <$table as $crate::diesel::query_builder::AsQuery>::SqlType, Table = $table>,
+            $entity_name: $crate::LoadingHandler<Conn, SqlType = <$table as $crate::diesel::query_builder::AsQuery>::SqlType, Table = $table>,
         )*
         {
             type Context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<Conn>>;
@@ -208,11 +209,11 @@ macro_rules! wundergraph_mutation_object {
                 $(
                     $(
                         let new = registry.arg::<$insert>(concat!("New", stringify!($entity_name)), info);
-                        let new = registry.field::<Option<$entity_name<Conn::Backend>>>(concat!("Create", stringify!($entity_name)), info)
+                        let new = registry.field::<Option<$entity_name>>(concat!("Create", stringify!($entity_name)), info)
                             .argument(new);
                         fields.push(new);
                         let new = registry.arg::<Vec<$insert>>(concat!("New", stringify!($entity_name), "s"), info);
-                        let new = registry.field::<Vec<$entity_name<Conn::Backend>>>(concat!("Create", stringify!($entity_name), "s"), info)
+                        let new = registry.field::<Vec<$entity_name>>(concat!("Create", stringify!($entity_name), "s"), info)
                             .argument(new);
                         fields.push(new);
                     )*
@@ -220,7 +221,7 @@ macro_rules! wundergraph_mutation_object {
                 $(
                     $(
                         let update = registry.arg::<$update>(concat!("Update", stringify!($entity_name)), info);
-                        let update = registry.field::<Option<$entity_name<Conn::Backend>>>(concat!("Update", stringify!($entity_name)), info)
+                        let update = registry.field::<Option<$entity_name>>(concat!("Update", stringify!($entity_name)), info)
                             .argument(update);
                         fields.push(update);
                     )*
