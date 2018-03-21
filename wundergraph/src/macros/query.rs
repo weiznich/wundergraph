@@ -104,7 +104,7 @@ macro_rules! wundergraph_query_object {
                         let filter = registry.arg_with_default::<Option<
                             $crate::filter::Filter<
                                    $filter_name,
-                                   <$graphql_struct as $crate::LoadingHandler<Conn>>::Table>>
+                                   <$graphql_struct as $crate::diesel::associations::HasTable>::Table>>
                             >
                             ("filter", &None, &Default::default());
                         $graphql_struct = $graphql_struct.argument(filter);
@@ -132,7 +132,7 @@ macro_rules! wundergraph_query_object {
                         stringify!($graphql_struct) => self.handle::<$graphql_struct>(
                             executor,
                             executor.look_ahead(),
-                            <$graphql_struct as $crate::LoadingHandler<Conn>>::Table::table().into_boxed(),
+                            <$graphql_struct as HasTable>::table().into_boxed(),
                         ),
                     )*
                     e => Err($crate::juniper::FieldError::new(

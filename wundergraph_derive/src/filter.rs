@@ -1,7 +1,8 @@
 use quote;
 use syn;
 use diagnostic_shim::Diagnostic;
-use utils::{inner_ty_arg, is_has_many, is_has_one, is_option_ty, wrap_in_dummy_mod_with_reeport};
+use utils::{inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_option_ty,
+            wrap_in_dummy_mod_with_reeport};
 use model::Model;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
@@ -28,16 +29,22 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
                 } else {
                     quote!(self::wundergraph::filter::ReferenceFilter)
                 };
-                let remote_table = match f.remote_table() {
-                    Ok(t) => t,
-                    Err(e) => return Some(Err(e)),
-                };
+                let remote_table = f.remote_table().map(|t| quote!(#t::table)).unwrap_or_else(
+                    |_| {
+                        let remote_type = inner_of_option_ty(
+                            inner_ty_arg(&f.ty, "HasOne", 1).expect("It's HasOne"),
+                        );
+                        quote!{
+                            <#remote_type as diesel::associations::HasTable>::Table
+                        }
+                    },
+                );
                 let remote_filter = f.filter().expect("Filter is missing");
                 Some(Ok(quote!{
                     #field_name: Option<#reference_ty<
                     #table_ty::#field_name,
                     #remote_filter,
-                    #remote_table::id,
+                    <#remote_table as diesel::Table>::PrimaryKey,
                     >>
                 }))
             } else if is_has_many(field_ty) {
@@ -46,20 +53,22 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
                 } else {
                     quote!(self::wundergraph::filter::ReferenceFilter)
                 };
-                let remote_table = match f.remote_table() {
-                    Ok(t) => t,
-                    Err(e) => return Some(Err(e)),
-                };
-                let foreign_key = match f.foreign_key() {
-                    Ok(k) => k,
-                    Err(e) => return Some(Err(e)),
-                };
+                let remote_table = f.remote_table().map(|t| quote!(#t)).unwrap_or_else(|_| {
+                    let remote_type = inner_ty_arg(&f.ty, "HasMany", 0).expect("It is HasMany");
+                    quote!(<<#remote_type as diesel::associations::BelongsTo<#item_name>>::ForeignKeyColumn as diesel::Column>::Table)
+                });
+                let foreign_key = f.foreign_key()
+                    .map(|k| quote!(#remote_table::#k))
+                    .unwrap_or_else(|_| {
+                        let remote_type = inner_ty_arg(&f.ty, "HasMany", 0).expect("It is HasMany");
+                        quote!(<#remote_type as diesel::associations::BelongsTo<#item_name>>::ForeignKeyColumn)
+                    });
                 let remote_filter = f.filter().expect("Filter is missing");
                 Some(Ok(quote!{
                     #field_name: Option<#reference_ty<
-                    #table_ty::id,
+                    <#table_ty::table as diesel::Table>::PrimaryKey,
                     #remote_filter,
-                    #remote_table::#foreign_key,
+                    #foreign_key,
                     >>
                 }))
             } else {

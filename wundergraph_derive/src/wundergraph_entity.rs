@@ -191,10 +191,16 @@ fn derive_loading_handler(
                 let child_ty = inner_of_option_ty(child_ty);
                 let id_ty = inner_ty_arg(&f.ty, "HasOne", 0).expect("Is HasOne, so this exists");
                 let field_access = f.name.access();
-                let table = match f.remote_table() {
-                    Ok(t) => t,
-                    Err(e) => return Some(Err(e)),
-                };
+                let table = f.remote_table()
+                    .map(|t| quote!(#t::table))
+                    .unwrap_or_else(|_| {
+                        let remote_type = inner_of_option_ty(
+                            inner_ty_arg(&f.ty, "HasOne", 1).expect("It's HasOne"),
+                        );
+                        quote!{
+                            <#remote_type as diesel::associations::HasTable>::Table
+                        }
+                    });
                 let collect_ids = if is_option_ty(id_ty) {
                     quote!{
                         let ids = ret
@@ -232,7 +238,10 @@ fn derive_loading_handler(
                     let items = <#child_ty as LoadingHandler<_>>::load_item(
                         select,
                         conn,
-                        #table::table.filter(<_ as diesel::ExpressionMethods>::eq_any(#table::id, ids)).into_boxed()
+                        <#table as diesel::associations::HasTable>::table()
+                            .filter(<_ as diesel::ExpressionMethods>::eq_any(
+                                <_ as diesel::Table>::primary_key(&<#table as diesel::associations::HasTable>::table()),
+                                ids)).into_boxed()
                     )?.into_iter()
                         .map(|c| (c.id, c))
                         .collect::<self::std::collections::HashMap<_, _>>();
@@ -271,8 +280,7 @@ fn derive_loading_handler(
         impl#impl_generics LoadingHandler<__C> for #item_name #ty_generics
             #where_clause
         {
-            type Table = #table::table;
-            type SqlType = <#table::table as AsQuery>::SqlType;
+            type SqlType = <<Self as diesel::associations::HasTable>::Table as AsQuery>::SqlType;
 
             fn load_item<'a>(
                 select: &LookAheadSelection,
@@ -397,14 +405,17 @@ fn derive_graphql_object(
 
                     if let Some(filter) = f.filter() {
                         if is_has_many(&f.ty) {
-                            let table = match f.remote_table() {
-                                Ok(t) => t,
-                                Err(e) => return Some(Err(e)),
-                            };
+                            let table = f.remote_table().map(|t| quote!(#t::table)).unwrap_or_else(
+                                |_| {
+                                    let remote_type =
+                                        inner_ty_arg(&f.ty, "HasMany", 0).expect("It is HasMany");
+                                    quote!(<<#remote_type as diesel::associations::BelongsTo<#item_name>>::ForeignKeyColumn as diesel::Column>::Table)
+                                },
+                            );
                             Some(Ok(quote!{
                                 let filter = registry.arg_with_default::<Option<
                                     self::wundergraph::filter::Filter<
-                                    #filter,  #table::table>>>(
+                                    #filter,  #table>>>(
                                         "filter",
                                         &None,
                                         &Default::default(),

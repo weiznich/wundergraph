@@ -134,7 +134,6 @@ pub struct AppearsIn {
 pub struct Friend {
     #[wundergraph(skip)]
     hero_id: i32,
-    #[wundergraph(remote_table = "heros")]
     friend_id: HasOne<i32, Hero>,
 }
 
@@ -145,8 +144,7 @@ pub struct HomeWorld {
     id: i32,
     name: String,
     #[diesel(default)]
-    #[wundergraph(remote_table = "heros", is_nullable_reference = "true",
-                  foreign_key = "home_world")]
+    #[wundergraph(is_nullable_reference = "true")]
     heros: HasMany<Hero>,
 }
 
@@ -159,15 +157,11 @@ pub struct Hero {
     id: i32,
     name: String,
     hair_color: Option<String>,
-    #[wundergraph(remote_table = "species")]
     species: HasOne<i32, Species>,
-    #[wundergraph(remote_table = "home_worlds")]
     home_world: HasOne<Option<i32>, Option<HomeWorld>>,
     #[diesel(default)]
-    #[wundergraph(remote_table = "appears_in", foreign_key = "hero_id")]
     appears_in: HasMany<AppearsIn>,
     #[diesel(default)]
-    #[wundergraph(remote_table = "friends", foreign_key = "hero_id")]
     friends: HasMany<Friend>,
 }
 
@@ -178,7 +172,6 @@ pub struct Species {
     id: i32,
     name: String,
     #[diesel(default)]
-    #[wundergraph(remote_table = "heros", foreign_key = "species")]
     heros: HasMany<Hero>,
 }
 

@@ -33,17 +33,16 @@ pub mod error;
 #[macro_use]
 mod macros;
 
-use diesel::{Connection, Table};
+use diesel::Connection;
 use diesel::associations::HasTable;
-use diesel::query_builder::{AsQuery, BoxedSelectStatement};
+use diesel::query_builder::BoxedSelectStatement;
 
 use juniper::LookAheadSelection;
 
-pub trait LoadingHandler<C>: Sized
+pub trait LoadingHandler<C>: Sized + HasTable
 where
     C: Connection + 'static,
 {
-    type Table: Table + AsQuery;
     type SqlType;
 
     fn load_item<'a>(
@@ -51,18 +50,11 @@ where
         conn: &C,
         source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, C::Backend>,
     ) -> Result<Vec<Self>, self::error::Error>;
-
-    fn table() -> Self::Table
-    where
-        Self::Table: HasTable<Table = Self::Table> + Table,
-    {
-        Self::Table::table()
-    }
 }
 
 #[macro_export]
 #[doc(hidden)]
-/// Used by `diesel_derives`, which can't access `$crate`
+/// Used by `wundergraph_derives`, which can't access `$crate`
 macro_rules! __wundergraph_use_everything {
     () => {
         pub use $crate::*;

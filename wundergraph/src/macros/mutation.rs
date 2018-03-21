@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! __wundergraph_delete_key_names {
-    ($enity: ident, ($key1: tt, $key2:tt, $key3: tt, $key4: tt, $key5: tt)) => {
+    ($enity: ident,($key1: tt, $key2: tt, $key3: tt, $key4: tt, $key5: tt)) => {
         (
             concat!("Delete", stringify!($entity), "_id_1"),
             concat!("Delete", stringify!($entity), "_id_2"),
@@ -9,25 +9,25 @@ macro_rules! __wundergraph_delete_key_names {
             concat!("Delete", stringify!($entity), "_id_5"),
         )
     };
-    ($entity: ident, ($key1: tt, $key2:tt, $key3: tt, $key4: tt) ) => {
+    ($entity: ident,($key1: tt, $key2: tt, $key3: tt, $key4: tt)) => {
         (
             concat!("Delete", stringify!($entity), "_id_1"),
             concat!("Delete", stringify!($entity), "_id_2"),
             concat!("Delete", stringify!($entity), "_id_3"),
-            concat!("Delete", stringify!($entity), "_id_4")
+            concat!("Delete", stringify!($entity), "_id_4"),
         )
     };
-    ($entity: ident, ($key1: tt, $key2:tt, $key3: tt,) ) => {
+    ($entity: ident,($key1: tt, $key2: tt, $key3: tt,)) => {
         (
             concat!("Delete", stringify!($entity), "_id_1"),
             concat!("Delete", stringify!($entity), "_id_2"),
-            concat!("Delete", stringify!($entity), "_id_3")
+            concat!("Delete", stringify!($entity), "_id_3"),
         )
     };
-    ($entity: ident, ($key1: tt, $key2:tt) ) => {
+    ($entity: ident,($key1: tt, $key2: tt)) => {
         (
             concat!("Delete", stringify!($entity), "_id_1"),
-            concat!("Delete", stringify!($entity), "_id_2")
+            concat!("Delete", stringify!($entity), "_id_2"),
         )
     };
     ($entity: ident, $key1: tt) => {
@@ -37,22 +37,28 @@ macro_rules! __wundergraph_delete_key_names {
 
 #[macro_export]
 macro_rules! __wundergraph_mutation_expand_delete {
-    ($entity: ident, $executor: ident, $arguments: ident, $primary_key:tt, true, ) => {
-            handle_delete::<Conn, $entity, _, _, _>(
-                $executor,
-                $arguments,
-                __wundergraph_delete_key_names!($entity, $primary_key)
-            )
+    ($entity: ident, $executor: ident, $arguments: ident, $primary_key: tt,true,) => {
+        handle_delete::<Conn, $entity, _, _, _>(
+            $executor,
+            $arguments,
+            __wundergraph_delete_key_names!($entity, $primary_key),
+        )
     };
-    ($entity: ident, $executor: ident, $arguments: ident, $primary_key: tt, false, ) => {
+    ($entity: ident, $executor: ident, $arguments: ident, $primary_key: tt,false,) => {
         Err(FieldError::new(
             "Unknown field:",
             Value::String(concat!("Delete", stringify!($entity)).to_string()),
         ))
     };
-    ($entity: ident, $executor: ident, $arguments: ident, $primary_key: tt ,  ) => {
-        __wundergraph_mutation_expand_delete!($entity, $executor, $arguments, $primary_key, true,)
-    }
+    ($entity: ident, $executor: ident, $arguments: ident, $primary_key: tt,) => {
+        __wundergraph_mutation_expand_delete!(
+            $entity,
+            $executor,
+            $arguments,
+            $primary_key,
+            true,
+        )
+    };
 }
 
 #[macro_export]
