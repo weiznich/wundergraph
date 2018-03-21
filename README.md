@@ -28,31 +28,24 @@ table! {
 }
 
 #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
-         WundergraphFilter)]
+         WundergraphFilter, Associations)]
 #[table_name = "heros"]
-pub struct Hero<DB> {
+#[belongs_to(Species, foreign_key = "species)]
+pub struct Hero {
     id: i32,
     name: String,
     hair_color: Option<String>,
-    #[wundergraph(remote_table = "species")]
-    species: HasOne<i32, Species<DB>>,
-    #[diesel(default)]
-    #[wundergraph(skip)]
-    p: ::std::marker::PhantomData<DB>,
+    species: HasOne<i32, Species>,
 }
 
 #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
          WundergraphFilter)]
 #[table_name = "species"]
-pub struct Species<DB> {
+pub struct Species {
     id: i32,
     name: String,
     #[diesel(default)]
-    #[wundergraph(remote_table = "heros", foreign_key = "species")]
-    heros: HasMany<Hero<DB>>,
-    #[diesel(default)]
-    #[wundergraph(skip)]
-    p: ::std::marker::PhantomData<DB>,
+    heros: HasMany<Hero>,
 }
 
 wundergraph_query_object!{
