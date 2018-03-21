@@ -33,7 +33,6 @@ use diesel::serialize::{self, ToSql};
 use diesel::deserialize::{self, FromSql};
 use diesel::backend::Backend;
 use diesel::sql_types::SmallInt;
-use diesel::associations::BelongsTo;
 use diesel::r2d2::{ConnectionManager, Pool};
 
 use std::io::Write;
@@ -117,8 +116,9 @@ table! {
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity,
-         WundergraphFilter, Copy)]
+         WundergraphFilter, Copy, Associations)]
 #[primary_key(hero_id, episode)]
+#[belongs_to(Hero)]
 #[table_name = "appears_in"]
 pub struct AppearsIn {
     #[wundergraph(skip)]
@@ -126,41 +126,16 @@ pub struct AppearsIn {
     episode: Episode,
 }
 
-impl BelongsTo<Hero> for AppearsIn {
-    type ForeignKey = i32;
-    type ForeignKeyColumn = appears_in::hero_id;
-
-    fn foreign_key(&self) -> Option<&Self::ForeignKey> {
-        Some(&self.hero_id)
-    }
-
-    fn foreign_key_column() -> Self::ForeignKeyColumn {
-        appears_in::hero_id
-    }
-}
-
 #[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter)]
+         WundergraphFilter, Associations)]
 #[table_name = "friends"]
 #[primary_key(hero_id)]
+#[belongs_to(Hero)]
 pub struct Friend {
     #[wundergraph(skip)]
     hero_id: i32,
     #[wundergraph(remote_table = "heros")]
     friend_id: HasOne<i32, Hero>,
-}
-
-impl BelongsTo<Hero> for Friend {
-    type ForeignKey = i32;
-    type ForeignKeyColumn = friends::hero_id;
-
-    fn foreign_key(&self) -> Option<&Self::ForeignKey> {
-        Some(&self.hero_id)
-    }
-
-    fn foreign_key_column() -> Self::ForeignKeyColumn {
-        friends::hero_id
-    }
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity,
@@ -176,8 +151,10 @@ pub struct HomeWorld {
 }
 
 #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
-         WundergraphFilter)]
+         WundergraphFilter, Associations)]
 #[table_name = "heros"]
+#[belongs_to(Species, foreign_key = "species")]
+#[belongs_to(HomeWorld, foreign_key = "home_world")]
 pub struct Hero {
     id: i32,
     name: String,
@@ -192,38 +169,6 @@ pub struct Hero {
     #[diesel(default)]
     #[wundergraph(remote_table = "friends", foreign_key = "hero_id")]
     friends: HasMany<Friend>,
-}
-
-impl BelongsTo<Species> for Hero {
-    type ForeignKey = i32;
-    type ForeignKeyColumn = heros::species;
-
-    fn foreign_key(&self) -> Option<&Self::ForeignKey> {
-        match self.species {
-            HasOne::Id(ref i) => Some(i),
-            HasOne::Item(ref i) => Some(&i.id),
-        }
-    }
-
-    fn foreign_key_column() -> Self::ForeignKeyColumn {
-        heros::species
-    }
-}
-
-impl BelongsTo<HomeWorld> for Hero {
-    type ForeignKey = i32;
-    type ForeignKeyColumn = heros::home_world;
-
-    fn foreign_key(&self) -> Option<&Self::ForeignKey> {
-        match self.home_world {
-            HasOne::Id(ref i) => i.as_ref(),
-            HasOne::Item(ref i) => i.as_ref().map(|i| &i.id),
-        }
-    }
-
-    fn foreign_key_column() -> Self::ForeignKeyColumn {
-        heros::home_world
-    }
 }
 
 #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
