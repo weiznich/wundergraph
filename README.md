@@ -5,6 +5,8 @@ Wundergraph provides a platform to easily expose your database through a GraphQL
 
 **This library is currently a prof of concept. Expect bugs and crashes everywhere**
 
+[![Build Status](https://travis-ci.org/weiznich/wundergraph.svg?branch=master)](https://travis-ci.org/weiznich/wundergraph)
+
 
 ## Example
 For a full example application see the [example project](https://github.com/weiznich/wundergraph/tree/master/wundergraph_example/src/main.rs)

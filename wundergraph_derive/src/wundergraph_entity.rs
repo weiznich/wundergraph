@@ -58,7 +58,6 @@ fn derive_loading_handler(
                 parse_quote!(#rust_ty: diesel::deserialize::FromSql<#diesel_ty, __C::Backend>),
             );
         }
-        }
     }
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
