@@ -1,5 +1,4 @@
 language: rust
-sudo: required
 dist: trusty
 rust:
   - nightly-2018-03-18
@@ -10,22 +9,13 @@ before_script:
   - pip install 'travis-cargo<0.2' --user
   - export PATH=$HOME/.local/bin:$PATH
 script:
-  - (cd wundergraph_derive && cargo rustc --no-default-features --features "lint" -- -Zno-trans)
-  - (cd wundergraph && cargo rustc --no-default-features --features "lint sqlite postgres extras" -- -Zno-trans)
-  - (cd wundergraph_example && cargo rustc --no-default-features --features "lint" -- -Zno-trans)
-    #matrix:
-    #  include:
-    #  - rust: nightly-2018-03-05
-    #    env: CLIPPY_AND_COMPILE_TESTS=YESPLEASE
-    #    script:
-    #    - (cd wundergraph_derive && cargo rustc --no-default-features --features "lint" -- -Zno-trans)
-    #    - (cd wundergraph && cargo rustc --no-default-features --features "lint sqlite postgres extras" -- -Zno-trans)
-    #    - (cd wundergraph_example && cargo rustc --no-default-features --features "lint" -- -Zno-trans)
-#  - rust: nightly-2018-03-06
-#    env: RUSTFMT=YESPLEASE
-#    script:
-#    - cargo install rustfmt-nightly --vers 0.3.7 --force
-#    - cargo fmt --all -- --write-mode=diff
+  - (cd wundergraph_derive && cargo rustc --no-default-features --features "lint $BACKEND" -- -Zno-trans)
+  - (cd wundergraph && cargo rustc --no-default-features --features "lint $BACKEND extras" -- -Zno-trans)
+  - (cd wundergraph_example && cargo rustc --no-default-features --features "lint $BACKEND" -- -Zno-trans)
+env:
+  matrix:
+    - BACKEND=sqlite
+    - BACKEND=postgres
 branches:
   only:
     - master

@@ -12,9 +12,14 @@ juniper_rocket = "=0.1.2"
 rocket = "0.3"
 rocket_codegen = "0.3"
 ordermap = "0.2"
-wundergraph = { path = "../wundergraph" }
 clippy = { version = "0.0.188", optional = true }
 
+[dependencies.wundergraph]
+path = "../wundergraph"
+default-features = false
+
 [features]
-default = []
+default = ["sqlite"]
 lint = ["clippy"]
+sqlite = ["wundergraph/sqlite"]
+postgres = ["wundergraph/postgres"]
