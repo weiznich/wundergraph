@@ -20,51 +20,11 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     ))
 }
 
-fn derive_loading_handler(
-    model: &Model,
-    item: &syn::DeriveInput,
-) -> Result<quote::Tokens, Diagnostic> {
-    let item_name = item.ident;
-    let table = model.table_type()?;
-
-    let (_, ty_generics, _) = item.generics.split_for_impl();
-    let mut generics = item.generics.clone();
-    generics.params.push(parse_quote!(__C));
-    {
-        let where_clause = generics.where_clause.get_or_insert(parse_quote!(where));
-        where_clause
-            .predicates
-            .push(parse_quote!(__C: Connection + 'static));
-        where_clause
-            .predicates
-            .push(parse_quote!(__C::Backend: Clone + 'static));
-        where_clause
-            .predicates
-            .push(parse_quote!(Self: Queryable<<#table::table as AsQuery>::SqlType, __C::Backend>));
-        where_clause.predicates.push(parse_quote!(
-            <__C::Backend as Backend>::QueryBuilder: Default
-        ));
-
-        // TODO: add more types
-        let supported_types = [
-            (quote!(i32), quote!(Integer)),
-            (quote!(String), quote!(Text)),
-            (quote!(bool), quote!(Bool)),
-            (quote!(f64), quote!(Double)),
-            (quote!(i16), quote!(SmallInt)),
-        ];
-        for &(ref rust_ty, ref diesel_ty) in &supported_types {
-            where_clause.predicates.push(
-                parse_quote!(#rust_ty: diesel::deserialize::FromSql<#diesel_ty, __C::Backend>),
-            );
-        }
-    }
-    let (impl_generics, _, where_clause) = generics.split_for_impl();
-
-    let filter = if let Some(filter) = model.filter_type() {
+fn apply_filter(model: &Model) -> Option<quote::Tokens> {
+    if let Some(filter) = model.filter_type() {
         Some(quote!{
            if let Some(f) = select.argument("filter") {
-               source = <self::wundergraph::filter::Filter<#filter, #table::table> as
+               source = <self::wundergraph::filter::Filter<#filter, <Self as diesel::associations::HasTable>::Table> as
                    self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(f.value())
                    .ok_or(Error::CouldNotBuildFilterArgument)?
                    .apply_filter(source);
@@ -72,9 +32,11 @@ fn derive_loading_handler(
         })
     } else {
         None
-    };
+    }
+}
 
-    let limit = if model.should_have_limit() {
+fn apply_limit(model: &Model) -> Option<quote::Tokens> {
+    if model.should_have_limit() {
         Some(quote!{
             if let Some(l) = select.argument("limit") {
                 source = source.limit(<i32 as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(l.value())
@@ -84,9 +46,11 @@ fn derive_loading_handler(
         })
     } else {
         None
-    };
+    }
+}
 
-    let offset = if model.should_have_offset() {
+fn apply_offset(model: &Model) -> Option<quote::Tokens> {
+    if model.should_have_offset() {
         Some(quote!{
             if let Some(o) = select.argument("offset") {
                 source = source.offset(<i32 as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
@@ -96,9 +60,12 @@ fn derive_loading_handler(
         })
     } else {
         None
-    };
+    }
+}
 
-    let order = if model.should_have_order() {
+fn apply_order(model: &Model) -> Result<Option<quote::Tokens>, Diagnostic> {
+    if model.should_have_order() {
+        let table = model.table_type()?;
         let fields = model
             .fields()
             .iter()
@@ -119,9 +86,9 @@ fn derive_loading_handler(
             })
             .collect::<Vec<_>>();
         if fields.is_empty() {
-            None
+            Ok(None)
         } else {
-            Some(quote!{
+            Ok(Some(quote!{
                 if let Some(o) = select.argument("order") {
                     let order: Vec<_> = <Vec<self::wundergraph::order::OrderBy> as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
                         .ok_or(Error::CouldNotBuildFilterArgument)?;
@@ -134,59 +101,61 @@ fn derive_loading_handler(
                         }
                     }
                 }
-            })
+            }))
         }
     } else {
-        None
-    };
-    let field_count = model
-        .fields()
-        .iter()
-        .filter(|f| !f.has_flag("skip"))
-        .count();
+        Ok(None)
+    }
+}
 
-    let has_many = model.fields().iter().filter_map(|f| {
-        if f.has_flag("skip") || !is_has_many(&f.ty) {
-            None
-        } else {
-            let field_name = &f.name;
-            let parent_ty = inner_ty_arg(&f.ty, "HasMany", 0);
-            let field_access = f.name.access();
-            let inner = quote!{
-                let p = <#parent_ty as LoadingHandler<_>>::load_item(
-                    select,
-                    conn,
-                    <#parent_ty as diesel::BelongingToDsl<_>>::belonging_to(&ret).into_boxed())?;
-                let p = <_ as diesel::GroupedBy<_>>::grouped_by(p, &ret);
-                for (c, p) in ret.iter_mut().zip(p.into_iter()) {
-                    c#field_access = self::wundergraph::query_helper::HasMany::Items(p);
-                }
-            };
-            if field_count > 1 {
-                Some(quote!{
-                    if let Some(select) =
-                        <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
-                            select,
-                            stringify!(#field_name),
-                        ) {
-                        #inner
-                    }
-                })
-            } else {
-                Some(inner)
-            }
-        }
-    });
-
-    let has_one = model
+fn handle_has_many(model: &Model, field_count: usize) -> Vec<quote::Tokens> {
+    model
         .fields()
         .iter()
         .filter_map(|f| {
-            if f.has_flag("skip") || !is_has_one(&f.ty) {
+            if f.has_flag("skip") || !is_has_many(&f.ty) {
                 None
             } else {
                 let field_name = &f.name;
-                let child_ty = inner_ty_arg(&f.ty, "HasOne", 1).expect("Is HasOne, so this exists");
+                let parent_ty = inner_ty_arg(&f.ty, "HasMany", 0);
+                let field_access = f.name.access();
+                let inner = quote!{
+                    let p = <#parent_ty as LoadingHandler<_>>::load_item(
+                        select,
+                        conn,
+                        <#parent_ty as diesel::BelongingToDsl<_>>::belonging_to(&ret).into_boxed())?;
+                    let p = <_ as diesel::GroupedBy<_>>::grouped_by(p, &ret);
+                    for (c, p) in ret.iter_mut().zip(p.into_iter()) {
+                        c#field_access = self::wundergraph::query_helper::HasMany::Items(p);
+                    }
+                };
+                if field_count > 1 {
+                    Some(quote!{
+                        if let Some(select) =
+                            <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
+                                select,
+                                stringify!(#field_name),
+                            ) {
+                            #inner
+                        }
+                    })
+                } else {
+                    Some(inner)
+                }
+            }
+        })
+        .collect()
+}
+
+fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<quote::Tokens>, Diagnostic> {
+    model
+        .fields()
+        .iter()
+        .filter_map(|f| {
+            if f.has_flag("skip") {
+                None
+            } else if let Some(child_ty) = inner_ty_arg(&f.ty, "HasOne", 1) {
+                let field_name = &f.name;
                 let child_ty = inner_of_option_ty(child_ty);
                 let id_ty = inner_ty_arg(&f.ty, "HasOne", 0).expect("Is HasOne, so this exists");
                 let field_access = f.name.access();
@@ -200,20 +169,16 @@ fn derive_loading_handler(
                             <#remote_type as diesel::associations::HasTable>::Table
                         }
                     });
-                let collect_ids = if is_option_ty(id_ty) {
-                    quote!{
-                        let ids = ret
-                            .iter()
-                            .filter_map(|i| *i#field_access.expect_id("Id is there"))
-                            .collect::<Vec<_>>();
-                    }
+                let map_fn = if is_option_ty(id_ty) {
+                    quote!(filter_map)
                 } else {
-                    quote!{
-                        let ids = ret
-                            .iter()
-                            .map(|i| *i#field_access.expect_id("Id is there"))
-                            .collect::<Vec<_>>();
-                    }
+                    quote!(map)
+                };
+                let collect_ids = quote!{
+                    let ids = ret
+                        .iter()
+                        .#map_fn(|i| *i#field_access.expect_id("Id is there"))
+                        .collect::<Vec<_>>();
                 };
                 let lookup_and_assign = if is_option_ty(id_ty) {
                     quote!{
@@ -242,7 +207,7 @@ fn derive_loading_handler(
                                 <_ as diesel::Table>::primary_key(&<#table as diesel::associations::HasTable>::table()),
                                 ids)).into_boxed()
                     )?.into_iter()
-                        .map(|c| (c.id, c))
+                        .map(|c| (*<_ as diesel::Identifiable>::id(&c), c))
                         .collect::<self::std::collections::HashMap<_, _>>();
                     for i in &mut ret {
                         let id = *i#field_access.expect_id("Id is there");
@@ -261,31 +226,37 @@ fn derive_loading_handler(
                 } else {
                     Some(Ok(inner))
                 }
+            } else {
+                None
             }
         })
-        .collect::<Result<Vec<_>, Diagnostic>>()?;
+        .collect()
+}
 
-    Ok(quote!{
-        use self::wundergraph::error::Error;
-        use self::wundergraph::LoadingHandler;
-        use self::wundergraph::diesel::query_builder::{AsQuery, BoxedSelectStatement};
-        use self::wundergraph::diesel::{self, Connection, Queryable, QueryDsl};
-        use self::wundergraph::diesel::RunQueryDsl;
-        use self::wundergraph::diesel::backend::Backend;
-        use self::wundergraph::diesel::sql_types::{Bool, Text, Integer, Double, SmallInt};
-        use self::wundergraph::juniper::LookAheadSelection;
-
+fn impl_loading_handler(
+    item: &syn::DeriveInput,
+    backend: &quote::Tokens,
+    filter: Option<&quote::Tokens>,
+    limit: Option<&quote::Tokens>,
+    offset: Option<&quote::Tokens>,
+    order: Option<&quote::Tokens>,
+    remote_fields: &[quote::Tokens],
+) -> quote::Tokens {
+    let item_name = item.ident;
+    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
+    quote!{
         #[allow(unused_mut)]
-        impl#impl_generics LoadingHandler<__C> for #item_name #ty_generics
+        impl#impl_generics LoadingHandler<#backend> for #item_name #ty_generics
             #where_clause
         {
-            type SqlType = <<Self as diesel::associations::HasTable>::Table as AsQuery>::SqlType;
 
-            fn load_item<'a>(
+            fn load_item<'a, __C>(
                 select: &LookAheadSelection,
                 conn: &__C,
-                mut source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, __C::Backend>,
-            ) -> Result<Vec<Self>, Error> {
+                mut source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, #backend>,
+            ) -> Result<Vec<Self>, Error>
+                where __C: diesel::Connection<Backend = #backend> + 'static,
+            {
                 #filter
 
                 #limit
@@ -295,12 +266,80 @@ fn derive_loading_handler(
                 println!("{}", diesel::debug_query(&source));
                 let mut ret: Vec<Self> = source.load(conn)?;
 
-                #(#has_many)*
-                #(#has_one)*
+                #(#remote_fields)*
 
                 Ok(ret)
             }
         }
+    }
+}
+
+fn derive_loading_handler(
+    model: &Model,
+    item: &syn::DeriveInput,
+) -> Result<quote::Tokens, Diagnostic> {
+    let item_name = item.ident;
+    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
+    let wundergraph_entity = quote!{
+        impl#impl_generics WundergraphEntity for #item_name #ty_generics
+            #where_clause
+        {
+            type SqlType = <<Self as diesel::associations::HasTable>::Table  as AsQuery>::SqlType;
+        }
+    };
+
+    let field_count = model
+        .fields()
+        .iter()
+        .filter(|f| !f.has_flag("skip"))
+        .count();
+
+    let filter = apply_filter(model);
+    let limit = apply_limit(model);
+    let offset = apply_offset(model);
+    let order = apply_order(model)?;
+    let has_many = handle_has_many(model, field_count);
+    let has_one = handle_has_one(model, field_count)?;
+    let mut remote_fields = has_many;
+    remote_fields.extend(has_one);
+    let pg = if cfg!(feature = "postgres") {
+        Some(impl_loading_handler(
+            item,
+            &quote!(diesel::pg::Pg),
+            filter.as_ref(),
+            limit.as_ref(),
+            offset.as_ref(),
+            order.as_ref(),
+            &remote_fields,
+        ))
+    } else {
+        None
+    };
+
+    let sqlite = if cfg!(feature = "sqlite") {
+        Some(impl_loading_handler(
+            item,
+            &quote!(diesel::sqlite::Sqlite),
+            filter.as_ref(),
+            limit.as_ref(),
+            offset.as_ref(),
+            order.as_ref(),
+            &remote_fields,
+        ))
+    } else {
+        None
+    };
+
+    Ok(quote!{
+        use self::wundergraph::error::Error;
+        use self::wundergraph::{LoadingHandler, WundergraphEntity};
+        use self::wundergraph::diesel::query_builder::{AsQuery, BoxedSelectStatement};
+        use self::wundergraph::diesel::{RunQueryDsl, QueryDsl, self};
+        use self::wundergraph::juniper::LookAheadSelection;
+
+        #wundergraph_entity
+        #pg
+        #sqlite
     })
 }
 

@@ -85,6 +85,8 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     Ok(wrap_in_dummy_mod_with_reeport(
         dummy_mod,
         &quote! {
+            use self::wundergraph::diesel;
+
             #[derive(Nameable, BuildFilter, InnerFilter, Debug, Clone)]
             #[wundergraph(table_name = #table)]
             pub struct #filter_name {

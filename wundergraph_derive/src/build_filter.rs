@@ -6,19 +6,7 @@ use model::Model;
 use field::Field;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
-    let item_name = item.ident;
     let model = Model::from_item(item)?;
-    let (_, ty_generics, _) = item.generics.split_for_impl();
-    let mut generics = item.generics.clone();
-    generics.params.push(parse_quote!(__DB));
-    {
-        let where_clause = generics.where_clause.get_or_insert(parse_quote!(where));
-        where_clause
-            .predicates
-            .push(parse_quote!(__DB: diesel::backend::Backend + 'static));
-    }
-    let (impl_generics, _, where_clause) = generics.split_for_impl();
-
     let table = model.table_type()?;
 
     let fields = model
@@ -26,6 +14,28 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
         .iter()
         .map(build_field_filter)
         .collect::<Result<Vec<_>, _>>()?;
+
+    let pg = if cfg!(feature = "postgres") {
+        Some(impl_build_filter(
+            item,
+            &fields,
+            &quote!(diesel::pg::Pg),
+            table,
+        ))
+    } else {
+        None
+    };
+
+    let sqlite = if cfg!(feature = "sqlite") {
+        Some(impl_build_filter(
+            item,
+            &fields,
+            &quote!(diesel::sqlite::Sqlite),
+            table,
+        ))
+    } else {
+        None
+    };
 
     let dummy_mod = model.dummy_mod_name("build_filter");
     Ok(wrap_in_dummy_mod(
@@ -35,28 +45,43 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
             use self::wundergraph::filter::collector::AndCollector;
             use self::wundergraph::diesel::expression::BoxableExpression;
             use self::wundergraph::diesel::sql_types::Bool;
-            use self::wundergraph::diesel;
             use self::wundergraph::filter::transformator::Transformator;
 
-            impl #impl_generics BuildFilter<__DB> for #item_name #ty_generics
-                #where_clause
-            {
-                type Ret = Box<BoxableExpression<#table::table, __DB, SqlType = Bool>>;
+            #pg
+            #sqlite
 
-                fn into_filter<__T>(self, t: __T) -> Option<Self::Ret>
-                where
-                    __T: Transformator
-                {
-
-                    let mut and = AndCollector::default();
-
-                    #(#fields)*
-
-                    and.into_filter(t)
-                }
-            }
         },
     ))
+}
+
+fn impl_build_filter(
+    item: &syn::DeriveInput,
+    fields: &[quote::Tokens],
+    backend: &quote::Tokens,
+    table: syn::Ident,
+) -> quote::Tokens {
+    let item_name = item.ident;
+    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
+    quote!{
+        impl #impl_generics BuildFilter<#backend> for #item_name #ty_generics
+            #where_clause
+
+        {
+            type Ret = Box<BoxableExpression<#table::table, #backend, SqlType = Bool>>;
+
+            fn into_filter<__T>(self, t: __T) -> Option<Self::Ret>
+            where
+                __T: Transformator
+            {
+
+                let mut and = AndCollector::<_, #backend>::default();
+
+                #(#fields)*
+
+                and.into_filter(t)
+            }
+        }
+    }
 }
 
 fn build_field_filter(field: &Field) -> Result<quote::Tokens, Diagnostic> {

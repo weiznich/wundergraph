@@ -8,8 +8,9 @@ use diesel::expression::{operators, AsExpression, NonAggregate, SelectableExpres
 use diesel::expression::array_comparison::{In, Many};
 use diesel::backend::Backend;
 use diesel::{BoxableExpression, Column};
-use diesel::sql_types::{Bool, SingleValue};
+use diesel::sql_types::{Bool, HasSqlType, SingleValue};
 use diesel::query_builder::QueryFragment;
+use diesel::serialize::ToSql;
 
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 use juniper::meta::{Argument, MetaType};
@@ -222,13 +223,13 @@ where
 
 impl<T, C, DB> BuildFilter<DB> for FilterOption<T, C>
 where
-    DB: Backend + 'static,
+    DB: Backend + HasSqlType<C::SqlType> + 'static,
     T: FilterValue<C>,
     T::AdditionalFilter: BuildFilter<DB> + 'static,
     <T::AdditionalFilter as BuildFilter<DB>>::Ret: SelectableExpression<C::Table>
         + QueryFragment<DB>
         + 'static,
-    T::RawValue: AsExpression<C::SqlType> + 'static,
+    T::RawValue: AsExpression<C::SqlType> + ToSql<C::SqlType, DB> + 'static,
     <T::RawValue as AsExpression<C::SqlType>>::Expression: NonAggregate
         + SelectableExpression<C::Table>
         + QueryFragment<DB>

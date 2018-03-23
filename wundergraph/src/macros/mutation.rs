@@ -38,7 +38,7 @@ macro_rules! __wundergraph_delete_key_names {
 #[macro_export]
 macro_rules! __wundergraph_mutation_expand_delete {
     ($entity: ident, $executor: ident, $arguments: ident, $primary_key: tt,true,) => {
-        handle_delete::<Conn, $entity, _, _, _>(
+        $crate::mutations::handle_delete::<Conn, $entity, _, _, _>(
             $executor,
             $arguments,
             __wundergraph_delete_key_names!($entity, $primary_key),
@@ -145,8 +145,7 @@ macro_rules! wundergraph_mutation_object {
     (
         $mutation_name: ident {
             $($entity_name: ident(
-                key = $primary_key: tt,
-                table = $table: ty
+                key = $primary_key: tt
                 $(, insert = $insert: ident)*
                 $(, update = $update: ident)*
                 $(, delete = $delete: tt)*
@@ -172,7 +171,7 @@ macro_rules! wundergraph_mutation_object {
                 Conn::Backend: $crate::mutations::HandleInsert<
                     Conn,
                     $insert,
-                    $table,
+                    <$entity_name as $crate::diesel::associations::HasTable>::Table,
                     $entity_name,
                     $primary_key,
                 >,
@@ -181,7 +180,7 @@ macro_rules! wundergraph_mutation_object {
         $(
             Conn::Backend: $crate::mutations::HandleDelete<
                 Conn,
-                $table,
+                <$entity_name as $crate::diesel::associations::HasTable>::Table,
                 $primary_key,
                 $entity_name
             >,
@@ -196,7 +195,7 @@ macro_rules! wundergraph_mutation_object {
             )*
         )*
         $(
-            $entity_name: $crate::LoadingHandler<Conn, SqlType = <$table as $crate::diesel::query_builder::AsQuery>::SqlType, Table = $table>,
+            $entity_name: $crate::LoadingHandler<Conn::Backend>,
         )*
         {
             type Context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<Conn>>;
@@ -246,19 +245,18 @@ macro_rules! wundergraph_mutation_object {
                 arguments: &$crate::juniper::Arguments,
                 executor: &$crate::juniper::Executor<Self::Context>,
             ) -> $crate::juniper::ExecutionResult {
-                use $crate::mutations::{handle_insert, handle_batch_insert, handle_delete, HandleUpdate};
                 match field_name {
                     $(
                         $(
                             concat!("Create", stringify!($entity_name)) => {
-                                handle_insert::<Conn, $insert, _, _, _>(
+                                $crate::mutations::handle_insert::<Conn, $insert, _, _, _>(
                                     executor,
                                     arguments,
                                     concat!("New", stringify!($entity_name))
                                 )
                             }
                             concat!("Create", stringify!($entity_name), "s") => {
-                                handle_batch_insert::<Conn, $insert, _, _, _>(
+                                $crate::mutations::handle_batch_insert::<Conn, $insert, _, _, _>(
                                     executor,
                                     arguments,
                                     concat!("New", stringify!($entity_name), "s")
@@ -272,7 +270,12 @@ macro_rules! wundergraph_mutation_object {
                                 if let Some(update) = arguments.get::<$update>(
                                     concat!("Update", stringify!($entity_name))
                                 ) {
-                                    Conn::Backend::handle_update(executor, &update)
+
+                                    <Conn::Backend as $crate::mutations::HandleUpdate<
+                                        Conn,
+                                        $update,
+                                        $entity_name
+                                     >>::handle_update(executor, &update)
                                 } else {
                                     Err($crate::juniper::FieldError::new(
                                         concat!("Missing argument Update",

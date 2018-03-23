@@ -31,7 +31,7 @@ where
           Tab::Query: FilterDsl<<Tab::PrimaryKey as EqAll<<&'a C as Identifiable>::Id>>::Output>,
     Filter<Tab::Query, <Tab::PrimaryKey as EqAll<<&'a C as Identifiable>::Id>>::Output>: LimitDsl,
     Limit<Filter<Tab::Query, <Tab::PrimaryKey as EqAll<<&'a C as Identifiable>::Id>>::Output>>: QueryDsl + BoxedDsl<'a, Conn::Backend, Output = BoxedSelectStatement<'a, Tab::SqlType, Tab, Conn::Backend>>,
-        R:  LoadingHandler<Conn, Table = Tab, SqlType = Tab::SqlType>
+        R:  LoadingHandler<Conn::Backend, Table = Tab, SqlType = Tab::SqlType>
         + GraphQLType<TypeInfo = (), Context = ()>,
     ;
 }
@@ -57,7 +57,7 @@ where
               Tab::Query: FilterDsl<<Tab::PrimaryKey as EqAll<<&'a C as Identifiable>::Id>>::Output>,
     Filter<Tab::Query, <Tab::PrimaryKey as EqAll<<&'a C as Identifiable>::Id>>::Output>: LimitDsl,
     Limit<Filter<Tab::Query, <Tab::PrimaryKey as EqAll<<&'a C as Identifiable>::Id>>::Output>>: QueryDsl + BoxedDsl<'a, Conn::Backend, Output = BoxedSelectStatement<'a, Tab::SqlType, Tab, Conn::Backend>>,
-        R:  LoadingHandler<Conn, Table = Tab, SqlType = Tab::SqlType>
+        R:  LoadingHandler<Conn::Backend, Table = Tab, SqlType = Tab::SqlType>
         + GraphQLType<TypeInfo = (), Context = ()>,
 
     {

@@ -163,7 +163,7 @@ where
     T::FromClause: QueryFragment<Conn::Backend>,
     T::AllColumns: QueryFragment<Conn::Backend> + QueryId,
     Conn::Backend: HasSqlType<<T::AllColumns as Expression>::SqlType>,
-    R: LoadingHandler<Conn, Table = T, SqlType = T::SqlType>
+    R: LoadingHandler<Conn::Backend, Table = T, SqlType = T::SqlType>
         + GraphQLType<TypeInfo = (), Context = ()>,
     Filter<Q, <T::PrimaryKey as EqAll<Id>>::Output>: Copy + IntoUpdateTarget<Table = T> + LimitDsl,
     Limit<Filter<Q, <T::PrimaryKey as EqAll<Id>>::Output>>: QueryDsl

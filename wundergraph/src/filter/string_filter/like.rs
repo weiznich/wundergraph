@@ -5,7 +5,8 @@ use diesel::{BoxableExpression, Column, SelectableExpression, TextExpressionMeth
 use diesel::expression::{operators, AsExpression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::backend::Backend;
-use diesel::sql_types::Bool;
+use diesel::sql_types::{Bool, HasSqlType, Text};
+use diesel::serialize::ToSql;
 
 use juniper::{InputValue, ToInputValue};
 
@@ -32,7 +33,8 @@ where
         + SelectableExpression<C::Table>
         + QueryFragment<DB>
         + 'static,
-    DB: Backend + 'static,
+    DB: Backend + HasSqlType<Text> + 'static,
+    String: ToSql<Text, DB>,
     C::Table: 'static,
     operators::Like<C, <String as AsExpression<C::SqlType>>::Expression>: SelectableExpression<C::Table, SqlType = Bool>,
 {

@@ -2,16 +2,17 @@ use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
 
 use diesel::{BoxableExpression, Column, ExpressionMethods, SelectableExpression};
-use diesel::expression::{AsExpression, NonAggregate};
+use diesel::expression::{AsExpression, Expression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::expression::array_comparison::{In, Many};
 use diesel::backend::Backend;
-use diesel::sql_types::Bool;
+use diesel::sql_types::{Bool, HasSqlType};
+use diesel::serialize::ToSql;
 
 use juniper::{InputValue, ToInputValue};
 
 #[derive(Debug)]
-pub(super) struct EqAny<T, C>(Option<Vec<T>>, ::std::marker::PhantomData<C>);
+pub struct EqAny<T, C>(Option<Vec<T>>, ::std::marker::PhantomData<C>);
 
 impl<T, C> EqAny<T, C> {
     pub(super) fn new(v: Option<Vec<T>>) -> Self {
@@ -30,9 +31,9 @@ where
 
 impl<C, T, DB> BuildFilter<DB> for EqAny<T, C>
 where
-    DB: Backend + 'static,
+    DB: Backend + HasSqlType<<C as Expression>::SqlType> + 'static,
     C: ExpressionMethods + NonAggregate + Column + QueryFragment<DB> + Default + 'static,
-    T: AsExpression<C::SqlType>,
+    T: AsExpression<C::SqlType> + ToSql<<C as Expression>::SqlType, DB>,
     T::Expression: SelectableExpression<C::Table> + QueryFragment<DB> + 'static,
     C::Table: 'static,
     In<C, Many<<T as AsExpression<C::SqlType>>::Expression>>: SelectableExpression<C::Table, SqlType = Bool>,
