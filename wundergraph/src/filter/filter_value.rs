@@ -46,6 +46,16 @@ impl<C> FilterValue<C> for self::chrono::NaiveDateTime {
 }
 
 #[cfg(feature = "chrono")]
+impl<O, C> FilterValue<C> for self::chrono::DateTime<O>
+where
+    O: self::chrono::TimeZone,
+    Self: ToInputValue + FromInputValue + FromLookAheadValue,
+{
+    type RawValue = Self;
+    type AdditionalFilter = ();
+}
+
+#[cfg(feature = "chrono")]
 impl<C> FilterValue<C> for self::chrono::NaiveDate {
     type RawValue = Self;
     type AdditionalFilter = ();
