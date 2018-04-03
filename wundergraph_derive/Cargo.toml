@@ -17,3 +17,5 @@ proc-macro = true
 default = []
 nightly = ["proc-macro2/nightly"]
 lint = ["clippy"]
+postgres = []
+sqlite = []

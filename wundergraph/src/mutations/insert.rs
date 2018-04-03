@@ -1,20 +1,40 @@
 use diesel::r2d2::{ConnectionManager, PooledConnection};
-use diesel::{Connection, EqAll, Insertable, QueryDsl, Queryable, RunQueryDsl, Table};
-use diesel::query_builder::{InsertStatement, QueryFragment, UndecoratedInsertRecord};
+use diesel::{Connection, Insertable, QueryDsl, RunQueryDsl, Table};
+use diesel::query_builder::QueryFragment;
 use diesel::associations::HasTable;
-use diesel::query_dsl::methods::{BoxedDsl, ExecuteDsl, FilterDsl, LimitDsl, OrderDsl};
+use diesel::query_builder::BoxedSelectStatement;
+use diesel::query_dsl::methods::BoxedDsl;
+use diesel::sql_types::Bool;
+
+#[cfg(feature = "postgres")]
+use diesel::{EqAll, Queryable};
+#[cfg(feature = "postgres")]
+use diesel::query_builder::UndecoratedInsertRecord;
+#[cfg(feature = "postgres")]
+use diesel::dsl::Filter;
+#[cfg(feature = "postgres")]
+use diesel::query_dsl::methods::FilterDsl;
+#[cfg(feature = "postgres")]
 use diesel::insertable::CanInsertInSingleQuery;
-#[cfg(feature = "sqlite")]
-use diesel::sqlite::{Sqlite, SqliteConnection};
+#[cfg(feature = "postgres")]
+use diesel::sql_types::HasSqlType;
 #[cfg(feature = "postgres")]
 use diesel::pg::{Pg, PgConnection};
-use diesel::expression::{BoxableExpression, Expression, NonAggregate, SelectableExpression,
-                         SqlLiteral};
+#[cfg(feature = "postgres")]
+use diesel::expression::{BoxableExpression, Expression, NonAggregate, SelectableExpression};
+
+#[cfg(feature = "sqlite")]
+use diesel::expression::SqlLiteral;
+#[cfg(feature = "sqlite")]
 use diesel::expression::dsl::sql;
-use diesel::sql_types::Bool;
-use diesel::sql_types::HasSqlType;
-use diesel::query_builder::BoxedSelectStatement;
-use diesel::dsl::{Filter, Order};
+#[cfg(feature = "sqlite")]
+use diesel::sqlite::{Sqlite, SqliteConnection};
+#[cfg(feature = "sqlite")]
+use diesel::dsl::Order;
+#[cfg(feature = "sqlite")]
+use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, OrderDsl};
+#[cfg(feature = "sqlite")]
+use diesel::query_builder::InsertStatement;
 
 use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value};
 use LoadingHandler;
@@ -82,7 +102,7 @@ where
     I::Values: QueryFragment<Pg> + CanInsertInSingleQuery<Pg>,
     <Vec<I> as Insertable<T>>::Values: QueryFragment<Pg> + CanInsertInSingleQuery<Pg>,
     Pg: HasSqlType<<T::PrimaryKey as Expression>::SqlType>,
-    R: LoadingHandler<PgConnection, Table = T, SqlType = T::SqlType>
+    R: LoadingHandler<Pg, Table = T, SqlType = T::SqlType>
         + GraphQLType<TypeInfo = (), Context = ()>,
     Id: Queryable<<T::PrimaryKey as Expression>::SqlType, Pg>,
     T::Query: FilterDsl<<T::PrimaryKey as EqAll<Id>>::Output>,
@@ -159,7 +179,7 @@ where
     T::Query: OrderDsl<SqlLiteral<Bool>>,
     Order<T::Query, SqlLiteral<Bool>>: QueryDsl
         + BoxedDsl<'static, Sqlite, Output = BoxedSelectStatement<'static, T::SqlType, T, Sqlite>>,
-    R: LoadingHandler<SqliteConnection, Table = T, SqlType = T::SqlType>
+    R: LoadingHandler<Sqlite, Table = T, SqlType = T::SqlType>
         + GraphQLType<Context = (), TypeInfo = ()>,
 {
     fn handle_insert(

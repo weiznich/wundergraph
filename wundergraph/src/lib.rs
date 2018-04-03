@@ -34,22 +34,29 @@ pub mod error;
 mod macros;
 
 use diesel::Connection;
+use diesel::Queryable;
+use diesel::backend::Backend;
 use diesel::associations::HasTable;
 use diesel::query_builder::BoxedSelectStatement;
 
 use juniper::LookAheadSelection;
 
-pub trait LoadingHandler<C>: Sized + HasTable
-where
-    C: Connection + 'static,
-{
+pub trait WundergraphEntity: Sized + HasTable {
     type SqlType;
+}
 
-    fn load_item<'a>(
+pub trait LoadingHandler<DB>
+    : WundergraphEntity + Queryable<<Self as WundergraphEntity>::SqlType, DB>
+where
+    DB: Backend,
+{
+    fn load_item<'a, C>(
         select: &LookAheadSelection,
         conn: &C,
-        source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, C::Backend>,
-    ) -> Result<Vec<Self>, self::error::Error>;
+        source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, DB>,
+    ) -> Result<Vec<Self>, self::error::Error>
+    where
+        C: Connection<Backend = DB> + 'static;
 }
 
 #[macro_export]

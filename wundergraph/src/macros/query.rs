@@ -73,14 +73,12 @@ macro_rules! wundergraph_query_object {
 
         impl<Conn> $crate::juniper::GraphQLType for $query_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<Conn>>>
         where
-            Conn: $crate::diesel::Connection + 'static,
-            Conn::Backend: Clone,
-            <Conn::Backend as Backend>::QueryBuilder: Default,
-            String: $crate::diesel::deserialize::FromSql<$crate::diesel::sql_types::Text, Conn::Backend>,
-            i32: $crate::diesel::deserialize::FromSql<$crate::diesel::sql_types::Integer, Conn::Backend>,
-            bool: $crate::diesel::deserialize::FromSql<$crate::diesel::sql_types::Bool, Conn::Backend>,
-            f64: $crate::diesel::deserialize::FromSql<$crate::diesel::sql_types::Double, Conn::Backend>,
-            i16: $crate::diesel::deserialize::FromSql<$crate::diesel::sql_types::SmallInt, Conn::Backend>,
+            Conn: $crate::diesel::Connection<TransactionManager = $crate::diesel::connection::AnsiTransactionManager> + 'static,
+            Conn::Backend: Clone + $crate::diesel::backend::UsesAnsiSavepointSyntax,
+            <Conn::Backend as $crate::diesel::backend::Backend>::QueryBuilder: Default,
+            $(
+                $graphql_struct: $crate::LoadingHandler<Conn::Backend>,
+            )*
         {
             type Context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<Conn>>;
             type TypeInfo = ();
@@ -149,7 +147,8 @@ macro_rules! wundergraph_query_object {
 
         impl<Conn> $query_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<Conn>>>
         where
-            Conn: $crate::diesel::Connection + 'static,
+            Conn: $crate::diesel::Connection<TransactionManager = $crate::diesel::connection::AnsiTransactionManager> + 'static,
+            Conn::Backend: $crate::diesel::backend::UsesAnsiSavepointSyntax,
             <Conn::Backend as $crate::diesel::backend::Backend>::QueryBuilder: Default,
         {
             fn handle<T>(
@@ -161,7 +160,7 @@ macro_rules! wundergraph_query_object {
                 sel: $crate::diesel::query_builder::BoxedSelectStatement<T::SqlType, T::Table, Conn::Backend>,
             ) -> $crate::juniper::ExecutionResult
             where
-                T: $crate::LoadingHandler<Conn> + $crate::juniper::GraphQLType<TypeInfo = (), Context = ()>,
+                T: $crate::LoadingHandler<Conn::Backend> + $crate::juniper::GraphQLType<TypeInfo = (), Context = ()>,
                 T::Table: $crate::diesel::associations::HasTable<Table = T::Table>,
             {
                 let conn = e.context();

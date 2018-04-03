@@ -16,6 +16,6 @@ chrono = { version = "0.4", optional = true }
 [features]
 default = ["sqlite", "postgres", "extras"]
 lint = ["clippy"]
-sqlite = ["diesel/sqlite"]
-postgres = ["diesel/postgres"]
+sqlite = ["diesel/sqlite", "wundergraph_derive/sqlite"]
+postgres = ["diesel/postgres", "wundergraph_derive/postgres"]
 extras = ["chrono", "uuid"]

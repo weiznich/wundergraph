@@ -2,10 +2,11 @@ use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
 
 use diesel::{BoxableExpression, Column, ExpressionMethods, SelectableExpression};
-use diesel::expression::{operators, AsExpression, NonAggregate};
+use diesel::expression::{operators, AsExpression, Expression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::backend::Backend;
-use diesel::sql_types::Bool;
+use diesel::sql_types::{Bool, HasSqlType};
+use diesel::serialize::ToSql;
 
 use juniper::{InputValue, ToInputValue};
 
@@ -30,9 +31,9 @@ where
 impl<C, T, DB> BuildFilter<DB> for Eq<T, C>
 where
     C: ExpressionMethods + NonAggregate + Column + QueryFragment<DB> + Default + 'static,
-    T: AsExpression<C::SqlType>,
+    T: AsExpression<C::SqlType> + ToSql<<C as Expression>::SqlType, DB>,
     T::Expression: NonAggregate + SelectableExpression<C::Table> + QueryFragment<DB> + 'static,
-    DB: Backend + 'static,
+    DB: Backend + HasSqlType<<C as Expression>::SqlType> + 'static,
     C::Table: 'static,
     operators::Eq<C, <T as AsExpression<C::SqlType>>::Expression>: SelectableExpression<C::Table, SqlType = Bool>,
 {

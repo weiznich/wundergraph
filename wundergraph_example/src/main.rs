@@ -218,7 +218,10 @@ fn graphiql() -> content::Html<String> {
     juniper_rocket::graphiql_source("/graphql")
 }
 
-//type DBConnection = ::diesel::PgConnection;
+#[cfg(feature = "postgres")]
+type DBConnection = ::diesel::PgConnection;
+
+#[cfg(feature = "sqlite")]
 type DBConnection = ::diesel::SqliteConnection;
 
 #[get("/graphql?<request>")]

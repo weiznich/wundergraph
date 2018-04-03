@@ -71,10 +71,10 @@ pub struct NewAppearsIn {
 
 wundergraph_mutation_object! {
     Mutation {
-        Hero(key = i32, table = heros::table, insert = NewHero, update = HeroChangeset),
-        Species(key = i32, table = species::table, insert = NewSpecies, update = SpeciesChangeset),
-        HomeWorld(key = i32, table = home_worlds::table, insert = NewHomeWorld, update = HomeWorldChangeset),
-        Friend(key = (i32, i32 ), table = friends::table, insert = NewFriend),
-        AppearsIn(key = (i32, Episode), table = appears_in::table, insert = NewAppearsIn),
+        Hero(key = i32, insert = NewHero, update = HeroChangeset),
+        Species(key = i32, insert = NewSpecies, update = SpeciesChangeset),
+        HomeWorld(key = i32, insert = NewHomeWorld, update = HomeWorldChangeset),
+        Friend(key = (i32, i32 ), insert = NewFriend),
+        AppearsIn(key = (i32, Episode), insert = NewAppearsIn),
     }
 }

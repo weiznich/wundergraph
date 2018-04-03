@@ -2,15 +2,16 @@ use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
 
 use diesel::{BoxableExpression, Column, ExpressionMethods, SelectableExpression};
-use diesel::expression::{operators, AsExpression, NonAggregate};
+use diesel::expression::{operators, AsExpression, Expression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::backend::Backend;
-use diesel::sql_types::Bool;
+use diesel::sql_types::{Bool, HasSqlType};
+use diesel::serialize::ToSql;
 
 use juniper::{InputValue, ToInputValue};
 
 #[derive(Debug)]
-pub(super) struct NotEq<T, C>(Option<T>, ::std::marker::PhantomData<C>);
+pub struct NotEq<T, C>(Option<T>, ::std::marker::PhantomData<C>);
 
 impl<T, C> NotEq<T, C> {
     pub(super) fn new(v: Option<T>) -> Self {
@@ -30,9 +31,9 @@ where
 impl<C, T, DB> BuildFilter<DB> for NotEq<T, C>
 where
     C: ExpressionMethods + NonAggregate + Column + QueryFragment<DB> + Default + 'static,
-    T: AsExpression<C::SqlType>,
+    T: AsExpression<C::SqlType> + ToSql<<C as Expression>::SqlType, DB>,
     T::Expression: NonAggregate + SelectableExpression<C::Table> + QueryFragment<DB> + 'static,
-    DB: Backend + 'static,
+    DB: Backend + HasSqlType<<C as Expression>::SqlType> + 'static,
     C::Table: 'static,
     operators::NotEq<C, <T as AsExpression<C::SqlType>>::Expression>: SelectableExpression<C::Table, SqlType = Bool>,
 {
