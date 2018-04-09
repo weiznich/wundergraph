@@ -26,7 +26,7 @@ fn apply_filter(model: &Model) -> Option<quote::Tokens> {
            if let Some(f) = select.argument("filter") {
                source = <self::wundergraph::filter::Filter<#filter, <Self as diesel::associations::HasTable>::Table> as
                    self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(f.value())
-                   .ok_or(Error::CouldNotBuildFilterArgument)?
+                   .ok_or(WundergraphError::CouldNotBuildFilterArgument)?
                    .apply_filter(source);
            }
         })
@@ -40,7 +40,7 @@ fn apply_limit(model: &Model) -> Option<quote::Tokens> {
         Some(quote!{
             if let Some(l) = select.argument("limit") {
                 source = source.limit(<i32 as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(l.value())
-                                      .ok_or(Error::CouldNotBuildFilterArgument)?
+                                      .ok_or(WundergraphError::CouldNotBuildFilterArgument)?
                                       as i64);
             }
         })
@@ -54,7 +54,7 @@ fn apply_offset(model: &Model) -> Option<quote::Tokens> {
         Some(quote!{
             if let Some(o) = select.argument("offset") {
                 source = source.offset(<i32 as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
-                                       .ok_or(Error::CouldNotBuildFilterArgument)?
+                                       .ok_or(WundergraphError::CouldNotBuildFilterArgument)?
                                        as i64);
             }
         })
@@ -91,12 +91,14 @@ fn apply_order(model: &Model) -> Result<Option<quote::Tokens>, Diagnostic> {
             Ok(Some(quote!{
                 if let Some(o) = select.argument("order") {
                     let order: Vec<_> = <Vec<self::wundergraph::order::OrderBy> as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
-                        .ok_or(Error::CouldNotBuildFilterArgument)?;
+                        .ok_or(WundergraphError::CouldNotBuildFilterArgument)?;
                     for o in order {
                         match (&o.column as &str, o.direction) {
                             #(#fields)*
                             (s, _) => {
-                                return Err(Error::UnknownDatabaseField(s.to_owned()));
+                                return Err(failure::Error::from(WundergraphError::UnknownDatabaseField {
+                                    name:s.to_owned()
+                                }));
                             }
                         }
                     }
@@ -254,7 +256,7 @@ fn impl_loading_handler(
                 select: &LookAheadSelection,
                 conn: &__C,
                 mut source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, #backend>,
-            ) -> Result<Vec<Self>, Error>
+            ) -> Result<Vec<Self>, failure::Error>
                 where __C: diesel::Connection<Backend = #backend> + 'static,
             {
                 #filter
@@ -331,11 +333,12 @@ fn derive_loading_handler(
     };
 
     Ok(quote!{
-        use self::wundergraph::error::Error;
+        use self::wundergraph::error::WundergraphError;
         use self::wundergraph::{LoadingHandler, WundergraphEntity};
         use self::wundergraph::diesel::query_builder::{AsQuery, BoxedSelectStatement};
         use self::wundergraph::diesel::{RunQueryDsl, QueryDsl, self};
         use self::wundergraph::juniper::LookAheadSelection;
+        use self::wundergraph::failure;
 
         #wundergraph_entity
         #pg

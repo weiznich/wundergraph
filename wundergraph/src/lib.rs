@@ -17,6 +17,8 @@ pub extern crate diesel;
 pub extern crate juniper;
 #[doc(hidden)]
 pub extern crate ordermap;
+#[macro_use]
+pub extern crate failure;
 #[cfg_attr(feature = "clippy", allow(useless_attribute))]
 #[allow(unused_imports)]
 #[macro_use]
@@ -38,6 +40,7 @@ use diesel::Queryable;
 use diesel::backend::Backend;
 use diesel::associations::HasTable;
 use diesel::query_builder::BoxedSelectStatement;
+use failure::Error;
 
 use juniper::LookAheadSelection;
 
@@ -54,7 +57,7 @@ where
         select: &LookAheadSelection,
         conn: &C,
         source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, DB>,
-    ) -> Result<Vec<Self>, self::error::Error>
+    ) -> Result<Vec<Self>, Error>
     where
         C: Connection<Backend = DB> + 'static;
 }
