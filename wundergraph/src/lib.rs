@@ -32,34 +32,64 @@ pub mod mutations;
 pub mod order;
 pub mod query_helper;
 pub mod error;
+pub mod query_modifier;
 #[macro_use]
 mod macros;
 
-use diesel::Connection;
-use diesel::Queryable;
+use diesel::{Connection, QueryDsl};
+use diesel::query_dsl::methods::BoxedDsl;
 use diesel::backend::Backend;
 use diesel::associations::HasTable;
 use diesel::query_builder::BoxedSelectStatement;
+use diesel::r2d2;
 use failure::Error;
+use self::query_modifier::{BuildQueryModifier, QueryModifier};
 
 use juniper::LookAheadSelection;
 
-pub trait WundergraphEntity: Sized + HasTable {
-    type SqlType;
-}
-
-pub trait LoadingHandler<DB>
-    : WundergraphEntity + Queryable<<Self as WundergraphEntity>::SqlType, DB>
+pub trait WundergraphContext<DB>
 where
     DB: Backend,
 {
-    fn load_item<'a, C>(
+    type Connection: Connection<Backend = DB> + 'static;
+    fn get_connection(&self) -> &Self::Connection;
+}
+
+impl<Conn> WundergraphContext<Conn::Backend>
+    for r2d2::PooledConnection<r2d2::ConnectionManager<Conn>>
+where
+    Conn: Connection<TransactionManager = ::diesel::connection::AnsiTransactionManager> + 'static,
+    Conn::Backend: ::diesel::backend::UsesAnsiSavepointSyntax,
+{
+    type Connection = Self;
+
+    fn get_connection(&self) -> &r2d2::PooledConnection<r2d2::ConnectionManager<Conn>> {
+        self
+    }
+}
+
+pub trait LoadingHandler<DB>: Sized + HasTable
+where
+    DB: Backend,
+{
+    type SqlType;
+    type QueryModifier: BuildQueryModifier<Self, Context = Self::Context>
+        + QueryModifier<DB, Entity = Self>;
+    type Context: WundergraphContext<DB>;
+    type Query: QueryDsl
+        + BoxedDsl<
+        'static,
+        DB,
+        Output = BoxedSelectStatement<'static, Self::SqlType, Self::Table, DB>,
+    >;
+
+    fn load_item<'a>(
         select: &LookAheadSelection,
-        conn: &C,
+        ctx: &Self::Context,
         source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, DB>,
-    ) -> Result<Vec<Self>, Error>
-    where
-        C: Connection<Backend = DB> + 'static;
+    ) -> Result<Vec<Self>, Error>;
+
+    fn default_query() -> Self::Query;
 }
 
 #[macro_export]

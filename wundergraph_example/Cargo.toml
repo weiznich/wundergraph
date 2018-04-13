@@ -13,6 +13,7 @@ rocket = "0.3"
 rocket_codegen = "0.3"
 ordermap = "0.2"
 clippy = { version = "0.0.188", optional = true }
+failure = "0.1"
 
 [dependencies.wundergraph]
 path = "../wundergraph"
@@ -20,6 +21,7 @@ default-features = false
 
 [features]
 default = ["sqlite"]
+#default = ["postgres"]
 lint = ["clippy"]
 sqlite = ["wundergraph/sqlite"]
 postgres = ["wundergraph/postgres"]

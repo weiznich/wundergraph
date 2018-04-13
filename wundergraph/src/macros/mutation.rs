@@ -1,154 +1,30 @@
 #[macro_export]
-macro_rules! __wundergraph_delete_key_names {
-    ($enity: ident,($key1: tt, $key2: tt, $key3: tt, $key4: tt, $key5: tt)) => {
-        (
-            concat!("Delete", stringify!($entity), "_id_1"),
-            concat!("Delete", stringify!($entity), "_id_2"),
-            concat!("Delete", stringify!($entity), "_id_3"),
-            concat!("Delete", stringify!($entity), "_id_4"),
-            concat!("Delete", stringify!($entity), "_id_5"),
-        )
-    };
-    ($entity: ident,($key1: tt, $key2: tt, $key3: tt, $key4: tt)) => {
-        (
-            concat!("Delete", stringify!($entity), "_id_1"),
-            concat!("Delete", stringify!($entity), "_id_2"),
-            concat!("Delete", stringify!($entity), "_id_3"),
-            concat!("Delete", stringify!($entity), "_id_4"),
-        )
-    };
-    ($entity: ident,($key1: tt, $key2: tt, $key3: tt,)) => {
-        (
-            concat!("Delete", stringify!($entity), "_id_1"),
-            concat!("Delete", stringify!($entity), "_id_2"),
-            concat!("Delete", stringify!($entity), "_id_3"),
-        )
-    };
-    ($entity: ident,($key1: tt, $key2: tt)) => {
-        (
-            concat!("Delete", stringify!($entity), "_id_1"),
-            concat!("Delete", stringify!($entity), "_id_2"),
-        )
-    };
-    ($entity: ident, $key1: tt) => {
-        concat!("Delete", stringify!($entity), "_id")
-    };
-}
-
-#[macro_export]
-macro_rules! __wundergraph_mutation_expand_delete {
-    ($entity: ident, $executor: ident, $arguments: ident, $primary_key: tt,true,) => {
-        $crate::mutations::handle_delete::<Conn, $entity, _, _, _>(
-            $executor,
-            $arguments,
-            __wundergraph_delete_key_names!($entity, $primary_key),
-        )
-    };
-    ($entity: ident, $executor: ident, $arguments: ident, $primary_key: tt,false,) => {
-        Err(FieldError::new(
-            "Unknown field:",
-            Value::String(concat!("Delete", stringify!($entity)).to_string()),
-        ))
-    };
-    ($entity: ident, $executor: ident, $arguments: ident, $primary_key: tt,) => {
-        __wundergraph_mutation_expand_delete!(
-            $entity,
-            $executor,
-            $arguments,
-            $primary_key,
-            true,
-        )
-    };
-}
-
-#[macro_export]
-macro_rules! __wundergraph_mutation_register_delete_args{
-    ($entity: ident, $registry: ident, $info: ident, $delete: ident,
-     ($key1: tt, $key2:tt, $key3: tt, $key4: tt, $key5: tt)) => {
-        let name = concat!("Delete", stringify!($entity), "_id_1");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name = concat!("Delete", stringify!($entity), "_id_2");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name=concat!("Delete", stringify!($entity), "_id_3");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name = concat!("Delete", stringify!($entity), "_id_4");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name = concat!("Delete", stringify!($entity), "_id_5");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-    };
-    ($entity: ident, $registry: ident, $info: ident, $delete: ident,
-     ($key1: tt, $key2:tt, $key3: tt, $key4: tt) ) => {
-        let name = concat!("Delete", stringify!($entity), "_id_1");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name = concat!("Delete", stringify!($entity), "_id_2");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name=concat!("Delete", stringify!($entity), "_id_3");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name = concat!("Delete", stringify!($entity), "_id_4");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-    };
-    ($entity: ident, $registry: ident, $info: ident, $delete: ident,
-     ($key1: tt, $key2:tt, $key3: tt,) ) => {
-        let name = concat!("Delete", stringify!($entity), "_id_1");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name = concat!("Delete", stringify!($entity), "_id_2");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name=concat!("Delete", stringify!($entity), "_id_3");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-    };
-    ($entity: ident, $registry: ident, $info: ident, $delete: ident,
-     ($key1: tt, $key2:tt) ) => {
-        let name = concat!("Delete", stringify!($entity), "_id_1");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-        let name = concat!("Delete", stringify!($entity), "_id_2");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-    };
-    ($entity: ident, $registry: ident, $info: ident, $delete: ident,
-     $key1: tt) => {
-        let name = concat!("Delete", stringify!($entity), "_id_1");
-        let arg = $registry.arg::<$key1>(name, $info);
-        $delete = $delete.argument(arg);
-    };
-}
-
-#[macro_export]
-macro_rules! __wundergraph_mutation_register_delete {
-    ($fields: ident, $registry: ident, $info: ident,
-     $entity_name: ident, $primary_key: tt, true, ) => {
-        let mut delete = $registry.field::<Option<$entity_name>>(concat!("Delete", stringify!($entity_name)), $info);
-        __wundergraph_mutation_register_delete_args!($entity_name, $registry, $info, delete, $primary_key);
-        $fields.push(delete);
-    };
-    ($fields: ident, $registry: ident, $info: ident, $entity_name: ident, $primary_key: tt,, false, )=> {};
-    ($fields: ident, $registry: ident, $info: ident, $entity_name: ident, $primary_key: tt, )=> {
-        __wundergraph_mutation_register_delete!($fields, $registry, $info, $entity_name, $primary_key, true, )
-    }
-
-}
-
-#[macro_export]
 macro_rules! wundergraph_mutation_object {
     (
         $mutation_name: ident {
             $($entity_name: ident(
-                key = $primary_key: tt
-                $(, insert = $insert: ident)*
+                $(insert = $insert: ident)*
+                    $(, update = $update: ident)*
+                    $(, delete = $delete: ident)*
+            ),)*
+        }
+    ) => {
+        wundergraph_mutation_object!{
+            $mutation_name(context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<Conn>>){
+                $($entity_name(
+                    $(insert = $insert)*
+                    $(, update = $update)*
+                    $(, delete = $delete)*
+                ),)*
+            }
+        }
+    };
+    (
+        $mutation_name: ident(context = $context: ty) {
+            $($entity_name: ident(
+                $(insert = $insert: ident)*
                 $(, update = $update: ident)*
-                $(, delete = $delete: tt)*
+                $(, delete = $delete: ident)*
             ),)*
         }
     ) => {
@@ -168,37 +44,36 @@ macro_rules! wundergraph_mutation_object {
 
         $(
             $(
-                Conn::Backend: $crate::mutations::HandleInsert<
-                    Conn,
-                    $insert,
-                    <$entity_name as $crate::diesel::associations::HasTable>::Table,
+                $insert: $crate::mutations::HandleInsert<
+                    Conn::Backend,
                     $entity_name,
-                    $primary_key,
+                    $context,
                 >,
             )*
         )*
         $(
-            Conn::Backend: $crate::mutations::HandleDelete<
-                Conn,
-                <$entity_name as $crate::diesel::associations::HasTable>::Table,
-                $primary_key,
-                $entity_name
-            >,
+            $(
+                $delete: $crate::mutations::HandleDelete<
+                    Conn::Backend,
+                    $entity_name,
+                    $context,
+                >,
+              )*
         )*
         $(
             $(
-                Conn::Backend: $crate::mutations::HandleUpdate<
-                    Conn,
-                    $update,
-                    $entity_name
-                    >,
+                $update: $crate::mutations::HandleUpdate<
+                    Conn::Backend,
+                    $entity_name,
+                    $context,
+                >,
             )*
         )*
         $(
-            $entity_name: $crate::LoadingHandler<Conn::Backend>,
-        )*
+            $entity_name: $crate::LoadingHandler<Conn::Backend, Context = $context>,
+         )*
         {
-            type Context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<Conn>>;
+            type Context = $context;
             type TypeInfo = ();
 
             fn name(_info: &Self::TypeInfo) -> Option<&str> {
@@ -232,7 +107,12 @@ macro_rules! wundergraph_mutation_object {
                     )*
                 )*
                 $(
-                    __wundergraph_mutation_register_delete!(fields, registry, info, $entity_name, $primary_key, $($delete, )*);
+                    $(
+                        let delete = registry.arg::<$delete>(concat!("Delete", stringify!($entity_name)), info);
+                        let delete = registry.field::<Option<$entity_name>>(concat!("Delete", stringify!($entity_name)), info)
+                            .argument(delete);
+                        fields.push(delete);
+                    )*
                 )*
                 let mutation = registry.build_object_type::<Self>(info, &fields);
                 $crate::juniper::meta::MetaType::Object(mutation)
@@ -249,14 +129,14 @@ macro_rules! wundergraph_mutation_object {
                     $(
                         $(
                             concat!("Create", stringify!($entity_name)) => {
-                                $crate::mutations::handle_insert::<Conn, $insert, _, _, _>(
+                                $crate::mutations::handle_insert::<Conn::Backend, $insert, _, _>(
                                     executor,
                                     arguments,
                                     concat!("New", stringify!($entity_name))
                                 )
                             }
                             concat!("Create", stringify!($entity_name), "s") => {
-                                $crate::mutations::handle_batch_insert::<Conn, $insert, _, _, _>(
+                                $crate::mutations::handle_batch_insert::<Conn::Backend, $insert, _, _>(
                                     executor,
                                     arguments,
                                     concat!("New", stringify!($entity_name), "s")
@@ -267,28 +147,34 @@ macro_rules! wundergraph_mutation_object {
                     $(
                         $(
                             concat!("Update", stringify!($entity_name)) => {
-                                if let Some(update) = arguments.get::<$update>(
-                                    concat!("Update", stringify!($entity_name))
-                                ) {
-
-                                    <Conn::Backend as $crate::mutations::HandleUpdate<
-                                        Conn,
-                                        $update,
-                                        $entity_name
-                                     >>::handle_update(executor, &update)
-                                } else {
-                                    Err($crate::juniper::FieldError::new(
-                                        concat!("Missing argument Update",
-                                                stringify!($entity_name)),
-                                        $crate::juniper::Value::Null))
-                                }
+                                $crate::mutations::handle_update::<
+                                    Conn::Backend,
+                                    $update,
+                                    $entity_name,
+                                    Self::Context
+                               >(
+                                   executor,
+                                   arguments,
+                                   concat!("Update", stringify!($entity_name))
+                                )
                             }
                         )*
                     )*
                     $(
-                        concat!("Delete", stringify!($entity_name)) => {
-                            __wundergraph_mutation_expand_delete!($entity_name, executor, arguments, $primary_key, $($delete, )*)
-                        }
+                        $(
+                            concat!("Delete", stringify!($entity_name)) => {
+                                $crate::mutations::handle_delete::<
+                                    Conn::Backend,
+                                    $delete,
+                                    $entity_name,
+                                    Self::Context
+                                >(
+                                    executor,
+                                    arguments,
+                                    concat!("Delete", stringify!($entity_name))
+                                )
+                            }
+                        )*
                     )*
                     e => Err($crate::juniper::FieldError::new(
                         "Unknown field:",

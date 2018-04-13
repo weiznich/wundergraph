@@ -55,6 +55,29 @@ macro_rules! wundergraph_query_object {
         $query_name: ident {
             $($entity_name: ident(
                 $graphql_struct: ident
+                    $(, filter = $filter_name: ident)*
+                    $(, limit = $limit: tt)*
+                    $(, offset = $offset: tt)*
+                    $(, order = $order: tt)*
+            ),)*
+        }
+    ) => {
+        wundergraph_query_object!{
+            $query_name(context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<Conn>>) {
+                $($entity_name(
+                    $graphql_struct
+                        $(, filter = $filter_name)*
+                        $(, limit = $limit)*
+                        $(, offset = $offset)*
+                        $(, order = $order)*
+                ),)*
+            }
+        }
+    };
+    (
+        $query_name: ident(context = $context: ty) {
+            $($entity_name: ident(
+                $graphql_struct: ident
                 $(, filter = $filter_name: ident)*
                 $(, limit = $limit: tt)*
                 $(, offset = $offset: tt)*
@@ -77,10 +100,10 @@ macro_rules! wundergraph_query_object {
             Conn::Backend: Clone + $crate::diesel::backend::UsesAnsiSavepointSyntax,
             <Conn::Backend as $crate::diesel::backend::Backend>::QueryBuilder: Default,
             $(
-                $graphql_struct: $crate::LoadingHandler<Conn::Backend>,
+                $graphql_struct: $crate::LoadingHandler<Conn::Backend, Context = $context>,
             )*
         {
-            type Context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<Conn>>;
+            type Context = $context;
             type TypeInfo = ();
 
             fn name(_info: &Self::TypeInfo) -> Option<&str> {
@@ -123,14 +146,11 @@ macro_rules! wundergraph_query_object {
                 _arguments: &$crate::juniper::Arguments,
                 executor: &$crate::juniper::Executor<Self::Context>,
             ) -> $crate::juniper::ExecutionResult {
-                use $crate::diesel::associations::HasTable;
-                use $crate::diesel::QueryDsl;
                 match field_name {
                     $(
-                        stringify!($graphql_struct) => self.handle::<$graphql_struct>(
+                        stringify!($graphql_struct) => self.handle::<$graphql_struct, Self::Context>(
                             executor,
                             executor.look_ahead(),
-                            <$graphql_struct as HasTable>::table().into_boxed(),
                         ),
                     )*
                     e => Err($crate::juniper::FieldError::new(
@@ -151,20 +171,23 @@ macro_rules! wundergraph_query_object {
             Conn::Backend: $crate::diesel::backend::UsesAnsiSavepointSyntax,
             <Conn::Backend as $crate::diesel::backend::Backend>::QueryBuilder: Default,
         {
-            fn handle<T>(
+            fn handle<T, Ctx>(
                 &self,
-                e: &$crate::juniper::Executor<
-                    $crate::diesel::r2d2::PooledConnection<
-                    $crate::diesel::r2d2::ConnectionManager<Conn>>>,
+                e: &$crate::juniper::Executor<Ctx>,
                 s: $crate::juniper::LookAheadSelection,
-                sel: $crate::diesel::query_builder::BoxedSelectStatement<T::SqlType, T::Table, Conn::Backend>,
             ) -> $crate::juniper::ExecutionResult
             where
-                T: $crate::LoadingHandler<Conn::Backend> + $crate::juniper::GraphQLType<TypeInfo = (), Context = ()>,
+                T: $crate::LoadingHandler<Conn::Backend, Context = Ctx>
+                + $crate::juniper::GraphQLType<TypeInfo = ()>,
                 T::Table: $crate::diesel::associations::HasTable<Table = T::Table>,
+                Ctx: $crate::WundergraphContext<Conn::Backend>,
+                <T as $crate::juniper::GraphQLType>::Context: $crate::juniper::FromContext<Ctx>,
             {
-                let conn = e.context();
-                let items = T::load_item(&s, conn, sel)?;
+                use $crate::diesel::QueryDsl;
+
+                let ctx = e.context();
+                let q = T::default_query().into_boxed();
+                let items = T::load_item(&s, ctx, q)?;
                 e.resolve_with_ctx(&(), &items)
             }
         }

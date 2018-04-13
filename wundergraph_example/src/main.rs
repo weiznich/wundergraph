@@ -1,5 +1,6 @@
 #![feature(plugin)]
 #![plugin(rocket_codegen)]
+#![feature(trace_marcos)]
 #![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
 // Clippy lints
 #![cfg_attr(feature = "clippy", allow(unstable_features))]
@@ -23,6 +24,7 @@ extern crate ordermap;
 extern crate rocket;
 #[macro_use]
 extern crate wundergraph;
+extern crate failure;
 
 use rocket::response::content;
 use rocket::http::Status;
@@ -31,13 +33,20 @@ use rocket::{Outcome, Request, State};
 
 use diesel::serialize::{self, ToSql};
 use diesel::deserialize::{self, FromSql};
-use diesel::backend::Backend;
-use diesel::sql_types::SmallInt;
+use diesel::backend::{Backend, UsesAnsiSavepointSyntax};
+use diesel::sql_types::{Integer, SmallInt, Text};
 use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::Connection;
+use diesel::connection::AnsiTransactionManager;
+use diesel::query_builder::BoxedSelectStatement;
+use juniper::LookAheadSelection;
 
 use std::io::Write;
+use failure::Error;
 
 use wundergraph::query_helper::{HasMany, HasOne};
+use wundergraph::query_modifier::{BuildQueryModifier, QueryModifier};
+use wundergraph::WundergraphContext;
 
 mod mutations;
 use self::mutations::*;
@@ -120,6 +129,7 @@ table! {
 #[primary_key(hero_id, episode)]
 #[belongs_to(Hero)]
 #[table_name = "appears_in"]
+#[wundergraph(context = "MyContext<Conn>")]
 pub struct AppearsIn {
     #[wundergraph(skip)]
     hero_id: i32,
@@ -131,15 +141,51 @@ pub struct AppearsIn {
 #[table_name = "friends"]
 #[primary_key(hero_id)]
 #[belongs_to(Hero)]
+#[wundergraph(context = "MyContext<Conn>")]
 pub struct Friend {
     #[wundergraph(skip)]
     hero_id: i32,
     friend_id: HasOne<i32, Hero>,
 }
 
+pub struct TestModifier;
+
+impl QueryModifier<<DBConnection as Connection>::Backend> for TestModifier {
+    type Entity = HomeWorld;
+
+    fn modify_query<'a>(
+        &self,
+        final_query: BoxedSelectStatement<
+            'a,
+            (Integer, Text),
+            home_worlds::table,
+            <DBConnection as Connection>::Backend,
+        >,
+        _selection: &LookAheadSelection,
+    ) -> Result<
+        BoxedSelectStatement<
+            'a,
+            (Integer, Text),
+            home_worlds::table,
+            <DBConnection as Connection>::Backend,
+        >,
+        Error,
+    > {
+        Ok(final_query)
+    }
+}
+
+impl BuildQueryModifier<HomeWorld> for TestModifier {
+    type Context = MyContext<DBConnection>;
+    fn from_ctx(_ctx: &Self::Context) -> Result<Self, Error> {
+        Ok(TestModifier)
+    }
+}
+
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity,
          WundergraphFilter)]
 #[table_name = "home_worlds"]
+#[wundergraph(query_modifier = "TestModifier", context = "MyContext<Conn>")]
 pub struct HomeWorld {
     id: i32,
     name: String,
@@ -153,6 +199,7 @@ pub struct HomeWorld {
 #[table_name = "heros"]
 #[belongs_to(Species, foreign_key = "species")]
 #[belongs_to(HomeWorld, foreign_key = "home_world")]
+#[wundergraph(context = "MyContext<Conn>")]
 pub struct Hero {
     id: i32,
     name: String,
@@ -168,6 +215,7 @@ pub struct Hero {
 #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
          WundergraphFilter)]
 #[table_name = "species"]
+#[wundergraph(context = "MyContext<Conn>")]
 pub struct Species {
     id: i32,
     name: String,
@@ -176,10 +224,38 @@ pub struct Species {
 }
 
 wundergraph_query_object!{
-    Query {
+    Query(context = MyContext<Conn> ) {
         Heros(Hero, filter = HeroFilter),
         Species(Species, filter = SpeciesFilter),
         HomeWorlds(HomeWorld, filter = HomeWorldFilter),
+    }
+}
+
+pub struct MyContext<Conn>
+where
+    Conn: Connection + 'static,
+{
+    conn: DbConn<Conn>,
+}
+
+impl<Conn> MyContext<Conn>
+where
+    Conn: Connection + 'static,
+{
+    fn new(conn: DbConn<Conn>) -> Self {
+        Self { conn }
+    }
+}
+
+impl<Conn> WundergraphContext<Conn::Backend> for MyContext<Conn>
+where
+    Conn: Connection<TransactionManager = AnsiTransactionManager> + 'static,
+    Conn::Backend: UsesAnsiSavepointSyntax,
+{
+    type Connection = diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<Conn>>;
+
+    fn get_connection(&self) -> &Self::Connection {
+        self.conn.get_connection()
     }
 }
 
@@ -231,7 +307,8 @@ fn get_graphql_handler(
     schema: State<Schema<DBConnection>>,
     conn: DbConn<DBConnection>,
 ) -> juniper_rocket::GraphQLResponse {
-    request.execute(&schema, conn.get_connection())
+    //    request.execute(&schema, conn.get_connection())
+    request.execute(&schema, &MyContext::new(conn))
 }
 
 #[post("/graphql", data = "<request>")]
@@ -241,7 +318,8 @@ fn post_graphql_handler(
     schema: State<Schema<DBConnection>>,
     conn: DbConn<DBConnection>,
 ) -> juniper_rocket::GraphQLResponse {
-    request.execute(&schema, conn.get_connection())
+    //    request.execute(&schema, conn.get_connection())
+    request.execute(&schema, &MyContext::new(conn))
 }
 
 type Schema<Conn> = juniper::RootNode<

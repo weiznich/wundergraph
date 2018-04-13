@@ -124,7 +124,7 @@ fn handle_has_many(model: &Model, field_count: usize) -> Vec<quote::Tokens> {
                 let inner = quote!{
                     let p = <#parent_ty as LoadingHandler<_>>::load_item(
                         select,
-                        conn,
+                        ctx,
                         <#parent_ty as diesel::BelongingToDsl<_>>::belonging_to(&ret).into_boxed())?;
                     let p = <_ as diesel::GroupedBy<_>>::grouped_by(p, &ret);
                     for (c, p) in ret.iter_mut().zip(p.into_iter()) {
@@ -203,7 +203,7 @@ fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<quote::Tokens
                     #collect_ids
                     let items = <#child_ty as LoadingHandler<_>>::load_item(
                         select,
-                        conn,
+                        ctx,
                         <#table as diesel::associations::HasTable>::table()
                             .filter(<_ as diesel::ExpressionMethods>::eq_any(
                                 <_ as diesel::Table>::primary_key(&<#table as diesel::associations::HasTable>::table()),
@@ -243,6 +243,8 @@ fn impl_loading_handler(
     offset: Option<&quote::Tokens>,
     order: Option<&quote::Tokens>,
     remote_fields: &[quote::Tokens],
+    context: syn::Path,
+    query_modifier: &syn::Path,
 ) -> quote::Tokens {
     let item_name = item.ident;
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
@@ -251,26 +253,39 @@ fn impl_loading_handler(
         impl#impl_generics LoadingHandler<#backend> for #item_name #ty_generics
             #where_clause
         {
+            type Query = Self::Table;
+            type SqlType = <<Self as diesel::associations::HasTable>::Table as AsQuery>::SqlType;
+            type QueryModifier = #query_modifier;
+            type Context = #context;
 
-            fn load_item<'a, __C>(
+            fn load_item<'a>(
                 select: &LookAheadSelection,
-                conn: &__C,
+                ctx: &Self::Context,
                 mut source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, #backend>,
             ) -> Result<Vec<Self>, failure::Error>
-                where __C: diesel::Connection<Backend = #backend> + 'static,
             {
+                use wundergraph::WundergraphContext;
+                use wundergraph::query_modifier::BuildQueryModifier;
+
+                let modifier = <Self::QueryModifier as BuildQueryModifier<Self>>::from_ctx(ctx)?;
+                let conn = ctx.get_connection();
                 #filter
 
                 #limit
                 #offset
 
                 #order
+                source = modifier.modify_query(source, select)?;
                 println!("{}", diesel::debug_query(&source));
                 let mut ret: Vec<Self> = source.load(conn)?;
 
                 #(#remote_fields)*
 
                 Ok(ret)
+            }
+
+            fn default_query() -> Self::Query {
+                <Self::Table as diesel::associations::HasTable>::table()
             }
         }
     }
@@ -280,15 +295,7 @@ fn derive_loading_handler(
     model: &Model,
     item: &syn::DeriveInput,
 ) -> Result<quote::Tokens, Diagnostic> {
-    let item_name = item.ident;
-    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
-    let wundergraph_entity = quote!{
-        impl#impl_generics WundergraphEntity for #item_name #ty_generics
-            #where_clause
-        {
-            type SqlType = <<Self as diesel::associations::HasTable>::Table  as AsQuery>::SqlType;
-        }
-    };
+    //    let item_name = item.ident;
 
     let field_count = model
         .fields()
@@ -304,7 +311,10 @@ fn derive_loading_handler(
     let has_one = handle_has_one(model, field_count)?;
     let mut remote_fields = has_many;
     remote_fields.extend(has_one);
+    let query_modifier = model.query_modifier_type();
+
     let pg = if cfg!(feature = "postgres") {
+        let context = model.context_type(parse_quote!(diesel::PgConnection))?;
         Some(impl_loading_handler(
             item,
             &quote!(diesel::pg::Pg),
@@ -313,12 +323,15 @@ fn derive_loading_handler(
             offset.as_ref(),
             order.as_ref(),
             &remote_fields,
+            context,
+            &query_modifier,
         ))
     } else {
         None
     };
 
     let sqlite = if cfg!(feature = "sqlite") {
+        let context = model.context_type(parse_quote!(diesel::SqliteConnection))?;
         Some(impl_loading_handler(
             item,
             &quote!(diesel::sqlite::Sqlite),
@@ -327,6 +340,8 @@ fn derive_loading_handler(
             offset.as_ref(),
             order.as_ref(),
             &remote_fields,
+            context,
+            &query_modifier,
         ))
     } else {
         None
@@ -334,13 +349,12 @@ fn derive_loading_handler(
 
     Ok(quote!{
         use self::wundergraph::error::WundergraphError;
-        use self::wundergraph::{LoadingHandler, WundergraphEntity};
+        use self::wundergraph::LoadingHandler;
         use self::wundergraph::diesel::query_builder::{AsQuery, BoxedSelectStatement};
         use self::wundergraph::diesel::{RunQueryDsl, QueryDsl, self};
         use self::wundergraph::juniper::LookAheadSelection;
         use self::wundergraph::failure;
 
-        #wundergraph_entity
         #pg
         #sqlite
     })
