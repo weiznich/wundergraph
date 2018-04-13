@@ -67,10 +67,19 @@ extern crate chrono;
 #[cfg(feature = "chrono")]
 impl Nameable for self::chrono::NaiveDateTime {
     fn name() -> String {
-        String::from("DateTime")
+        String::from("NaiveDateTime")
     }
 }
 
+#[cfg(feature = "chrono")]
+impl<O> Nameable for self::chrono::DateTime<O>
+where
+    O: self::chrono::TimeZone,
+{
+    fn name() -> String {
+        String::from("DateTime")
+    }
+}
 #[cfg(feature = "chrono")]
 impl Nameable for self::chrono::NaiveDate {
     fn name() -> String {

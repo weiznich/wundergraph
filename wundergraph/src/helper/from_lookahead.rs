@@ -96,6 +96,28 @@ impl FromLookAheadValue for self::chrono::NaiveDateTime {
 }
 
 #[cfg(feature = "chrono")]
+impl FromLookAheadValue for self::chrono::DateTime<self::chrono::Utc> {
+    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+        if let LookAheadValue::String(s) = *v {
+            s.parse().ok()
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(feature = "chrono")]
+impl FromLookAheadValue for self::chrono::DateTime<self::chrono::FixedOffset> {
+    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+        if let LookAheadValue::String(s) = *v {
+            self::chrono::DateTime::parse_from_rfc3339(s).ok()
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(feature = "chrono")]
 impl FromLookAheadValue for self::chrono::NaiveDate {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
         if let LookAheadValue::String(s) = *v {
