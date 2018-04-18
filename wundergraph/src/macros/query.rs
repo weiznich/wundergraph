@@ -50,32 +50,151 @@ macro_rules! __wundergraph_expand_order {
 }
 
 #[macro_export]
-macro_rules! wundergraph_query_object {
+#[cfg(feature = "postgres")]
+macro_rules! __wundergraph_expand_pg_loading_handler {
     (
         $query_name: ident {
             $($entity_name: ident(
                 $graphql_struct: ident
-                    $(, filter = $filter_name: ident)*
-                    $(, limit = $limit: tt)*
-                    $(, offset = $offset: tt)*
-                    $(, order = $order: tt)*
+                $(, filter = $filter_name: ident)*
+                $(, limit = $limit: tt)*
+                $(, offset = $offset: tt)*
+                $(, order = $order: tt)*
             ),)*
         }
     ) => {
         wundergraph_query_object!{
-            $query_name(context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<Conn>>) {
+            @expand_loading_handler $crate::diesel::PgConnection,
+            $query_name(context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<$crate::diesel::PgConnection>>) {
                 $($entity_name(
                     $graphql_struct
-                        $(, filter = $filter_name)*
-                        $(, limit = $limit)*
-                        $(, offset = $offset)*
-                        $(, order = $order)*
+                    $(, filter = $filter_name)*
+                    $(, limit = $limit)*
+                    $(, offset = $offset)*
+                    $(, order = $order)*
                 ),)*
             }
         }
     };
     (
-        $query_name: ident(context = $context: ty) {
+        $query_name: ident(context = $($context:tt)::+<Conn>) {
+            $($entity_name: ident(
+                $graphql_struct: ident
+                $(, filter = $filter_name: ident)*
+                $(, limit = $limit: tt)*
+                $(, offset = $offset: tt)*
+                $(, order = $order: tt)*
+            ),)*
+        }
+    ) => {
+        wundergraph_query_object!{
+            @expand_loading_handler $crate::diesel::PgConnection,
+            $query_name(context = $($context)::+<$crate::diesel::PgConnection>) {
+                $($entity_name(
+                    $graphql_struct
+                    $(, filter = $filter_name)*
+                    $(, limit = $limit)*
+                    $(, offset = $offset)*
+                    $(, order = $order)*
+                ),)*
+            }
+        }
+    }
+}
+
+#[macro_export]
+#[cfg(feature = "sqlite")]
+macro_rules! __wundergraph_expand_sqlite_loading_handler {
+    (
+        $query_name: ident {
+            $($entity_name: ident(
+                $graphql_struct: ident
+                $(, filter = $filter_name: ident)*
+                $(, limit = $limit: tt)*
+                $(, offset = $offset: tt)*
+                $(, order = $order: tt)*
+            ),)*
+        }
+    ) => {
+        wundergraph_query_object!{
+            @expand_loading_handler $crate::diesel::SqliteConnection,
+            $query_name(context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<$crate::diesel::SqliteConnection>>) {
+                $($entity_name(
+                    $graphql_struct
+                    $(, filter = $filter_name)*
+                    $(, limit = $limit)*
+                    $(, offset = $offset)*
+                    $(, order = $order)*
+                ),)*
+            }
+        }
+    };
+    (
+        $query_name: ident(context = $($context:tt)::+<Conn>) {
+            $($entity_name: ident(
+                $graphql_struct: ident
+                $(, filter = $filter_name: ident)*
+                $(, limit = $limit: tt)*
+                $(, offset = $offset: tt)*
+                $(, order = $order: tt)*
+            ),)*
+        }
+    ) => {
+        wundergraph_query_object!{
+            @expand_loading_handler $crate::diesel::SqliteConnection,
+            $query_name(context = $($context)::+<$crate::diesel::SqliteConnection>) {
+                $($entity_name(
+                    $graphql_struct
+                    $(, filter = $filter_name)*
+                    $(, limit = $limit)*
+                    $(, offset = $offset)*
+                    $(, order = $order)*
+                ),)*
+            }
+        }
+    }
+}
+
+#[macro_export]
+#[cfg(not(feature = "postgres"))]
+macro_rules! __wundergraph_expand_pg_loading_handler {
+    (
+        $query_name:ident $((context = $($context:tt)*))* {
+            $(
+                $entity_name:ident(
+                    $graphql_struct:ident
+                    $(,filter = $filter_name:ident)*
+                    $(,limit = $limit:tt)*
+                    $(,offset = $offset:tt)*
+                    $(,order = $order:tt)*
+                ),
+            )*
+         }
+    ) => {};
+}
+
+#[macro_export]
+#[cfg(not(feature = "sqlite"))]
+macro_rules! __wundergraph_expand_sqlite_loading_handler {
+    (
+        $query_name:ident $((context = $($context:tt)*))* {
+            $(
+                $entity_name:ident(
+                    $graphql_struct:ident
+                    $(,filter = $filter_name:ident)*
+                    $(,limit = $limit:tt)*
+                    $(,offset = $offset:tt)*
+                    $(,order = $order:tt)*
+                ),
+            )*
+         }
+    ) => {};
+}
+
+#[macro_export]
+macro_rules! wundergraph_query_object {
+    (
+        $query_name: ident $((context = $($context: tt)*))* {
             $($entity_name: ident(
                 $graphql_struct: ident
                 $(, filter = $filter_name: ident)*
@@ -93,15 +212,42 @@ macro_rules! wundergraph_query_object {
                 $query_name(Default::default())
             }
         }
+        __wundergraph_expand_pg_loading_handler!{
+            $query_name $((context = $($context)*))* {
+                $($entity_name(
+                    $graphql_struct
+                        $(, filter = $filter_name)*
+                        $(, limit = $limit)*
+                        $(, offset = $offset)*
+                        $(, order = $order)*
+                ),)*
+            }
+        }
 
-        impl<Conn> $crate::juniper::GraphQLType for $query_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<Conn>>>
-        where
-            Conn: $crate::diesel::Connection<TransactionManager = $crate::diesel::connection::AnsiTransactionManager> + 'static,
-            Conn::Backend: Clone + $crate::diesel::backend::UsesAnsiSavepointSyntax,
-            <Conn::Backend as $crate::diesel::backend::Backend>::QueryBuilder: Default,
-            $(
-                $graphql_struct: $crate::LoadingHandler<Conn::Backend, Context = $context>,
-            )*
+        __wundergraph_expand_sqlite_loading_handler!{
+            $query_name $((context = $($context)*))* {
+                $($entity_name(
+                    $graphql_struct
+                        $(, filter = $filter_name)*
+                        $(, limit = $limit)*
+                        $(, offset = $offset)*
+                        $(, order = $order)*
+                ),)*
+            }
+        }
+    };
+    (@expand_loading_handler $conn:ty,
+     $query_name: ident(context = $context: ty) {
+         $($entity_name: ident(
+             $graphql_struct: ident
+             $(, filter = $filter_name: ident)*
+             $(, limit = $limit: tt)*
+             $(, offset = $offset: tt)*
+             $(, order = $order: tt)*
+         ),)*
+     }
+    )=> {
+        impl $crate::juniper::GraphQLType for $query_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<$conn>>>
         {
             type Context = $context;
             type TypeInfo = ();
@@ -189,11 +335,7 @@ macro_rules! wundergraph_query_object {
             }
         }
 
-        impl<Conn> $query_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<Conn>>>
-        where
-            Conn: $crate::diesel::Connection<TransactionManager = $crate::diesel::connection::AnsiTransactionManager> + 'static,
-            Conn::Backend: $crate::diesel::backend::UsesAnsiSavepointSyntax,
-            <Conn::Backend as $crate::diesel::backend::Backend>::QueryBuilder: Default,
+        impl $query_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<$conn>>>
         {
             fn handle_filter<T, Ctx>(
                 &self,
@@ -201,10 +343,10 @@ macro_rules! wundergraph_query_object {
                 s: $crate::juniper::LookAheadSelection,
             ) -> $crate::juniper::ExecutionResult
             where
-                T: $crate::LoadingHandler<Conn::Backend, Context = Ctx>
+                T: $crate::LoadingHandler<<$conn as $crate::diesel::Connection>::Backend, Context = Ctx>
                 + $crate::juniper::GraphQLType<TypeInfo = ()>,
                 T::Table: $crate::diesel::associations::HasTable<Table = T::Table>,
-                Ctx: $crate::WundergraphContext<Conn::Backend>,
+                Ctx: $crate::WundergraphContext<<$conn as $crate::diesel::Connection>::Backend>,
                 <T as $crate::juniper::GraphQLType>::Context: $crate::juniper::FromContext<Ctx>,
             {
                 use $crate::diesel::QueryDsl;
@@ -221,10 +363,10 @@ macro_rules! wundergraph_query_object {
                 s: $crate::juniper::LookAheadSelection,
             ) -> $crate::juniper::ExecutionResult
             where
-                T: $crate::LoadingHandler<Conn::Backend, Context = Ctx> + 'static
+                T: $crate::LoadingHandler<<$conn as $crate::diesel::Connection>::Backend, Context = Ctx> + 'static
                 + $crate::juniper::GraphQLType<TypeInfo = ()>,
                 T::Table: $crate::diesel::associations::HasTable<Table = T::Table>,
-                Ctx: $crate::WundergraphContext<Conn::Backend>,
+                Ctx: $crate::WundergraphContext<<$conn as $crate::diesel::Connection>::Backend>,
                 <T as $crate::juniper::GraphQLType>::Context: $crate::juniper::FromContext<Ctx>,
                 &'static T: $crate::diesel::Identifiable,
                 <&'static T as $crate::diesel::Identifiable>::Id: $crate::helper::primary_keys::UnRef,
@@ -234,7 +376,7 @@ macro_rules! wundergraph_query_object {
                     <<&'static T as $crate::diesel::Identifiable>::Id as $crate::helper::primary_keys::UnRef>::UnRefed
                 >: $crate::helper::FromLookAheadValue,
                 <T::Table as $crate::diesel::Table>::PrimaryKey: $crate::diesel::EqAll<<<&'static T as $crate::diesel::Identifiable>::Id as $crate::helper::primary_keys::UnRef>::UnRefed>,
-                <<T::Table as $crate::diesel::Table>::PrimaryKey as $crate::diesel::EqAll<<<&'static T as $crate::diesel::Identifiable>::Id as $crate::helper::primary_keys::UnRef>::UnRefed>>::Output: $crate::diesel::AppearsOnTable<T::Table> + $crate::diesel::expression::NonAggregate + $crate::diesel::query_builder::QueryFragment<Conn::Backend>,
+                <<T::Table as $crate::diesel::Table>::PrimaryKey as $crate::diesel::EqAll<<<&'static T as $crate::diesel::Identifiable>::Id as $crate::helper::primary_keys::UnRef>::UnRefed>>::Output: $crate::diesel::AppearsOnTable<T::Table> + $crate::diesel::expression::NonAggregate + $crate::diesel::query_builder::QueryFragment<<$conn as $crate::diesel::Connection>::Backend>,
             {
                 use $crate::diesel::QueryDsl;
 

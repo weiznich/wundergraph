@@ -225,7 +225,7 @@ pub struct Species {
 }
 
 wundergraph_query_object!{
-    Query(context = MyContext<Conn> ) {
+    Query(context = MyContext<Conn>) {
         Heros(Hero, filter = HeroFilter),
         Species(Species, filter = SpeciesFilter),
         HomeWorlds(HomeWorld, filter = HomeWorldFilter),
