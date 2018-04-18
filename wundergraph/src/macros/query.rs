@@ -115,27 +115,47 @@ macro_rules! wundergraph_query_object {
                 info: &Self::TypeInfo,
                 registry: &mut $crate::juniper::Registry<'r>
             ) -> $crate::juniper::meta::MetaType<'r> {
-                $(
-                    let mut $graphql_struct = registry.field::<Vec<$graphql_struct>>(
-                        stringify!($graphql_struct),
-                        info
-                    );
-
+                let fields = &[
                     $(
-                        let filter = registry.arg_with_default::<Option<
-                            $crate::filter::Filter<
-                                   $filter_name,
-                                   <$graphql_struct as $crate::diesel::associations::HasTable>::Table>>
-                            >
-                            ("filter", &None, &Default::default());
-                        $graphql_struct = $graphql_struct.argument(filter);
-                    )*
-                    __wundergraph_expand_limit!(registry, $graphql_struct, info, $(, $limit)*);
-                    __wundergraph_expand_offset!(registry, $graphql_struct, info, $(, $offset)*);
-                    __wundergraph_expand_order!(registry, $graphql_struct, info, $(, $order)*);
+                        {
+                            let mut field = registry.field::<Vec<$graphql_struct>>(
+                                concat!(stringify!($graphql_struct), "s"),
+                                info
+                            );
+
+                            $(
+                                let filter = registry.arg_with_default::<Option<
+                                    $crate::filter::Filter<
+                                    $filter_name,
+                                <$graphql_struct as $crate::diesel::associations::HasTable>::Table>>
+                                    >
+                                    ("filter", &None, &Default::default());
+                                field = field.argument(filter);
+                            )*
+                            __wundergraph_expand_limit!(registry, field, info, $(, $limit)*);
+                            __wundergraph_expand_offset!(registry, field, info, $(, $offset)*);
+                            __wundergraph_expand_order!(registry, field, info, $(, $order)*);
+                            field
+                        },
+                        {
+                            let key_info = $crate::helper::primary_keys::PrimaryKeyInfo::new(<$graphql_struct as $crate::diesel::associations::HasTable>::table());
+                            let key = registry.arg::<
+                                $crate::helper::primary_keys::PrimaryKeyArgument<
+                                <$graphql_struct as $crate::diesel::associations::HasTable>::Table,
+                                $context,
+                                <<&'static $graphql_struct as $crate::diesel::Identifiable>::Id
+                                as $crate::helper::primary_keys::UnRef>::UnRefed
+                                >
+                                >("primaryKey", &key_info);
+                            registry.field::<Option<$graphql_struct>>(
+                                stringify!($graphql_struct),
+                                info
+                            ).argument(key)
+                        },
 
                 )*
-                let query = registry.build_object_type::<Self>(info, &[$($graphql_struct,)*]);
+                ];
+                let query = registry.build_object_type::<Self>(info, fields);
                 $crate::juniper::meta::MetaType::Object(query)
             }
 
@@ -148,7 +168,11 @@ macro_rules! wundergraph_query_object {
             ) -> $crate::juniper::ExecutionResult {
                 match field_name {
                     $(
-                        stringify!($graphql_struct) => self.handle::<$graphql_struct, Self::Context>(
+                        concat!(stringify!($graphql_struct), "s") => self.handle_filter::<$graphql_struct, Self::Context>(
+                            executor,
+                            executor.look_ahead(),
+                        ),
+                        stringify!($graphql_struct) => self.handle_by_key::<$graphql_struct, Self::Context>(
                             executor,
                             executor.look_ahead(),
                         ),
@@ -171,7 +195,7 @@ macro_rules! wundergraph_query_object {
             Conn::Backend: $crate::diesel::backend::UsesAnsiSavepointSyntax,
             <Conn::Backend as $crate::diesel::backend::Backend>::QueryBuilder: Default,
         {
-            fn handle<T, Ctx>(
+            fn handle_filter<T, Ctx>(
                 &self,
                 e: &$crate::juniper::Executor<Ctx>,
                 s: $crate::juniper::LookAheadSelection,
@@ -187,8 +211,37 @@ macro_rules! wundergraph_query_object {
 
                 let ctx = e.context();
                 let q = T::default_query().into_boxed();
-                let items = T::load_item(&s, ctx, q)?;
+                let items = T::load_items(&s, ctx, q)?;
                 e.resolve_with_ctx(&(), &items)
+            }
+
+            fn handle_by_key<T, Ctx>(
+                &self,
+                e: &$crate::juniper::Executor<Ctx>,
+                s: $crate::juniper::LookAheadSelection,
+            ) -> $crate::juniper::ExecutionResult
+            where
+                T: $crate::LoadingHandler<Conn::Backend, Context = Ctx> + 'static
+                + $crate::juniper::GraphQLType<TypeInfo = ()>,
+                T::Table: $crate::diesel::associations::HasTable<Table = T::Table>,
+                Ctx: $crate::WundergraphContext<Conn::Backend>,
+                <T as $crate::juniper::GraphQLType>::Context: $crate::juniper::FromContext<Ctx>,
+                &'static T: $crate::diesel::Identifiable,
+                <&'static T as $crate::diesel::Identifiable>::Id: $crate::helper::primary_keys::UnRef,
+                $crate::helper::primary_keys::PrimaryKeyArgument<
+                    T::Table,
+                    Ctx,
+                    <<&'static T as $crate::diesel::Identifiable>::Id as $crate::helper::primary_keys::UnRef>::UnRefed
+                >: $crate::helper::FromLookAheadValue,
+                <T::Table as $crate::diesel::Table>::PrimaryKey: $crate::diesel::EqAll<<<&'static T as $crate::diesel::Identifiable>::Id as $crate::helper::primary_keys::UnRef>::UnRefed>,
+                <<T::Table as $crate::diesel::Table>::PrimaryKey as $crate::diesel::EqAll<<<&'static T as $crate::diesel::Identifiable>::Id as $crate::helper::primary_keys::UnRef>::UnRefed>>::Output: $crate::diesel::AppearsOnTable<T::Table> + $crate::diesel::expression::NonAggregate + $crate::diesel::query_builder::QueryFragment<Conn::Backend>,
+            {
+                use $crate::diesel::QueryDsl;
+
+                let ctx = e.context();
+                let q = T::default_query().into_boxed();
+                let item = T::load_item(&s, ctx, q)?;
+                e.resolve_with_ctx(&(), &item)
             }
         }
     }

@@ -122,7 +122,7 @@ fn handle_has_many(model: &Model, field_count: usize) -> Vec<quote::Tokens> {
                 let parent_ty = inner_ty_arg(&f.ty, "HasMany", 0);
                 let field_access = f.name.access();
                 let inner = quote!{
-                    let p = <#parent_ty as LoadingHandler<_>>::load_item(
+                    let p = <#parent_ty as LoadingHandler<_>>::load_items(
                         select,
                         ctx,
                         <#parent_ty as diesel::BelongingToDsl<_>>::belonging_to(&ret).into_boxed())?;
@@ -201,7 +201,7 @@ fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<quote::Tokens
                 };
                 let inner = quote!{
                     #collect_ids
-                    let items = <#child_ty as LoadingHandler<_>>::load_item(
+                    let items = <#child_ty as LoadingHandler<_>>::load_items(
                         select,
                         ctx,
                         <#table as diesel::associations::HasTable>::table()
@@ -258,7 +258,7 @@ fn impl_loading_handler(
             type QueryModifier = #query_modifier;
             type Context = #context;
 
-            fn load_item<'a>(
+            fn load_items<'a>(
                 select: &LookAheadSelection,
                 ctx: &Self::Context,
                 mut source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, #backend>,
@@ -266,6 +266,7 @@ fn impl_loading_handler(
             {
                 use wundergraph::WundergraphContext;
                 use wundergraph::query_modifier::BuildQueryModifier;
+                use wundergraph::query_modifier::QueryModifier;
 
                 let modifier = <Self::QueryModifier as BuildQueryModifier<Self>>::from_ctx(ctx)?;
                 let conn = ctx.get_connection();

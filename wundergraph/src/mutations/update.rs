@@ -67,7 +67,7 @@ where
             let f = FilterDsl::filter(T::table(), T::table().primary_key().eq_all(change_set.id()));
             // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(f, 1).into_boxed();
-            let items = R::load_item(&executor.look_ahead(), ctx, q)?;
+            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
             executor.resolve_with_ctx(&(), &items.into_iter().next())
         })
     }

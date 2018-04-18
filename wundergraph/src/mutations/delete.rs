@@ -70,7 +70,7 @@ where
                 FilterDsl::filter(T::table(), T::table().primary_key().eq_all(static_self.id()));
             // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(to_delete, 1).into_boxed();
-            let items = R::load_item(&executor.look_ahead(), ctx, q)?;
+            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
             let d = ::diesel::delete(to_delete);
             println!("{}", ::diesel::debug_query(&d));
             assert_eq!(1, d.execute(conn)?);

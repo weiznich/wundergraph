@@ -105,14 +105,12 @@ where
     T::Query: FilterDsl<<T::PrimaryKey as EqAll<Id>>::Output>,
     T::Query: FilterDsl<Box<BoxableExpression<T, Pg, SqlType = Bool>>>,
     T::PrimaryKey: EqAll<Id>,
-    <T::PrimaryKey as EqAll<Id>>::Output: SelectableExpression<T>
-        + NonAggregate
-        + QueryFragment<Pg>
-        + 'static,
-    Filter<T::Query, <T::PrimaryKey as EqAll<Id>>::Output>: QueryDsl
-        + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, T::SqlType, T, Pg>>,
-    Filter<T::Query, Box<BoxableExpression<T, Pg, SqlType = Bool>>>: QueryDsl
-        + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, T::SqlType, T, Pg>>,
+    <T::PrimaryKey as EqAll<Id>>::Output:
+        SelectableExpression<T> + NonAggregate + QueryFragment<Pg> + 'static,
+    Filter<T::Query, <T::PrimaryKey as EqAll<Id>>::Output>:
+        QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, T::SqlType, T, Pg>>,
+    Filter<T::Query, Box<BoxableExpression<T, Pg, SqlType = Bool>>>:
+        QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, T::SqlType, T, Pg>>,
 {
     fn handle_insert(executor: &Executor<Ctx>, insertable: I) -> ExecutionResult {
         let ctx = executor.context();
@@ -126,7 +124,7 @@ where
 
             let q = FilterDsl::filter(T::table(), T::table().primary_key().eq_all(inserted));
             let q = q.into_boxed();
-            let items = R::load_item(&executor.look_ahead(), ctx, q)?;
+            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
             executor.resolve_with_ctx(&(), &items.iter().next())
         })
     }
@@ -150,7 +148,7 @@ where
                     f = Box::new(f.or(T::table().primary_key().eq_all(id))) as Box<_>;
                 }
                 let q = FilterDsl::filter(T::table(), f).into_boxed();
-                let items = R::load_item(&executor.look_ahead(), ctx, q)?;
+                let items = R::load_items(&executor.look_ahead(), ctx, q)?;
                 executor.resolve_with_ctx(&(), &items)
             } else {
                 Ok(Value::Null)
@@ -167,13 +165,16 @@ where
     T: Table + HasTable<Table = T> + 'static,
     Ctx: WundergraphContext<Sqlite>,
     R: LoadingHandler<Sqlite, Table = T, SqlType = T::SqlType, Context = Ctx>
-//        + WundergraphEntity<Sqlite, Context = Ctx>
         + GraphQLType<TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<Sqlite>,
     InsertStatement<T, I::Values>: ExecuteDsl<Ctx::Connection>,
     T::Query: OrderDsl<SqlLiteral<Bool>>,
     Order<T::Query, SqlLiteral<Bool>>: QueryDsl
-        + BoxedDsl<'static, Sqlite, Output = BoxedSelectStatement<'static, T::SqlType, T, Sqlite>>,
+        + BoxedDsl<
+            'static,
+            Sqlite,
+            Output = BoxedSelectStatement<'static, T::SqlType, T, Sqlite>,
+        >,
 {
     fn handle_insert(executor: &Executor<Ctx>, insertable: I) -> ExecutionResult {
         let ctx = executor.context();
@@ -182,7 +183,7 @@ where
             insertable.insert_into(T::table()).execute(conn)?;
             let q = OrderDsl::order(T::table(), sql::<Bool>("rowid DESC")).into_boxed();
             let q = LimitDsl::limit(q, 1);
-            let items = R::load_item(&executor.look_ahead(), ctx, q)?;
+            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
             executor.resolve_with_ctx(&(), &items.into_iter().next())
         })
     }
@@ -199,7 +200,7 @@ where
                 .fold(0, |acc, n| acc + n);
             let q = OrderDsl::order(T::table(), sql::<Bool>("rowid DESC")).into_boxed();
             let q = LimitDsl::limit(q, n as i64);
-            let items = R::load_item(&executor.look_ahead(), ctx, q)?;
+            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
             executor.resolve_with_ctx(&(), &items)
         })
     }
