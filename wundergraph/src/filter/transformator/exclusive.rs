@@ -1,7 +1,7 @@
 use super::{FilterType, Transformator};
 use diesel::backend::Backend;
-use diesel::BoxableExpression;
 use diesel::sql_types::Bool;
+use diesel::BoxableExpression;
 
 #[derive(Debug, Clone, Copy)]
 pub struct OnlyExclusive;

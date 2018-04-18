@@ -1,8 +1,8 @@
 use helper::{NameBuilder, Nameable};
 
-use ordermap::OrderMap;
-use juniper::{InputValue, LookAheadValue, Registry};
 use juniper::meta::Argument;
+use juniper::{InputValue, LookAheadValue, Registry};
+use ordermap::OrderMap;
 
 pub trait InnerFilter: Sized + Nameable {
     type Context;

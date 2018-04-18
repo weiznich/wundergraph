@@ -1,45 +1,45 @@
-use diesel::{Connection, Insertable, QueryDsl, RunQueryDsl, Table};
-use diesel::query_builder::QueryFragment;
 use diesel::associations::HasTable;
+use diesel::backend::Backend;
 use diesel::query_builder::BoxedSelectStatement;
+use diesel::query_builder::QueryFragment;
 use diesel::query_dsl::methods::BoxedDsl;
 use diesel::sql_types::Bool;
-use diesel::backend::Backend;
+use diesel::{Connection, Insertable, QueryDsl, RunQueryDsl, Table};
 use WundergraphContext;
 
 #[cfg(feature = "postgres")]
-use diesel::{EqAll, Queryable};
-#[cfg(feature = "postgres")]
-use diesel::query_builder::UndecoratedInsertRecord;
+use helper::primary_keys::UnRef;
 #[cfg(feature = "postgres")]
 use diesel::dsl::Filter;
 #[cfg(feature = "postgres")]
-use diesel::query_dsl::methods::FilterDsl;
+use diesel::expression::{BoxableExpression, Expression, NonAggregate, SelectableExpression};
 #[cfg(feature = "postgres")]
 use diesel::insertable::CanInsertInSingleQuery;
 #[cfg(feature = "postgres")]
-use diesel::sql_types::HasSqlType;
-#[cfg(feature = "postgres")]
 use diesel::pg::Pg;
 #[cfg(feature = "postgres")]
-use diesel::expression::{BoxableExpression, Expression, NonAggregate, SelectableExpression};
+use diesel::query_builder::UndecoratedInsertRecord;
+#[cfg(feature = "postgres")]
+use diesel::query_dsl::methods::FilterDsl;
+#[cfg(feature = "postgres")]
+use diesel::sql_types::HasSqlType;
 #[cfg(feature = "postgres")]
 use diesel::Identifiable;
 #[cfg(feature = "postgres")]
-use super::UnRef;
+use diesel::{EqAll, Queryable};
 
-#[cfg(feature = "sqlite")]
-use diesel::expression::SqlLiteral;
-#[cfg(feature = "sqlite")]
-use diesel::expression::dsl::sql;
-#[cfg(feature = "sqlite")]
-use diesel::sqlite::Sqlite;
 #[cfg(feature = "sqlite")]
 use diesel::dsl::Order;
 #[cfg(feature = "sqlite")]
-use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, OrderDsl};
+use diesel::expression::dsl::sql;
+#[cfg(feature = "sqlite")]
+use diesel::expression::SqlLiteral;
 #[cfg(feature = "sqlite")]
 use diesel::query_builder::InsertStatement;
+#[cfg(feature = "sqlite")]
+use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, OrderDsl};
+#[cfg(feature = "sqlite")]
+use diesel::sqlite::Sqlite;
 
 use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value};
 use LoadingHandler;
@@ -92,7 +92,6 @@ where
     T: Table + HasTable<Table = T> + 'static,
     Ctx: WundergraphContext<Pg>,
     R: LoadingHandler<Pg, Table = T, SqlType = T::SqlType, Context = Ctx>
-//        + WundergraphEntity<Pg, Context = Ctx>
         + GraphQLType<TypeInfo = (), Context = ()>
         + 'static,
     Pg: HasSqlType<<T::PrimaryKey as Expression>::SqlType>,

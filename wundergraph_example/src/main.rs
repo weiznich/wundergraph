@@ -148,6 +148,7 @@ pub struct Friend {
     friend_id: HasOne<i32, Hero>,
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct TestModifier;
 
 impl QueryModifier<<DBConnection as Connection>::Backend> for TestModifier {
@@ -231,6 +232,7 @@ wundergraph_query_object!{
     }
 }
 
+#[derive(Debug)]
 pub struct MyContext<Conn>
 where
     Conn: Connection + 'static,

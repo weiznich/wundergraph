@@ -1,22 +1,22 @@
-use filter::inner_filter::InnerFilter;
-use filter::filter_value::FilterValue;
 use filter::build_filter::BuildFilter;
-use filter::transformator::Transformator;
 use filter::collector::{AndCollector, FilterCollector};
+use filter::filter_value::FilterValue;
+use filter::inner_filter::InnerFilter;
+use filter::transformator::Transformator;
 
-use diesel::expression::{operators, AsExpression, NonAggregate, SelectableExpression};
-use diesel::expression::array_comparison::{In, Many};
 use diesel::backend::Backend;
-use diesel::{BoxableExpression, Column};
-use diesel::sql_types::{Bool, HasSqlType, SingleValue};
+use diesel::expression::array_comparison::{In, Many};
+use diesel::expression::{operators, AsExpression, NonAggregate, SelectableExpression};
 use diesel::query_builder::QueryFragment;
 use diesel::serialize::ToSql;
+use diesel::sql_types::{Bool, HasSqlType, SingleValue};
+use diesel::{BoxableExpression, Column};
 
-use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 use juniper::meta::{Argument, MetaType};
+use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
-use ordermap::OrderMap;
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
+use ordermap::OrderMap;
 
 mod eq;
 mod eq_any;
@@ -226,20 +226,20 @@ where
     DB: Backend + HasSqlType<C::SqlType> + 'static,
     T: FilterValue<C>,
     T::AdditionalFilter: BuildFilter<DB> + 'static,
-    <T::AdditionalFilter as BuildFilter<DB>>::Ret: SelectableExpression<C::Table>
-        + QueryFragment<DB>
-        + 'static,
+    <T::AdditionalFilter as BuildFilter<DB>>::Ret:
+        SelectableExpression<C::Table> + QueryFragment<DB> + 'static,
     T::RawValue: AsExpression<C::SqlType> + ToSql<C::SqlType, DB> + 'static,
-    <T::RawValue as AsExpression<C::SqlType>>::Expression: NonAggregate
-        + SelectableExpression<C::Table>
-        + QueryFragment<DB>
-        + 'static,
+    <T::RawValue as AsExpression<C::SqlType>>::Expression:
+        NonAggregate + SelectableExpression<C::Table> + QueryFragment<DB> + 'static,
     C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C::SqlType: SingleValue,
     C::Table: 'static,
-    operators::Eq<C, <T::RawValue as AsExpression<C::SqlType>>::Expression>: SelectableExpression<C::Table, SqlType = Bool>,
-    operators::NotEq<C, <T::RawValue as AsExpression<C::SqlType>>::Expression>: SelectableExpression<C::Table, SqlType = Bool>,
-    In<C, Many<<T::RawValue as AsExpression<C::SqlType>>::Expression>>: SelectableExpression<C::Table, SqlType = Bool>,
+    operators::Eq<C, <T::RawValue as AsExpression<C::SqlType>>::Expression>:
+        SelectableExpression<C::Table, SqlType = Bool>,
+    operators::NotEq<C, <T::RawValue as AsExpression<C::SqlType>>::Expression>:
+        SelectableExpression<C::Table, SqlType = Bool>,
+    In<C, Many<<T::RawValue as AsExpression<C::SqlType>>::Expression>>:
+        SelectableExpression<C::Table, SqlType = Bool>,
 {
     type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
 

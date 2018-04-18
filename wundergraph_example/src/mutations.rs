@@ -69,28 +69,28 @@ pub struct NewAppearsIn {
     episode: Episode,
 }
 
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable)]
+#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
 #[table_name = "heros"]
 #[primary_key(hero_id)]
 pub struct HeroId {
     hero_id: i32,
 }
 
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable)]
+#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
 #[table_name = "species"]
 #[primary_key(species_id)]
 pub struct SpeciesId {
     species_id: i32,
 }
 
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable)]
+#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
 #[table_name = "home_worlds"]
 #[primary_key(home_world_id)]
 pub struct HomeWorldId {
     home_world_id: i32,
 }
 
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable)]
+#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
 #[table_name = "friends"]
 #[primary_key(hero_id, friend_id)]
 pub struct FriendId {
@@ -98,7 +98,7 @@ pub struct FriendId {
     friend_id: i32,
 }
 
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable)]
+#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
 #[table_name = "appears_in"]
 #[primary_key(hero_id, episode)]
 pub struct AppearsInId {

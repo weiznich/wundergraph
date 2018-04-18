@@ -1,41 +1,41 @@
-use juniper::FromInputValue;
-use juniper::InputValue;
-use juniper::GraphQLType;
-use juniper::ToInputValue;
-use juniper::Registry;
 use juniper::meta::MetaType;
+use juniper::FromInputValue;
+use juniper::GraphQLType;
+use juniper::InputValue;
 use juniper::LookAheadValue;
+use juniper::Registry;
+use juniper::ToInputValue;
 
-use ordermap::OrderMap;
-use diesel::AppearsOnTable;
-use diesel::expression::BoxableExpression;
 use diesel::backend::Backend;
+use diesel::expression::BoxableExpression;
 use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
-use diesel::Table;
 use diesel::sql_types::Bool;
+use diesel::AppearsOnTable;
 use diesel::QueryDsl;
+use diesel::Table;
+use ordermap::OrderMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
-mod nullable_filter;
-mod string_filter;
 mod common_filter;
+mod nullable_filter;
 mod reference_filter;
+mod string_filter;
 
-pub mod collector;
-pub mod transformator;
 pub mod build_filter;
+pub mod collector;
 pub mod filter_value;
 pub mod inner_filter;
+pub mod transformator;
 
 pub use self::common_filter::FilterOption;
 pub use self::nullable_filter::{NullableReferenceFilter, ReverseNullableReferenceFilter};
 pub use self::reference_filter::ReferenceFilter;
 
-use self::collector::{AndCollector, FilterCollector, OrCollector};
-use self::transformator::{NoTransformator, Transformator};
 use self::build_filter::BuildFilter;
+use self::collector::{AndCollector, FilterCollector, OrCollector};
 use self::inner_filter::InnerFilter;
+use self::transformator::{NoTransformator, Transformator};
 
 #[derive(Debug)]
 pub struct Filter<F, T> {

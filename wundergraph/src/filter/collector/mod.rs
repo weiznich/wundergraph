@@ -2,8 +2,8 @@ use filter::build_filter::BuildFilter;
 use filter::transformator::Transformator;
 
 use diesel::backend::Backend;
-use diesel::SelectableExpression;
 use diesel::query_builder::QueryFragment;
+use diesel::SelectableExpression;
 
 mod and;
 mod or;

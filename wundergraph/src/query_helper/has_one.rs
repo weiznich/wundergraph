@@ -1,11 +1,11 @@
-use diesel::Queryable;
-use diesel::backend::Backend;
-use diesel::expression::AsExpression;
-use diesel::expression::bound::Bound;
 use diesel::associations::{ForeignKey, Identifiable};
+use diesel::backend::Backend;
+use diesel::expression::bound::Bound;
+use diesel::expression::AsExpression;
+use diesel::Queryable;
+use juniper::meta::MetaType;
 use juniper::{Arguments, ExecutionResult, Executor, FieldError, GraphQLType, Registry, Selection,
               Value};
-use juniper::meta::MetaType;
 use std::hash::Hash;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

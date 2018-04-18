@@ -1,23 +1,23 @@
+use filter::build_filter::BuildFilter;
 use filter::collector::{AndCollector, FilterCollector};
 use filter::inner_filter::InnerFilter;
-use filter::build_filter::BuildFilter;
 use filter::transformator::{OnlyExclusive, OnlySelective, Transformator};
 
-use diesel::{BoolExpressionMethods, BoxableExpression, Column, ExpressionMethods,
-             NullableExpressionMethods, QueryDsl, SelectableExpression};
-use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl};
-use diesel::query_builder::AsQuery;
-use diesel::sql_types::{Bool, NotNull, SingleValue};
-use diesel::backend::Backend;
-use diesel::expression::NonAggregate;
 use diesel::associations::HasTable;
-use diesel::query_builder::QueryFragment;
+use diesel::backend::Backend;
+use diesel::dsl::{self, EqAny, Filter, IntoBoxed, NeAny, Or, Select};
 use diesel::expression::array_comparison::AsInExpression;
 use diesel::expression::nullable::Nullable;
-use diesel::dsl::{self, EqAny, Filter, IntoBoxed, NeAny, Or, Select};
+use diesel::expression::NonAggregate;
+use diesel::query_builder::AsQuery;
+use diesel::query_builder::QueryFragment;
+use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl};
+use diesel::sql_types::{Bool, NotNull, SingleValue};
+use diesel::{BoolExpressionMethods, BoxableExpression, Column, ExpressionMethods,
+             NullableExpressionMethods, QueryDsl, SelectableExpression};
 
-use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 use juniper::meta::{Argument, MetaType};
+use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
 use ordermap::OrderMap;
 

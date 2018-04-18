@@ -1,22 +1,22 @@
+use filter::build_filter::BuildFilter;
 use filter::collector::{AndCollector, FilterCollector};
 use filter::inner_filter::InnerFilter;
-use filter::build_filter::BuildFilter;
 use filter::transformator::{OnlyExclusive, OnlySelective, Transformator};
 
-use diesel::{BoxableExpression, Column, Expression, ExpressionMethods, NullableExpressionMethods,
-             QueryDsl, SelectableExpression};
-use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl};
-use diesel::sql_types::{Bool, NotNull, SingleValue};
-use diesel::backend::Backend;
-use diesel::expression::NonAggregate;
 use diesel::associations::HasTable;
-use diesel::query_builder::{AsQuery, BoxedSelectStatement, QueryFragment};
+use diesel::backend::Backend;
+use diesel::dsl::{EqAny, Filter, IsNotNull, NeAny, Select, SqlTypeOf};
 use diesel::expression::array_comparison::AsInExpression;
 use diesel::expression::nullable::Nullable;
-use diesel::dsl::{EqAny, Filter, IsNotNull, NeAny, Select, SqlTypeOf};
+use diesel::expression::NonAggregate;
+use diesel::query_builder::{AsQuery, BoxedSelectStatement, QueryFragment};
+use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl};
+use diesel::sql_types::{Bool, NotNull, SingleValue};
+use diesel::{BoxableExpression, Column, Expression, ExpressionMethods, NullableExpressionMethods,
+             QueryDsl, SelectableExpression};
 
-use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 use juniper::meta::{Argument, MetaType};
+use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
 use ordermap::OrderMap;
 
@@ -53,17 +53,18 @@ where
     <C2::Table as AsQuery>::Query: FilterDsl<I::Ret>,
     Filter<<C2::Table as AsQuery>::Query, I::Ret>: FilterDsl<IsNotNull<C2>> + SelectDsl<C2>,
     Filter<Filter<<C2::Table as AsQuery>::Query, I::Ret>, IsNotNull<C2>>: SelectDsl<C2>,
-    Select<Filter<Filter<<C2::Table as AsQuery>::Query, I::Ret>, IsNotNull<C2>>, C2>: BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>
-        + QueryDsl,
-    Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>: BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>
-        + QueryDsl,
-    BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>: AsInExpression<SqlTypeOf<Nullable<C>>>,
-    EqAny<Nullable<C>, BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>: SelectableExpression<C::Table>
-        + QueryFragment<DB>
-        + Expression<SqlType = Bool>,
-    NeAny<Nullable<C>, BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>: SelectableExpression<C::Table>
-        + QueryFragment<DB>
-        + Expression<SqlType = Bool>,
+    Select<Filter<Filter<<C2::Table as AsQuery>::Query, I::Ret>, IsNotNull<C2>>, C2>:
+        BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>
+            + QueryDsl,
+    Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>:
+        BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>
+            + QueryDsl,
+    BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>:
+        AsInExpression<SqlTypeOf<Nullable<C>>>,
+    EqAny<Nullable<C>, BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>:
+        SelectableExpression<C::Table> + QueryFragment<DB> + Expression<SqlType = Bool>,
+    NeAny<Nullable<C>, BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>:
+        SelectableExpression<C::Table> + QueryFragment<DB> + Expression<SqlType = Bool>,
 {
     type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
 

@@ -1,12 +1,12 @@
-use diesel::backend::Backend;
-use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
-use diesel::query_builder::{IntoUpdateTarget, Query, QueryFragment, QueryId};
 use diesel::associations::HasTable;
-use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, LimitDsl};
-use diesel::query_builder::BoxedSelectStatement;
-use diesel::query_builder::AsQuery;
+use diesel::backend::Backend;
 use diesel::dsl::{Filter, Limit};
+use diesel::query_builder::AsQuery;
+use diesel::query_builder::BoxedSelectStatement;
+use diesel::query_builder::{IntoUpdateTarget, Query, QueryFragment, QueryId};
+use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, LimitDsl};
 use diesel::Identifiable;
+use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
 use WundergraphContext;
 
 use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value};
@@ -54,7 +54,6 @@ where
     Limit<Filter<Q, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>>: QueryDsl
         + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, T::SqlType, T, DB>>,
     R: LoadingHandler<DB, Table = T, SqlType = T::SqlType, Context = Ctx>
-//        + WundergraphEntity<DB, Context = Ctx>
         + GraphQLType<TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<DB>,
     DB::QueryBuilder: Default,
@@ -79,45 +78,3 @@ where
         })
     }
 }
-
-// impl<T, Id, R, Conn, Q, Ctx> HandleDelete<Conn, T, Id, R, Ctx> for Conn::Backend
-// where
-//     Conn: Connection<TransactionManager = AnsiTransactionManager> + 'static,
-//     Conn::Backend: UsesAnsiSavepointSyntax,
-//     <Conn::Backend as Backend>::QueryBuilder: Default,
-//     T: Table + HasTable<Table = T> + QueryId + AsQuery<Query = Q>,
-//     Q: Query<SqlType = T::SqlType> + FilterDsl<<T::PrimaryKey as EqAll<Id>>::Output>,
-//     T::PrimaryKey: EqAll<Id>,
-//     T::FromClause: QueryFragment<Conn::Backend>,
-//     T::AllColumns: QueryFragment<Conn::Backend> + QueryId,
-//     Conn::Backend: HasSqlType<<T::AllColumns as Expression>::SqlType>,
-//     R: LoadingHandler<Conn::Backend, Table = T, SqlType = T::SqlType>
-//         + WundergraphEntity<Conn::Backend, Context = Ctx>
-//         + GraphQLType<TypeInfo = (), Context = ()>,
-//     R::QueryMiddleWare: BuildMiddleWare<R, Context = Ctx>,
-//     Filter<Q, <T::PrimaryKey as EqAll<Id>>::Output>: Copy + IntoUpdateTarget<Table = T> + LimitDsl,
-//     Limit<Filter<Q, <T::PrimaryKey as EqAll<Id>>::Output>>: QueryDsl
-//         + BoxedDsl<
-//         'static,
-//         Conn::Backend,
-//         Output = BoxedSelectStatement<'static, T::SqlType, T, Conn::Backend>,
-//     >,
-//     <Filter<Q, <T::PrimaryKey as EqAll<Id>>::Output> as IntoUpdateTarget>::WhereClause: QueryFragment<Conn::Backend>
-//         + QueryId,
-//     Ctx: WundergraphContext<Conn::Backend, Connection = Conn>,
-// {
-//     fn handle_delete(executor: &Executor<Ctx>, to_delete: Id) -> ExecutionResult {
-//         let ctx = executor.context();
-//         let conn = ctx.get_connection();
-//         conn.transaction(|| -> ExecutionResult {
-//             let to_delete =
-//                 FilterDsl::filter(T::table(), T::table().primary_key().eq_all(to_delete));
-//             let q = LimitDsl::limit(to_delete, 1).into_boxed();
-//             let items = R::load_item(&executor.look_ahead(), ctx, q)?;
-//             let d = ::diesel::delete(to_delete);
-//             println!("{}", ::diesel::debug_query(&d));
-//             d.execute(conn)?;
-//             executor.resolve_with_ctx(&(), &items.into_iter().next())
-//         })
-//     }
-// }

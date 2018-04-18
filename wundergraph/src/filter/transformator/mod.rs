@@ -1,6 +1,6 @@
 use diesel::backend::Backend;
-use diesel::BoxableExpression;
 use diesel::sql_types::Bool;
+use diesel::BoxableExpression;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FilterType {

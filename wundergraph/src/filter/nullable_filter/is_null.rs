@@ -1,11 +1,11 @@
 use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
 
-use diesel::{BoxableExpression, Column, ExpressionMethods, SelectableExpression};
+use diesel::backend::Backend;
 use diesel::expression::{operators, NonAggregate};
 use diesel::query_builder::QueryFragment;
-use diesel::backend::Backend;
 use diesel::sql_types::Bool;
+use diesel::{BoxableExpression, Column, ExpressionMethods, SelectableExpression};
 
 use juniper::{InputValue, ToInputValue};
 

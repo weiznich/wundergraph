@@ -1,17 +1,17 @@
 use filter::build_filter::BuildFilter;
+use filter::collector::{AndCollector, FilterCollector};
 use filter::filter_value::FilterValue;
 use filter::inner_filter::InnerFilter;
 use filter::transformator::Transformator;
-use filter::collector::{AndCollector, FilterCollector};
 
-use diesel::{BoxableExpression, Column, SelectableExpression};
-use diesel::sql_types::{Bool, SingleValue};
 use diesel::backend::Backend;
 use diesel::expression::{AsExpression, NonAggregate};
 use diesel::query_builder::QueryFragment;
+use diesel::sql_types::{Bool, SingleValue};
+use diesel::{BoxableExpression, Column, SelectableExpression};
 
-use juniper::{FromInputValue, InputValue, LookAheadValue, Registry};
 use juniper::meta::Argument;
+use juniper::{FromInputValue, InputValue, LookAheadValue, Registry};
 
 use ordermap::OrderMap;
 
@@ -49,13 +49,11 @@ where
     DB: Backend + 'static,
     V: FilterValue<C> + 'static,
     V::AdditionalFilter: BuildFilter<DB>,
-    <V::AdditionalFilter as BuildFilter<DB>>::Ret: SelectableExpression<C::Table>
-        + QueryFragment<DB>,
+    <V::AdditionalFilter as BuildFilter<DB>>::Ret:
+        SelectableExpression<C::Table> + QueryFragment<DB>,
     V::RawValue: AsExpression<C::SqlType> + 'static,
-    <V::RawValue as AsExpression<C::SqlType>>::Expression: SelectableExpression<C::Table>
-        + NonAggregate
-        + QueryFragment<DB>
-        + 'static,
+    <V::RawValue as AsExpression<C::SqlType>>::Expression:
+        SelectableExpression<C::Table> + NonAggregate + QueryFragment<DB> + 'static,
     IsNull<C>: BuildFilter<DB>,
     <IsNull<C> as BuildFilter<DB>>::Ret: SelectableExpression<C::Table> + QueryFragment<DB>,
 {

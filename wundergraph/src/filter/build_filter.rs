@@ -1,8 +1,8 @@
+use diesel::backend::Backend;
 use diesel::expression::{BoxableExpression, Expression, NonAggregate, SqlLiteral};
 use diesel::query_builder::QueryFragment;
-use filter::transformator::Transformator;
 use diesel::sql_types::Bool;
-use diesel::backend::Backend;
+use filter::transformator::Transformator;
 
 pub trait BuildFilter<DB>
 where

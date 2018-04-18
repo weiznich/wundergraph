@@ -1,9 +1,9 @@
+use diagnostic_shim::Diagnostic;
+use model::Model;
 use quote;
 use syn;
-use diagnostic_shim::Diagnostic;
 use utils::{inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_option_ty,
             wrap_in_dummy_mod};
-use model::Model;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     let model = Model::from_item(item)?;

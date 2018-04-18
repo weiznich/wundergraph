@@ -2,9 +2,9 @@ use super::FilterCollector;
 use filter::build_filter::BuildFilter;
 use filter::transformator::Transformator;
 
-use diesel::{BoolExpressionMethods, BoxableExpression, SelectableExpression};
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
+use diesel::{BoolExpressionMethods, BoxableExpression, SelectableExpression};
 
 use std::fmt::{self, Debug};
 
