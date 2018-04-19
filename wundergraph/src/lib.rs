@@ -118,6 +118,7 @@ where
             <<&'static Self as Identifiable>::Id as UnRef>::UnRefed,
         >: FromLookAheadValue,
     {
+        use juniper::LookAheadMethods;
         if let Some(v) = select.argument("primaryKey") {
             if let Some(key) = PrimaryKeyArgument::<
                 Self::Table,

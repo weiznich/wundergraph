@@ -267,6 +267,7 @@ fn impl_loading_handler(
                 use wundergraph::WundergraphContext;
                 use wundergraph::query_modifier::BuildQueryModifier;
                 use wundergraph::query_modifier::QueryModifier;
+                use wundergraph::juniper::LookAheadMethods;
 
                 let modifier = <Self::QueryModifier as BuildQueryModifier<Self>>::from_ctx(ctx)?;
                 let conn = ctx.get_connection();
