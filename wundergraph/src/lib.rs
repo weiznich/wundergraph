@@ -106,16 +106,17 @@ where
     where
         Self: 'static,
         &'static Self: Identifiable,
-        <&'static Self as Identifiable>::Id: UnRef,
+        <&'static Self as Identifiable>::Id: UnRef<'static>,
         <Self::Table as Table>::PrimaryKey:
-            EqAll<<<&'static Self as Identifiable>::Id as UnRef>::UnRefed>,
+            EqAll<<<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed>,
         <<Self::Table as Table>::PrimaryKey as EqAll<
-            <<&'static Self as Identifiable>::Id as UnRef>::UnRefed,
+            <<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed,
         >>::Output: AppearsOnTable<Self::Table> + NonAggregate + QueryFragment<DB>,
         PrimaryKeyArgument<
+            'static,
             Self::Table,
             Self::Context,
-            <<&'static Self as Identifiable>::Id as UnRef>::UnRefed,
+            <&'static Self as Identifiable>::Id,
         >: FromLookAheadValue,
     {
         use juniper::LookAheadMethods;
@@ -123,7 +124,7 @@ where
             if let Some(key) = PrimaryKeyArgument::<
                 Self::Table,
                 Self::Context,
-                <<&'static Self as Identifiable>::Id as UnRef>::UnRefed,
+                <&'static Self as Identifiable>::Id,
             >::from_look_ahead(v.value())
             {
                 let query = source

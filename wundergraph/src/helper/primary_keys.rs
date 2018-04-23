@@ -8,77 +8,57 @@ use ordermap::OrderMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
-pub trait UnRef {
+pub trait UnRef<'a> {
     type UnRefed;
+
+    fn as_ref(v: &'a Self::UnRefed) -> Self;
 }
 
-impl<'a, A> UnRef for &'a A {
+impl<'a, A> UnRef<'a> for &'a A {
     type UnRefed = A;
+
+    fn as_ref(v: &'a Self::UnRefed) -> Self {
+        v
+    }
 }
 
-impl<'a, A> UnRef for (&'a A,) {
+impl<'a, A> UnRef<'a> for (&'a A,) {
     type UnRefed = (A,);
+
+    fn as_ref(v: &'a Self::UnRefed) -> Self {
+        (&v.0,)
+    }
 }
 
-impl<'a, A, B> UnRef for (&'a A, &'a B) {
+impl<'a, A, B> UnRef<'a> for (&'a A, &'a B) {
     type UnRefed = (A, B);
+
+    fn as_ref(v: &'a Self::UnRefed) -> Self {
+        (&v.0, &v.1)
+    }
 }
 
-impl<'a, A, B, C> UnRef for (&'a A, &'a B, &'a C) {
+impl<'a, A, B, C> UnRef<'a> for (&'a A, &'a B, &'a C) {
     type UnRefed = (A, B, C);
+
+    fn as_ref(v: &'a Self::UnRefed) -> Self {
+        (&v.0, &v.1, &v.2)
+    }
 }
 
-impl<'a, A, B, C, D> UnRef for (&'a A, &'a B, &'a C, &'a D) {
+impl<'a, A, B, C, D> UnRef<'a> for (&'a A, &'a B, &'a C, &'a D) {
     type UnRefed = (A, B, C, D);
+
+    fn as_ref(v: &'a Self::UnRefed) -> Self {
+        (&v.0, &v.1, &v.2, &v.3)
+    }
 }
 
-impl<'a, A, B, C, D, E> UnRef for (&'a A, &'a B, &'a C, &'a D, &'a E) {
+impl<'a, A, B, C, D, E> UnRef<'a> for (&'a A, &'a B, &'a C, &'a D, &'a E) {
     type UnRefed = (A, B, C, D, E);
-}
 
-pub trait Ref<'a> {
-    type Ref;
-
-    fn as_ref(&'a self) -> Self::Ref;
-}
-
-impl<'a, A: 'a> Ref<'a> for (A,) {
-    type Ref = (&'a A,);
-
-    fn as_ref(&'a self) -> Self::Ref {
-        (&self.0,)
-    }
-}
-
-impl<'a, A: 'a, B: 'a> Ref<'a> for (A, B) {
-    type Ref = (&'a A, &'a B);
-
-    fn as_ref(&'a self) -> Self::Ref {
-        (&self.0, &self.1)
-    }
-}
-
-impl<'a, A: 'a, B: 'a, C: 'a> Ref<'a> for (A, B, C) {
-    type Ref = (&'a A, &'a B, &'a C);
-
-    fn as_ref(&'a self) -> Self::Ref {
-        (&self.0, &self.1, &self.2)
-    }
-}
-
-impl<'a, A: 'a, B: 'a, C: 'a, D: 'a> Ref<'a> for (A, B, C, D) {
-    type Ref = (&'a A, &'a B, &'a C, &'a D);
-
-    fn as_ref(&'a self) -> Self::Ref {
-        (&self.0, &self.1, &self.2, &self.3)
-    }
-}
-
-impl<'a, A: 'a, B: 'a, C: 'a, D: 'a, E: 'a> Ref<'a> for (A, B, C, D, E) {
-    type Ref = (&'a A, &'a B, &'a C, &'a D, &'a E);
-
-    fn as_ref(&'a self) -> Self::Ref {
-        (&self.0, &self.1, &self.2, &self.3, &self.4)
+    fn as_ref(v: &'a Self::UnRefed) -> Self {
+        (&v.0, &v.1, &v.2, &v.3, &v.4)
     }
 }
 
@@ -391,15 +371,19 @@ impl PrimaryKeyInfo {
 }
 
 #[derive(Debug)]
-pub struct PrimaryKeyArgument<T, Ctx, V> {
-    pub values: V,
-    _marker: PhantomData<(T, Ctx)>,
+pub struct PrimaryKeyArgument<'a, T: 'a, Ctx, V>
+where
+    V: UnRef<'a>,
+{
+    pub values: V::UnRefed,
+    _marker: PhantomData<(&'a T, Ctx)>,
 }
 
-impl<T, Ctx, V> GraphQLType for PrimaryKeyArgument<T, Ctx, V>
+impl<'a, T, Ctx, V> GraphQLType for PrimaryKeyArgument<'a, T, Ctx, V>
 where
-    T: Table,
-    T::PrimaryKey: PrimaryKeyInputObject<V, ()>,
+    T: Table + 'a,
+    T::PrimaryKey: PrimaryKeyInputObject<V::UnRefed, ()>,
+    V: UnRef<'a>,
 {
     type Context = Ctx;
     type TypeInfo = PrimaryKeyInfo;
@@ -416,20 +400,22 @@ where
     }
 }
 
-impl<T, Ctx, V> ToInputValue for PrimaryKeyArgument<T, Ctx, V>
+impl<'a, T, Ctx, V> ToInputValue for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     T: Table,
-    T::PrimaryKey: PrimaryKeyInputObject<V, ()>,
+    T::PrimaryKey: PrimaryKeyInputObject<V::UnRefed, ()>,
+    V: UnRef<'a>,
 {
     fn to_input_value(&self) -> InputValue {
         T::PrimaryKey::to_input_value(&self.values)
     }
 }
 
-impl<T, Ctx, V> FromInputValue for PrimaryKeyArgument<T, Ctx, V>
+impl<'a, T, Ctx, V> FromInputValue for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     T: Table,
-    T::PrimaryKey: PrimaryKeyInputObject<V, ()>,
+    T::PrimaryKey: PrimaryKeyInputObject<V::UnRefed, ()>,
+    V: UnRef<'a>,
 {
     fn from_input_value(value: &InputValue) -> Option<Self> {
         T::PrimaryKey::from_input_value(value).map(|values| Self {
@@ -439,10 +425,11 @@ where
     }
 }
 
-impl<T, Ctx, V> FromLookAheadValue for PrimaryKeyArgument<T, Ctx, V>
+impl<'a, T, Ctx, V> FromLookAheadValue for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     T: Table,
-    T::PrimaryKey: PrimaryKeyInputObject<V, ()>,
+    T::PrimaryKey: PrimaryKeyInputObject<V::UnRefed, ()>,
+    V: UnRef<'a>,
 {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
         T::PrimaryKey::from_look_ahead(v).map(|values| Self {
@@ -452,9 +439,10 @@ where
     }
 }
 
-impl<T, Ctx, V> HasTable for PrimaryKeyArgument<T, Ctx, V>
+impl<'a, T, Ctx, V> HasTable for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     T: Table + HasTable<Table = T>,
+    V: UnRef<'a>,
 {
     type Table = T;
 
@@ -463,31 +451,14 @@ where
     }
 }
 
-impl<'a, T, Ctx, V> Identifiable for &'a PrimaryKeyArgument<T, Ctx, V>
+impl<'a, T, Ctx, V> Identifiable for &'a PrimaryKeyArgument<'a, T, Ctx, V>
 where
     Self: HasTable,
-    V: Ref<'a>,
-    V::Ref: Hash + Eq,
+    V: UnRef<'a> + Hash + Eq,
 {
-    type Id = V::Ref;
+    type Id = V;
+
     fn id(self) -> Self::Id {
-        self.values.as_ref()
+        V::as_ref(&self.values)
     }
 }
-
-// fn test_3<'a, V>(v: &'a V) -> V::Ref
-// where
-//     V: Ref<'a>,
-// {
-//     v.as_ref()
-// }
-
-// fn test<T, Ctx>(v: PrimaryKeyArgument<T, Ctx, (i32,)>) {
-//     let _: &i32 = v.values.as_ref();
-//     let _: &i32 = test_3(&v.values);
-// }
-
-// fn test2<T, Ctx>(v: PrimaryKeyArgument<T, Ctx, (i32, i32)>) {
-//     let _: (&i32, &i32) = v.values.as_ref();
-//     let _: (&i32, &i32) = test_3(&v.values);
-// }

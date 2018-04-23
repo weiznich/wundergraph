@@ -101,7 +101,7 @@ where
     I::Values: QueryFragment<Pg> + CanInsertInSingleQuery<Pg>,
     <Vec<I> as Insertable<T>>::Values: QueryFragment<Pg> + CanInsertInSingleQuery<Pg>,
     &'static R: Identifiable,
-    <&'static R as Identifiable>::Id: UnRef<UnRefed = Id>,
+    <&'static R as Identifiable>::Id: UnRef<'static, UnRefed = Id>,
     T::Query: FilterDsl<<T::PrimaryKey as EqAll<Id>>::Output>,
     T::Query: FilterDsl<Box<BoxableExpression<T, Pg, SqlType = Bool>>>,
     T::PrimaryKey: EqAll<Id>,

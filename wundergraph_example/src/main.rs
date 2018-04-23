@@ -1,6 +1,6 @@
 #![feature(plugin)]
 #![plugin(rocket_codegen)]
-#![feature(trace_marcos)]
+#![feature(trace_macros)]
 #![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
 // Clippy lints
 #![cfg_attr(feature = "clippy", allow(unstable_features))]

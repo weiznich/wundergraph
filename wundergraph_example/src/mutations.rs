@@ -70,27 +70,6 @@ pub struct NewAppearsIn {
 }
 
 #[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
-#[table_name = "heros"]
-#[primary_key(hero_id)]
-pub struct HeroId {
-    hero_id: i32,
-}
-
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
-#[table_name = "species"]
-#[primary_key(species_id)]
-pub struct SpeciesId {
-    species_id: i32,
-}
-
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
-#[table_name = "home_worlds"]
-#[primary_key(home_world_id)]
-pub struct HomeWorldId {
-    home_world_id: i32,
-}
-
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
 #[table_name = "friends"]
 #[primary_key(hero_id, friend_id)]
 pub struct FriendId {
@@ -98,20 +77,13 @@ pub struct FriendId {
     friend_id: i32,
 }
 
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
-#[table_name = "appears_in"]
-#[primary_key(hero_id, episode)]
-pub struct AppearsInId {
-    hero_id: i32,
-    episode: Episode,
-}
 
 wundergraph_mutation_object! {
     Mutation(context = super::MyContext<Conn>) {
-        Hero(insert = NewHero, update = HeroChangeset, delete = HeroId),
-        Species(insert = NewSpecies, update = SpeciesChangeset, delete = SpeciesId),
-        HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset, delete = HomeWorldId),
+        Hero(insert = NewHero, update = HeroChangeset,),
+        Species(insert = NewSpecies, update = SpeciesChangeset,),
+        HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset,),
         Friend(insert = NewFriend, delete = FriendId),
-        AppearsIn(insert = NewAppearsIn, delete = AppearsInId),
+        AppearsIn(insert = NewAppearsIn,),
     }
 }
