@@ -1,11 +1,12 @@
 use proc_macro2::Span;
 use syn;
-use syn::spanned::Spanned;
 use syn::fold::Fold;
+use syn::spanned::Spanned;
 
-use utils::*;
 use diagnostic_shim::*;
+use utils::*;
 
+#[derive(Debug)]
 pub struct MetaItem {
     meta: syn::Meta,
 }

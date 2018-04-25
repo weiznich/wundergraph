@@ -1,5 +1,5 @@
-use syn;
 use proc_macro2::Span;
+use syn;
 
 use diagnostic_shim::*;
 use field::*;
@@ -142,6 +142,18 @@ impl Model {
                     self::wundergraph::query_modifier::DefaultModifier<Self::Context, Self>
                 }
             })
+    }
+
+    pub fn select(&self) -> Vec<syn::Ident> {
+        self.flags
+            .nested_item("select")
+            .ok()
+            .and_then(|s| {
+                s.nested()
+                    .ok()
+                    .map(|m| m.into_iter().filter_map(|m| m.word().ok()).collect())
+            })
+            .unwrap_or_else(Vec::new)
     }
 }
 

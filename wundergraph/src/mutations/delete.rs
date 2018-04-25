@@ -3,7 +3,7 @@ use diesel::backend::Backend;
 use diesel::dsl::{Filter, Limit};
 use diesel::query_builder::AsQuery;
 use diesel::query_builder::BoxedSelectStatement;
-use diesel::query_builder::{IntoUpdateTarget, Query, QueryFragment, QueryId};
+use diesel::query_builder::{IntoUpdateTarget, QueryFragment, QueryId};
 use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, LimitDsl};
 use diesel::Identifiable;
 use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
@@ -38,27 +38,28 @@ pub trait HandleDelete<DB, R, Ctx>: Sized {
 // We use the 'static static lifetime here because otherwise rustc will
 // tell us that it could not find a applying lifetime (caused by broken projection
 // on higher ranked lifetime bounds)
-impl<DB, R, Ctx, T, I, Q> HandleDelete<DB, R, Ctx> for I
+impl<DB, R, Ctx, T, I> HandleDelete<DB, R, Ctx> for I
 where
     I: 'static,
     DB: Backend,
     &'static I: Identifiable<Table = T>,
-    T: Table + HasTable<Table = T> + AsQuery<Query = Q> + QueryId,
+    T: Table + HasTable<Table = T> + AsQuery + QueryId,
     T::PrimaryKey: EqAll<<&'static I as Identifiable>::Id>,
     Ctx: WundergraphContext<DB>,
-    Q: Query<SqlType = T::SqlType>
-        + FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
-    Filter<Q, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>: Copy
-        + IntoUpdateTarget<Table = T>
-        + LimitDsl,
-    Limit<Filter<Q, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>>: QueryDsl
-        + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, T::SqlType, T, DB>>,
-    R: LoadingHandler<DB, Table = T, SqlType = T::SqlType, Context = Ctx>
+    T::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
+    R::Query:FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
+    Filter<T::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>: IntoUpdateTarget<Table = T>,
+    Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>:
+         LimitDsl,
+    Limit<Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>>: QueryDsl
+        + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, R::SqlType, T, DB>>,
+    R: LoadingHandler<DB, Table = T, Context = Ctx>
         + GraphQLType<TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<DB>,
     DB::QueryBuilder: Default,
-    <Filter<Q, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>
+    <Filter<T::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>
         + QueryId,
+    <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output: Copy
 {
     fn handle_delete(&self, executor: &Executor<Ctx>) -> ExecutionResult {
         let ctx = executor.context();
@@ -66,11 +67,12 @@ where
         conn.transaction(|| -> ExecutionResult {
             // this is safe becuse we do not leek self out of this function
             let static_self: &'static I = unsafe{ ::std::mem::transmute(self) };
-            let to_delete =
-                FilterDsl::filter(T::table(), T::table().primary_key().eq_all(static_self.id()));
+            let filter =  T::table().primary_key().eq_all(static_self.id());
+            let to_delete = FilterDsl::filter(R::default_query(), filter);
             // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(to_delete, 1).into_boxed();
             let items = R::load_items(&executor.look_ahead(), ctx, q)?;
+            let to_delete = FilterDsl::filter(T::table(), filter);
             let d = ::diesel::delete(to_delete);
             println!("{}", ::diesel::debug_query(&d));
             assert_eq!(1, d.execute(conn)?);

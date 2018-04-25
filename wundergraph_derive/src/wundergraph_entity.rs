@@ -121,11 +121,23 @@ fn handle_has_many(model: &Model, field_count: usize) -> Vec<quote::Tokens> {
                 let field_name = &f.name;
                 let parent_ty = inner_ty_arg(&f.ty, "HasMany", 0);
                 let field_access = f.name.access();
-                let inner = quote!{
-                    let p = <#parent_ty as LoadingHandler<_>>::load_items(
-                        select,
-                        ctx,
-                        <#parent_ty as diesel::BelongingToDsl<_>>::belonging_to(&ret).into_boxed())?;
+                let inner = quote! {
+                    let query = <#parent_ty as LoadingHandler<_>>::default_query().into_boxed();
+                    let p = {
+                        let ids = ret.iter().map(diesel::Identifiable::id).collect::<Vec<_>>();
+                        let eq = diesel::expression_methods::ExpressionMethods::eq_any(
+                            <#parent_ty as diesel::associations::BelongsTo<Self>>::foreign_key_column(),
+                            &ids
+                        );
+                        let query = diesel::query_dsl::methods::FilterDsl::filter(
+                            query,
+                            eq
+                        );
+                        <#parent_ty as LoadingHandler<_>>::load_items(
+                            select,
+                            ctx,
+                            query)?
+                    };
                     let p = <_ as diesel::GroupedBy<_>>::grouped_by(p, &ret);
                     for (c, p) in ret.iter_mut().zip(p.into_iter()) {
                         c#field_access = self::wundergraph::query_helper::HasMany::Items(p);
@@ -204,7 +216,7 @@ fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<quote::Tokens
                     let items = <#child_ty as LoadingHandler<_>>::load_items(
                         select,
                         ctx,
-                        <#table as diesel::associations::HasTable>::table()
+                        <#child_ty as LoadingHandler<_>>::default_query()
                             .filter(<_ as diesel::ExpressionMethods>::eq_any(
                                 <_ as diesel::Table>::primary_key(&<#table as diesel::associations::HasTable>::table()),
                                 ids)).into_boxed()
@@ -245,16 +257,31 @@ fn impl_loading_handler(
     remote_fields: &[quote::Tokens],
     context: syn::Path,
     query_modifier: &syn::Path,
+    select: Option<&quote::Tokens>,
 ) -> quote::Tokens {
     let item_name = item.ident;
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
+    let (query, query_ty, sql_ty) = if let Some(select) = select {
+        let query =
+            quote!(<Self::Table as diesel::associations::HasTable>::table().select(#select));
+        let query_ty = quote!(
+            diesel::dsl::Select<Self::Table, #select>
+        );
+        let sql_ty = quote!(diesel::dsl::SqlTypeOf<#select>);
+        (query, query_ty, sql_ty)
+    } else {
+        let query = quote!(<Self::Table as diesel::associations::HasTable>::table());
+        let query_ty = quote!(Self::Table);
+        let sql_ty = quote!(<<Self as diesel::associations::HasTable>::Table as diesel::query_builder::AsQuery>::SqlType);
+        (query, query_ty, sql_ty)
+    };
     quote!{
         #[allow(unused_mut)]
         impl#impl_generics LoadingHandler<#backend> for #item_name #ty_generics
             #where_clause
         {
-            type Query = Self::Table;
-            type SqlType = <<Self as diesel::associations::HasTable>::Table as AsQuery>::SqlType;
+            type Query = #query_ty;
+            type SqlType = #sql_ty;
             type QueryModifier = #query_modifier;
             type Context = #context;
 
@@ -264,9 +291,6 @@ fn impl_loading_handler(
                 mut source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, #backend>,
             ) -> Result<Vec<Self>, failure::Error>
             {
-                use wundergraph::WundergraphContext;
-                use wundergraph::query_modifier::BuildQueryModifier;
-                use wundergraph::query_modifier::QueryModifier;
                 use wundergraph::juniper::LookAheadMethods;
 
                 let modifier = <Self::QueryModifier as BuildQueryModifier<Self>>::from_ctx(ctx)?;
@@ -287,7 +311,7 @@ fn impl_loading_handler(
             }
 
             fn default_query() -> Self::Query {
-                <Self::Table as diesel::associations::HasTable>::table()
+                #query
             }
         }
     }
@@ -314,6 +338,14 @@ fn derive_loading_handler(
     let mut remote_fields = has_many;
     remote_fields.extend(has_one);
     let query_modifier = model.query_modifier_type();
+    let select = model.select();
+    let table = model.table_type()?;
+    let select = if select.is_empty() {
+        None
+    } else {
+        let select = select.into_iter().map(|s| quote!{#table::#s});
+        Some(quote!((#(#select,)*)))
+    };
 
     let pg = if cfg!(feature = "postgres") {
         let context = model.context_type(parse_quote!(diesel::PgConnection))?;
@@ -327,6 +359,7 @@ fn derive_loading_handler(
             &remote_fields,
             context,
             &query_modifier,
+            select.as_ref(),
         ))
     } else {
         None
@@ -344,6 +377,7 @@ fn derive_loading_handler(
             &remote_fields,
             context,
             &query_modifier,
+            select.as_ref(),
         ))
     } else {
         None
@@ -352,10 +386,7 @@ fn derive_loading_handler(
     Ok(quote!{
         use self::wundergraph::error::WundergraphError;
         use self::wundergraph::LoadingHandler;
-        use self::wundergraph::diesel::query_builder::{AsQuery, BoxedSelectStatement};
         use self::wundergraph::diesel::{RunQueryDsl, QueryDsl, self};
-        use self::wundergraph::juniper::LookAheadSelection;
-        use self::wundergraph::failure;
 
         #pg
         #sqlite
@@ -384,8 +415,7 @@ fn derive_graphql_object(
         let ty = &field.ty;
         let field_access = field.name.access();
         Ok(quote!{
-            use self::wundergraph::juniper::{GraphQLType, Registry, Arguments, Executor,
-                                             ExecutionResult, Selection, Value};
+            use self::wundergraph::juniper::{GraphQLType, Registry, Arguments, Executor, ExecutionResult, Selection, Value};
             use self::wundergraph::juniper::meta::MetaType;
 
             impl #impl_generics GraphQLType for #item_name #ty_generics

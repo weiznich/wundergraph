@@ -44,16 +44,15 @@ where
     T: Table + HasTable<Table = T> + FindDsl<<&'static U as Identifiable>::Id>,
     Ctx: WundergraphContext<DB>,
     Find<T, <&'static U as Identifiable>::Id>: IntoUpdateTarget<Table = T>,
-    R: LoadingHandler<DB, Table = T, SqlType = T::SqlType, Context = Ctx>
-        + GraphQLType<TypeInfo = (), Context = ()>,
+    R: LoadingHandler<DB, Table = T, Context = Ctx> + GraphQLType<TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<DB>,
     <Find<T, <&'static U as Identifiable>::Id> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>,
     <&'static U as AsChangeset>::Changeset: QueryFragment<DB>,
     DB::QueryBuilder: Default,
-    T::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output>,
-    Filter<T::Query, <T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output>: LimitDsl,
-    Limit<Filter<T::Query, <T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output>>:
-        QueryDsl + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, T::SqlType, T, DB>>,
+    R::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output>,
+    Filter<R::Query, <T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output>: LimitDsl,
+    Limit<Filter<R::Query, <T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output>>:
+        QueryDsl + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, R::SqlType, T, DB>>,
     T::PrimaryKey: EqAll<<&'static U as Identifiable>::Id>,
 {
     fn handle_update(&self, executor: &Executor<Ctx>) -> ExecutionResult {
@@ -64,7 +63,10 @@ where
             let u = ::diesel::update(change_set).set(change_set);
             println!("{}", ::diesel::debug_query(&u));
             u.execute(conn)?;
-            let f = FilterDsl::filter(T::table(), T::table().primary_key().eq_all(change_set.id()));
+            let f = FilterDsl::filter(
+                R::default_query(),
+                T::table().primary_key().eq_all(change_set.id()),
+            );
             // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(f, 1).into_boxed();
             let items = R::load_items(&executor.look_ahead(), ctx, q)?;

@@ -8,8 +8,6 @@ use diesel::{Connection, Insertable, QueryDsl, RunQueryDsl, Table};
 use WundergraphContext;
 
 #[cfg(feature = "postgres")]
-use helper::primary_keys::UnRef;
-#[cfg(feature = "postgres")]
 use diesel::dsl::Filter;
 #[cfg(feature = "postgres")]
 use diesel::expression::{BoxableExpression, Expression, NonAggregate, SelectableExpression};
@@ -27,13 +25,11 @@ use diesel::sql_types::HasSqlType;
 use diesel::Identifiable;
 #[cfg(feature = "postgres")]
 use diesel::{EqAll, Queryable};
+#[cfg(feature = "postgres")]
+use helper::primary_keys::UnRef;
 
 #[cfg(feature = "sqlite")]
-use diesel::dsl::Order;
-#[cfg(feature = "sqlite")]
 use diesel::expression::dsl::sql;
-#[cfg(feature = "sqlite")]
-use diesel::expression::SqlLiteral;
 #[cfg(feature = "sqlite")]
 use diesel::query_builder::InsertStatement;
 #[cfg(feature = "sqlite")]
@@ -91,7 +87,7 @@ where
     I: Insertable<T> + UndecoratedInsertRecord<T>,
     T: Table + HasTable<Table = T> + 'static,
     Ctx: WundergraphContext<Pg>,
-    R: LoadingHandler<Pg, Table = T, SqlType = T::SqlType, Context = Ctx>
+    R: LoadingHandler<Pg, Table = T, Context = Ctx>
         + GraphQLType<TypeInfo = (), Context = ()>
         + 'static,
     Pg: HasSqlType<<T::PrimaryKey as Expression>::SqlType>,
@@ -102,15 +98,15 @@ where
     <Vec<I> as Insertable<T>>::Values: QueryFragment<Pg> + CanInsertInSingleQuery<Pg>,
     &'static R: Identifiable,
     <&'static R as Identifiable>::Id: UnRef<'static, UnRefed = Id>,
-    T::Query: FilterDsl<<T::PrimaryKey as EqAll<Id>>::Output>,
-    T::Query: FilterDsl<Box<BoxableExpression<T, Pg, SqlType = Bool>>>,
+    R::Query: FilterDsl<<T::PrimaryKey as EqAll<Id>>::Output>,
+    R::Query: FilterDsl<Box<BoxableExpression<T, Pg, SqlType = Bool>>>,
     T::PrimaryKey: EqAll<Id>,
     <T::PrimaryKey as EqAll<Id>>::Output:
         SelectableExpression<T> + NonAggregate + QueryFragment<Pg> + 'static,
-    Filter<T::Query, <T::PrimaryKey as EqAll<Id>>::Output>:
-        QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, T::SqlType, T, Pg>>,
-    Filter<T::Query, Box<BoxableExpression<T, Pg, SqlType = Bool>>>:
-        QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, T::SqlType, T, Pg>>,
+    Filter<R::Query, <T::PrimaryKey as EqAll<Id>>::Output>:
+        QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, R::SqlType, T, Pg>>,
+    Filter<R::Query, Box<BoxableExpression<T, Pg, SqlType = Bool>>>:
+        QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, R::SqlType, T, Pg>>,
 {
     fn handle_insert(executor: &Executor<Ctx>, insertable: I) -> ExecutionResult {
         let ctx = executor.context();
@@ -122,7 +118,10 @@ where
             println!("{}", ::diesel::debug_query(&inserted));
             let inserted: Id = inserted.get_result(conn)?;
 
-            let q = FilterDsl::filter(T::table(), T::table().primary_key().eq_all(inserted));
+            let q = FilterDsl::filter(
+                R::default_query(),
+                T::table().primary_key().eq_all(inserted),
+            );
             let q = q.into_boxed();
             let items = R::load_items(&executor.look_ahead(), ctx, q)?;
             executor.resolve_with_ctx(&(), &items.iter().next())
@@ -147,7 +146,7 @@ where
                 for id in ids {
                     f = Box::new(f.or(T::table().primary_key().eq_all(id))) as Box<_>;
                 }
-                let q = FilterDsl::filter(T::table(), f).into_boxed();
+                let q = FilterDsl::filter(R::default_query(), f).into_boxed();
                 let items = R::load_items(&executor.look_ahead(), ctx, q)?;
                 executor.resolve_with_ctx(&(), &items)
             } else {
@@ -164,16 +163,14 @@ where
     Vec<I>: Insertable<T>,
     T: Table + HasTable<Table = T> + 'static,
     Ctx: WundergraphContext<Sqlite>,
-    R: LoadingHandler<Sqlite, Table = T, SqlType = T::SqlType, Context = Ctx>
-        + GraphQLType<TypeInfo = (), Context = ()>,
+    R: LoadingHandler<Sqlite, Table = T, Context = Ctx> + GraphQLType<TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<Sqlite>,
     InsertStatement<T, I::Values>: ExecuteDsl<Ctx::Connection>,
-    T::Query: OrderDsl<SqlLiteral<Bool>>,
-    Order<T::Query, SqlLiteral<Bool>>: QueryDsl
+    R::Query: QueryDsl
         + BoxedDsl<
             'static,
             Sqlite,
-            Output = BoxedSelectStatement<'static, T::SqlType, T, Sqlite>,
+            Output = BoxedSelectStatement<'static, R::SqlType, T, Sqlite>,
         >,
 {
     fn handle_insert(executor: &Executor<Ctx>, insertable: I) -> ExecutionResult {
@@ -181,7 +178,7 @@ where
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult {
             insertable.insert_into(T::table()).execute(conn)?;
-            let q = OrderDsl::order(T::table(), sql::<Bool>("rowid DESC")).into_boxed();
+            let q = OrderDsl::order(R::default_query().into_boxed(), sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, 1);
             let items = R::load_items(&executor.look_ahead(), ctx, q)?;
             executor.resolve_with_ctx(&(), &items.into_iter().next())
@@ -198,7 +195,7 @@ where
                 .collect::<Result<Vec<_>, _>>()?
                 .into_iter()
                 .fold(0, |acc, n| acc + n);
-            let q = OrderDsl::order(T::table(), sql::<Bool>("rowid DESC")).into_boxed();
+            let q = OrderDsl::order(R::default_query().into_boxed(), sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, n as i64);
             let items = R::load_items(&executor.look_ahead(), ctx, q)?;
             executor.resolve_with_ctx(&(), &items)
