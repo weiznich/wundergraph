@@ -286,12 +286,15 @@ fn impl_loading_handler(
             type Context = #context;
 
             fn load_items<'a>(
-                select: &LookAheadSelection,
+                select: &self::wundergraph::juniper::LookAheadSelection,
                 ctx: &Self::Context,
                 mut source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, #backend>,
             ) -> Result<Vec<Self>, failure::Error>
             {
                 use wundergraph::juniper::LookAheadMethods;
+                use wundergraph::query_modifier::BuildQueryModifier;
+                use wundergraph::query_modifier::QueryModifier;
+                use wundergraph::WundergraphContext;
 
                 let modifier = <Self::QueryModifier as BuildQueryModifier<Self>>::from_ctx(ctx)?;
                 let conn = ctx.get_connection();
@@ -387,6 +390,8 @@ fn derive_loading_handler(
         use self::wundergraph::error::WundergraphError;
         use self::wundergraph::LoadingHandler;
         use self::wundergraph::diesel::{RunQueryDsl, QueryDsl, self};
+        use self::wundergraph::failure;
+        use self::wundergraph::diesel::query_builder::BoxedSelectStatement;
 
         #pg
         #sqlite

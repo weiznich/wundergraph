@@ -79,7 +79,7 @@ macro_rules! __wundergraph_expand_pg_mutation {
     ) => {
         __wundergraph_expand_mutation_graphql_type! {
             $crate::diesel::PgConnection,
-            $mutation_name(context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::ConnectionManager<$crate::diesel::PgConnection>>) {
+            $mutation_name(context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<$crate::diesel::PgConnection>>) {
                 $($entity_name(
                     $(insert = $insert,)*
                         $(update = $update,)*
