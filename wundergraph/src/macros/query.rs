@@ -92,8 +92,8 @@ macro_rules! __wundergraph_expand_pg_loading_handler {
             ),)*
         }
     ) => {
-        wundergraph_query_object!{
-            @expand_loading_handler $crate::diesel::PgConnection,
+        __wundergraph_expand_graphql_type_for_query!{
+            $crate::diesel::PgConnection,
             $query_name(context = $($context)::+<$crate::diesel::PgConnection>) {
                 $($entity_name(
                     $graphql_struct
