@@ -48,10 +48,11 @@ pub fn handle_batch_insert<DB, I, R, Ctx>(
 where
     DB: Backend,
     Ctx: WundergraphContext<DB>,
-    I: HandleInsert<DB, R, Ctx> + FromInputValue,
+    I: InsertHelper<DB, R, Ctx> + FromInputValue,
+    I::Handler: HandleInsert<DB, R, Ctx, Insert = I>,
 {
     if let Some(n) = arguments.get::<Vec<I>>(field_name) {
-        I::handle_batch_insert(executor, n)
+        I::Handler::handle_batch_insert(executor, n)
     } else {
         let msg = format!("Missing argument {}", field_name);
         Err(FieldError::new(&msg, Value::Null))
@@ -66,23 +67,45 @@ pub fn handle_insert<DB, I, R, Ctx>(
 where
     DB: Backend,
     Ctx: WundergraphContext<DB>,
-    I: HandleInsert<DB, R, Ctx> + FromInputValue,
+    I: InsertHelper<DB, R, Ctx> + FromInputValue,
+    I::Handler: HandleInsert<DB, R, Ctx, Insert = I>,
 {
     if let Some(n) = arguments.get::<I>(field_name) {
-        I::handle_insert(executor, n)
+        I::Handler::handle_insert(executor, n)
     } else {
         let msg = format!("Missing argument {}", field_name);
         Err(FieldError::new(&msg, Value::Null))
     }
 }
 
+pub trait InsertHelper<DB, R, Ctx> {
+    type Handler: HandleInsert<DB, R, Ctx>;
+}
+
 pub trait HandleInsert<DB, R, Ctx>: Sized {
-    fn handle_insert(executor: &Executor<Ctx>, insertable: Self) -> ExecutionResult;
-    fn handle_batch_insert(executor: &Executor<Ctx>, insertable: Vec<Self>) -> ExecutionResult;
+    type Insert;
+    fn handle_insert(executor: &Executor<Ctx>, insertable: Self::Insert) -> ExecutionResult;
+    fn handle_batch_insert(
+        executor: &Executor<Ctx>,
+        insertable: Vec<Self::Insert>,
+    ) -> ExecutionResult;
+}
+
+#[doc(hidden)]
+pub struct InsertableWrapper<I>(I);
+
+impl<I, DB, R, Ctx> InsertHelper<DB, R, Ctx> for I
+where
+    I: Insertable<R::Table>,
+    R: LoadingHandler<DB>,
+    DB: Backend,
+    InsertableWrapper<I>: HandleInsert<DB, R, Ctx>,
+{
+    type Handler = InsertableWrapper<I>;
 }
 
 #[cfg(feature = "postgres")]
-impl<I, T, R, Ctx, Id> HandleInsert<Pg, R, Ctx> for I
+impl<I, T, R, Ctx, Id> HandleInsert<Pg, R, Ctx> for InsertableWrapper<I>
 where
     I: Insertable<T> + UndecoratedInsertRecord<T>,
     T: Table + HasTable<Table = T> + 'static,
@@ -108,7 +131,9 @@ where
     Filter<R::Query, Box<BoxableExpression<T, Pg, SqlType = Bool>>>:
         QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, R::SqlType, T, Pg>>,
 {
-    fn handle_insert(executor: &Executor<Ctx>, insertable: I) -> ExecutionResult {
+    type Insert = I;
+
+    fn handle_insert(executor: &Executor<Ctx>, insertable: Self::Insert) -> ExecutionResult {
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult {
@@ -128,7 +153,7 @@ where
         })
     }
 
-    fn handle_batch_insert(executor: &Executor<Ctx>, batch: Vec<I>) -> ExecutionResult {
+    fn handle_batch_insert(executor: &Executor<Ctx>, batch: Vec<Self::Insert>) -> ExecutionResult {
         use diesel::BoolExpressionMethods;
         let ctx = executor.context();
         let conn = ctx.get_connection();
@@ -157,7 +182,7 @@ where
 }
 
 #[cfg(feature = "sqlite")]
-impl<I, T, R, Ctx> HandleInsert<Sqlite, R, Ctx> for I
+impl<I, T, R, Ctx> HandleInsert<Sqlite, R, Ctx> for InsertableWrapper<I>
 where
     I: Insertable<T>,
     Vec<I>: Insertable<T>,
@@ -173,7 +198,9 @@ where
             Output = BoxedSelectStatement<'static, R::SqlType, T, Sqlite>,
         >,
 {
-    fn handle_insert(executor: &Executor<Ctx>, insertable: I) -> ExecutionResult {
+    type Insert = I;
+
+    fn handle_insert(executor: &Executor<Ctx>, insertable: Self::Insert) -> ExecutionResult {
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult {
@@ -185,7 +212,7 @@ where
         })
     }
 
-    fn handle_batch_insert(executor: &Executor<Ctx>, batch: Vec<I>) -> ExecutionResult {
+    fn handle_batch_insert(executor: &Executor<Ctx>, batch: Vec<Self::Insert>) -> ExecutionResult {
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult {
