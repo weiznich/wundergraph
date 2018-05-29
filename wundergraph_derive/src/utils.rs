@@ -58,6 +58,10 @@ pub fn is_has_one(ty: &Type) -> bool {
     inner_ty_arg(ty, "HasOne", 0).is_some()
 }
 
+pub fn is_lazy_load(ty: &Type) -> bool {
+    inner_ty_arg(ty, "LazyLoad", 0).is_some()
+}
+
 pub fn inner_ty_arg<'a>(ty: &'a Type, type_name: &str, index: usize) -> Option<&'a Type> {
     use syn::PathArguments::AngleBracketed;
 

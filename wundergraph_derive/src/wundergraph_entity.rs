@@ -2,8 +2,10 @@ use diagnostic_shim::Diagnostic;
 use model::Model;
 use quote;
 use syn;
-use utils::{inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_option_ty,
-            wrap_in_dummy_mod};
+use utils::{
+    inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_lazy_load, is_option_ty,
+    wrap_in_dummy_mod,
+};
 
 pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     let model = Model::from_item(item)?;
@@ -108,6 +110,65 @@ fn apply_order(model: &Model) -> Result<Option<quote::Tokens>, Diagnostic> {
     } else {
         Ok(None)
     }
+}
+
+fn handle_lazy_load(model: &Model, db: &quote::Tokens) -> Result<Vec<quote::Tokens>, Diagnostic> {
+    model
+        .fields()
+        .iter()
+        .filter_map(|f| {
+            if f.has_flag("skip") || !is_lazy_load(&f.ty) {
+                None
+            } else {
+                let field_name = &f.name;
+                let table = match model.table_type() {
+                    Ok(t) => t,
+                    Err(e) => return Some(Err(e)),
+                };
+                let field_access = f.name.access();
+                let inner_ty = inner_ty_arg(&f.ty, "LazyLoad", 0);
+                let primary_key = &quote!{
+                    <<Self as diesel::associations::HasTable>::Table as diesel::Table>::primary_key(
+                        &<Self as diesel::associations::HasTable>::table()
+                    )
+                };
+
+                let inner = quote!{
+                    if let Some(_select) =
+                        <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
+                            select,
+                            stringify!(#field_name),
+                        ) {
+                            let mut lazy_load = {
+                                let collected_ids = ret.iter().map(|r| {
+                                    <&Self as diesel::Identifiable>::id(r)
+                                }).collect::<Vec<_>>();
+                                let filter = <_ as diesel::ExpressionMethods>::eq_any(#primary_key, &collected_ids);
+                                let query = <Self as diesel::associations::HasTable>::table()
+                                    .select((#primary_key, #table::#field_name))
+                                    .filter(filter);
+                                println!("{}", diesel::debug_query::<#db, _>(&query));
+                                query
+                                    .load(conn)?
+                                    .into_iter()
+                                    .collect::<
+                                    ::std::collections::HashMap<
+                                    <<&Self as diesel::Identifiable>::Id as wundergraph::helper::primary_keys::UnRef>::UnRefed,
+                                wundergraph::query_helper::LazyLoad<#inner_ty>>>()
+                            };
+                            for i in &mut ret {
+                                let item = {
+                                    let id = <& _ as diesel::Identifiable>::id(i);
+                                    lazy_load.remove(id).expect("It's loaded")
+                                };
+                                i#field_access = item;
+                            }
+                        }
+                };
+                Some(Ok(inner))
+            }
+        })
+        .collect()
 }
 
 fn handle_has_many(model: &Model, field_count: usize) -> Vec<quote::Tokens> {
@@ -255,6 +316,7 @@ fn impl_loading_handler(
     offset: Option<&quote::Tokens>,
     order: Option<&quote::Tokens>,
     remote_fields: &[quote::Tokens],
+    lazy_load_fields: &[quote::Tokens],
     context: syn::Path,
     query_modifier: &syn::Path,
     select: Option<&quote::Tokens>,
@@ -308,6 +370,7 @@ fn impl_loading_handler(
                 println!("{}", diesel::debug_query(&source));
                 let mut ret: Vec<Self> = source.load(conn)?;
 
+                #(#lazy_load_fields)*
                 #(#remote_fields)*
 
                 Ok(ret)
@@ -351,6 +414,7 @@ fn derive_loading_handler(
     };
 
     let pg = if cfg!(feature = "postgres") {
+        let lazy_load = handle_lazy_load(model, &quote!(diesel::pg::Pg))?;
         let context = model.context_type(parse_quote!(diesel::PgConnection))?;
         Some(impl_loading_handler(
             item,
@@ -360,6 +424,7 @@ fn derive_loading_handler(
             offset.as_ref(),
             order.as_ref(),
             &remote_fields,
+            &lazy_load,
             context,
             &query_modifier,
             select.as_ref(),
@@ -369,6 +434,7 @@ fn derive_loading_handler(
     };
 
     let sqlite = if cfg!(feature = "sqlite") {
+        let lazy_load = handle_lazy_load(model, &quote!(diesel::sqlite::Sqlite))?;
         let context = model.context_type(parse_quote!(diesel::SqliteConnection))?;
         Some(impl_loading_handler(
             item,
@@ -378,6 +444,7 @@ fn derive_loading_handler(
             offset.as_ref(),
             order.as_ref(),
             &remote_fields,
+            &lazy_load,
             context,
             &query_modifier,
             select.as_ref(),
