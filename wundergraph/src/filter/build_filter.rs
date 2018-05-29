@@ -1,7 +1,8 @@
 use diesel::backend::Backend;
-use diesel::expression::{BoxableExpression, Expression, NonAggregate, SqlLiteral};
+use diesel::expression::{Expression, NonAggregate, SqlLiteral};
 use diesel::query_builder::QueryFragment;
 use diesel::sql_types::Bool;
+use diesel_ext::BoxableFilter;
 use filter::transformator::Transformator;
 
 pub trait BuildFilter<DB>
@@ -16,7 +17,7 @@ where
 }
 
 impl<'a, T, DB> BuildFilter<DB>
-    for Box<BoxableExpression<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>
+    for Box<BoxableFilter<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>
 where
     DB: Backend,
 {

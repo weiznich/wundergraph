@@ -159,31 +159,41 @@ macro_rules! __wundergraph_expand_sqlite_mutation {
 #[doc(hidden)]
 #[macro_export]
 #[cfg(not(feature = "sqlite"))]
+// https://github.com/rust-lang-nursery/rustfmt/issues/2749
+#[cfg_attr(rustfmt, rustfmt_skip)]
 macro_rules! __wundergraph_expand_sqlite_mutation {
     (
-        $mutation_name: ident $((context = $($context: tt)*))* {
-            $($entity_name: ident (
-                $(insert = $insert: ident,)*
-                $(update = $update: ident,)*
-                $(delete = $($delete: tt)+)*
-            ),)*
-        }
-    ) => {}
+        $mutation_name:ident $((context = $($context:tt)*))*
+        {
+            $(
+                $entity_name:ident(
+                    $(insert = $insert:ident,)*
+                    $(update = $update:ident,)*
+                    $(delete = $($delete:tt)+)*
+                ),
+            )*
+         }
+    ) => {};
 }
 
 #[doc(hidden)]
 #[macro_export]
 #[cfg(not(feature = "postgres"))]
+// https://github.com/rust-lang-nursery/rustfmt/issues/2749
+#[cfg_attr(rustfmt, rustfmt_skip)]
 macro_rules! __wundergraph_expand_pg_mutation {
     (
-        $mutation_name: ident $((context = $($context: tt)*))* {
-            $($entity_name: ident (
-                $(insert = $insert: ident,)*
-                    $(update = $update: ident,)*
-                    $(delete = $($delete: tt)+)*
-            ),)*
-        }
-    ) => {}
+        $mutation_name:ident $((context = $($context:tt)*))*
+        {
+            $(
+                $entity_name:ident(
+                    $(insert = $insert:ident,)*
+                    $(update = $update:ident,)*
+                    $(delete = $($delete:tt)+)*
+                ),
+            )*
+         }
+    ) => {};
 }
 
 #[doc(hidden)]
@@ -315,7 +325,6 @@ macro_rules! __wundergraph_expand_mutation_graphql_type {
         }
     }
 }
-
 
 #[macro_export]
 macro_rules! wundergraph_mutation_object {

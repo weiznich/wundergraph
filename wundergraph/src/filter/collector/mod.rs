@@ -3,7 +3,7 @@ use filter::transformator::Transformator;
 
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
-use diesel::SelectableExpression;
+use diesel::AppearsOnTable;
 
 mod and;
 mod or;
@@ -16,5 +16,5 @@ pub trait FilterCollector<'a, T, DB: Backend> {
     where
         C: Transformator,
         F: BuildFilter<DB> + 'a,
-        F::Ret: SelectableExpression<T> + QueryFragment<DB> + 'a;
+        F::Ret: AppearsOnTable<T> + QueryFragment<DB> + 'a;
 }

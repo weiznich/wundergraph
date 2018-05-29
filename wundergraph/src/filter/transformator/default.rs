@@ -1,6 +1,6 @@
 use super::{FilterType, Transformator};
 use diesel::sql_types::Bool;
-use diesel::BoxableExpression;
+use diesel_ext::BoxableFilter;
 
 #[derive(Debug, Clone, Copy)]
 pub struct NoTransformator;
@@ -8,9 +8,9 @@ pub struct NoTransformator;
 impl Transformator for NoTransformator {
     fn transform<Tab, DB>(
         &self,
-        f: Option<Box<BoxableExpression<Tab, DB, SqlType = Bool>>>,
+        f: Option<Box<BoxableFilter<Tab, DB, SqlType = Bool>>>,
         _tpe: FilterType,
-    ) -> Option<Box<BoxableExpression<Tab, DB, SqlType = Bool>>> {
+    ) -> Option<Box<BoxableFilter<Tab, DB, SqlType = Bool>>> {
         f
     }
 }

@@ -12,13 +12,15 @@ use diesel::expression::NonAggregate;
 use diesel::query_builder::{AsQuery, BoxedSelectStatement, QueryFragment};
 use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl};
 use diesel::sql_types::{Bool, NotNull, SingleValue};
-use diesel::{BoxableExpression, Column, Expression, ExpressionMethods, NullableExpressionMethods,
-             QueryDsl, SelectableExpression};
+use diesel::{
+    AppearsOnTable, Column, Expression, ExpressionMethods, NullableExpressionMethods, QueryDsl,
+};
+use diesel_ext::BoxableFilter;
 
 use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
-use ordermap::OrderMap;
+use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
@@ -44,7 +46,7 @@ impl<C, DB, I, C2> BuildFilter<DB> for ReverseNullableReferenceFilter<C, I, C2>
 where
     C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C::SqlType: SingleValue + NotNull,
-    Nullable<C>: SelectableExpression<C::Table> + ExpressionMethods,
+    Nullable<C>: ExpressionMethods,
     DB: Backend + 'static,
     I: BuildFilter<DB> + Clone + InnerFilter,
     C::Table: 'static,
@@ -62,11 +64,11 @@ where
     BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>:
         AsInExpression<SqlTypeOf<Nullable<C>>>,
     EqAny<Nullable<C>, BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>:
-        SelectableExpression<C::Table> + QueryFragment<DB> + Expression<SqlType = Bool>,
+        AppearsOnTable<C::Table> + QueryFragment<DB> + Expression<SqlType = Bool>,
     NeAny<Nullable<C>, BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>:
-        SelectableExpression<C::Table> + QueryFragment<DB> + Expression<SqlType = Bool>,
+        AppearsOnTable<C::Table> + QueryFragment<DB> + Expression<SqlType = Bool>,
 {
-    type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter<F>(self, t: F) -> Option<Self::Ret>
     where
@@ -128,7 +130,7 @@ where
     I: InnerFilter,
 {
     fn to_input_value(&self) -> InputValue {
-        let mut map = OrderMap::with_capacity(I::FIELD_COUNT);
+        let mut map = IndexMap::with_capacity(I::FIELD_COUNT);
         self.inner.to_inner_input_value(&mut map);
         InputValue::object(map)
     }
@@ -178,7 +180,7 @@ where
 
     const FIELD_COUNT: usize = I::FIELD_COUNT;
 
-    fn from_inner_input_value(obj: OrderMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
         let inner = match I::from_inner_input_value(obj) {
             Some(inner) => Box::new(inner),
             None => return None,
@@ -197,7 +199,7 @@ where
         }
     }
 
-    fn to_inner_input_value(&self, map: &mut OrderMap<&str, InputValue>) {
+    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue>) {
         self.inner.to_inner_input_value(map);
     }
 

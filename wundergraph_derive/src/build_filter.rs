@@ -1,9 +1,9 @@
+use diagnostic_shim::Diagnostic;
+use field::Field;
+use model::Model;
 use quote;
 use syn;
-use diagnostic_shim::Diagnostic;
 use utils::wrap_in_dummy_mod;
-use model::Model;
-use field::Field;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     let model = Model::from_item(item)?;
@@ -43,7 +43,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
         &quote! {
             use self::wundergraph::filter::build_filter::BuildFilter;
             use self::wundergraph::filter::collector::AndCollector;
-            use self::wundergraph::diesel::expression::BoxableExpression;
+            use self::wundergraph::diesel_ext::BoxableFilter;
             use self::wundergraph::diesel::sql_types::Bool;
             use self::wundergraph::filter::transformator::Transformator;
 
@@ -67,7 +67,7 @@ fn impl_build_filter(
             #where_clause
 
         {
-            type Ret = Box<BoxableExpression<#table::table, #backend, SqlType = Bool>>;
+            type Ret = Box<BoxableFilter<#table::table, #backend, SqlType = Bool>>;
 
             fn into_filter<__T>(self, t: __T) -> Option<Self::Ret>
             where

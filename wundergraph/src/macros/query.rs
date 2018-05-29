@@ -164,9 +164,12 @@ macro_rules! __wundergraph_expand_sqlite_loading_handler {
 #[doc(hidden)]
 #[macro_export]
 #[cfg(not(feature = "postgres"))]
+// https://github.com/rust-lang-nursery/rustfmt/issues/2749
+#[cfg_attr(rustfmt, rustfmt_skip)]
 macro_rules! __wundergraph_expand_pg_loading_handler {
     (
-        $query_name:ident $((context = $($context:tt)*))* {
+        $query_name:ident $((context = $($context:tt)*))*
+        {
             $(
                 $entity_name:ident(
                     $graphql_struct:ident
@@ -183,9 +186,12 @@ macro_rules! __wundergraph_expand_pg_loading_handler {
 #[doc(hidden)]
 #[macro_export]
 #[cfg(not(feature = "sqlite"))]
+// https://github.com/rust-lang-nursery/rustfmt/issues/2749
+#[cfg_attr(rustfmt, rustfmt_skip)]
 macro_rules! __wundergraph_expand_sqlite_loading_handler {
     (
-        $query_name:ident $((context = $($context:tt)*))* {
+        $query_name:ident $((context = $($context:tt)*))*
+        {
             $(
                 $entity_name:ident(
                     $graphql_struct:ident

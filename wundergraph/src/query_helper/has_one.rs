@@ -1,11 +1,12 @@
-use diesel::associations::{ForeignKey, Identifiable};
+use diesel::associations::ForeignKey;
 use diesel::backend::Backend;
 use diesel::expression::bound::Bound;
 use diesel::expression::AsExpression;
 use diesel::Queryable;
 use juniper::meta::MetaType;
-use juniper::{Arguments, ExecutionResult, Executor, FieldError, GraphQLType, Registry, Selection,
-              Value};
+use juniper::{
+    Arguments, ExecutionResult, Executor, FieldError, GraphQLType, Registry, Selection, Value,
+};
 use std::hash::Hash;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -14,33 +15,16 @@ pub enum HasOne<R, T> {
     Item(T),
 }
 
-impl<'a, R, T> ForeignKey<&'a R> for HasOne<R, T>
+impl<R, T, ST> ForeignKey<ST> for HasOne<R, T>
 where
-    for<'b> &'b T: Identifiable<Id = &'b R>,
-    R: Hash + Eq,
+    R: ForeignKey<ST> + ::std::cmp::Eq + Hash,
 {
-    type KeyType = R;
+    type KeyType = <R as ForeignKey<ST>>::KeyType;
 
-    fn get_key(&self) -> Option<&Self::KeyType> {
+    fn key(&self) -> Option<&Self::KeyType> {
         match *self {
-            HasOne::Id(ref id) => Some(id),
-            HasOne::Item(ref i) => Some(i.id()),
-        }
-    }
-}
-
-impl<'a, R, T> ForeignKey<&'a R> for HasOne<Option<R>, Option<T>>
-where
-    for<'b> &'b T: Identifiable<Id = &'b R>,
-    R: Hash + Eq,
-{
-    type KeyType = R;
-
-    fn get_key(&self) -> Option<&Self::KeyType> {
-        match *self {
-            HasOne::Id(Some(ref id)) => Some(id),
-            HasOne::Item(Some(ref i)) => Some(i.id()),
-            HasOne::Id(None) | HasOne::Item(None) => None,
+            HasOne::Id(ref id) => id.key(),
+            _ => None,
         }
     }
 }

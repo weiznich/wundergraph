@@ -10,7 +10,7 @@ use WundergraphContext;
 #[cfg(feature = "postgres")]
 use diesel::dsl::Filter;
 #[cfg(feature = "postgres")]
-use diesel::expression::{BoxableExpression, Expression, NonAggregate, SelectableExpression};
+use diesel::expression::{Expression, NonAggregate, SelectableExpression};
 #[cfg(feature = "postgres")]
 use diesel::insertable::CanInsertInSingleQuery;
 #[cfg(feature = "postgres")]
@@ -26,6 +26,8 @@ use diesel::Identifiable;
 #[cfg(feature = "postgres")]
 use diesel::{EqAll, Queryable};
 #[cfg(feature = "postgres")]
+use diesel_ext::BoxableFilter;
+#[cfg(feature = "postgres")]
 use helper::primary_keys::UnRef;
 
 #[cfg(feature = "sqlite")]
@@ -37,7 +39,9 @@ use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, OrderDsl};
 #[cfg(feature = "sqlite")]
 use diesel::sqlite::Sqlite;
 
-use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value};
+use juniper::{
+    Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value,
+};
 use LoadingHandler;
 
 pub fn handle_batch_insert<DB, I, R, Ctx>(
@@ -122,13 +126,13 @@ where
     &'static R: Identifiable,
     <&'static R as Identifiable>::Id: UnRef<'static, UnRefed = Id>,
     R::Query: FilterDsl<<T::PrimaryKey as EqAll<Id>>::Output>,
-    R::Query: FilterDsl<Box<BoxableExpression<T, Pg, SqlType = Bool>>>,
+    R::Query: FilterDsl<Box<BoxableFilter<T, Pg, SqlType = Bool>>>,
     T::PrimaryKey: EqAll<Id>,
     <T::PrimaryKey as EqAll<Id>>::Output:
         SelectableExpression<T> + NonAggregate + QueryFragment<Pg> + 'static,
     Filter<R::Query, <T::PrimaryKey as EqAll<Id>>::Output>:
         QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, R::SqlType, T, Pg>>,
-    Filter<R::Query, Box<BoxableExpression<T, Pg, SqlType = Bool>>>:
+    Filter<R::Query, Box<BoxableFilter<T, Pg, SqlType = Bool>>>:
         QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, R::SqlType, T, Pg>>,
 {
     type Insert = I;
@@ -167,7 +171,7 @@ where
             let mut ids = inserted.into_iter();
             if let Some(id) = ids.next() {
                 let mut f = Box::new(T::table().primary_key().eq_all(id))
-                    as Box<BoxableExpression<T, Pg, SqlType = Bool>>;
+                    as Box<BoxableFilter<T, Pg, SqlType = Bool>>;
                 for id in ids {
                     f = Box::new(f.or(T::table().primary_key().eq_all(id))) as Box<_>;
                 }

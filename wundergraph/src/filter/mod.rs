@@ -7,13 +7,13 @@ use juniper::Registry;
 use juniper::ToInputValue;
 
 use diesel::backend::Backend;
-use diesel::expression::BoxableExpression;
 use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
 use diesel::sql_types::Bool;
 use diesel::AppearsOnTable;
 use diesel::QueryDsl;
 use diesel::Table;
-use ordermap::OrderMap;
+use diesel_ext::BoxableFilter;
+use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
@@ -109,7 +109,7 @@ where
     F: InnerFilter,
 {
     fn to_input_value(&self) -> InputValue {
-        let mut map = OrderMap::with_capacity(2 + F::FIELD_COUNT);
+        let mut map = IndexMap::with_capacity(2 + F::FIELD_COUNT);
         map.insert("and", self.and.to_input_value());
         map.insert("or", self.or.to_input_value());
         self.inner.to_inner_input_value(&mut map);
@@ -170,7 +170,7 @@ where
 impl<F, DB, T> BuildFilter<DB> for Filter<F, T>
 where
     DB: Backend + 'static,
-    F: InnerFilter + BuildFilter<DB, Ret = Box<BoxableExpression<T, DB, SqlType = Bool>>> + 'static,
+    F: InnerFilter + BuildFilter<DB, Ret = Box<BoxableFilter<T, DB, SqlType = Bool>>> + 'static,
     T: 'static,
 {
     type Ret = F::Ret;

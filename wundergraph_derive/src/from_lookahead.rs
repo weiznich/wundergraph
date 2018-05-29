@@ -1,8 +1,8 @@
+use diagnostic_shim::*;
+use proc_macro2::Span;
 use quote;
 use syn;
-use diagnostic_shim::*;
 use utils::wrap_in_dummy_mod;
-use proc_macro2::Span;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     let e = match item.data {

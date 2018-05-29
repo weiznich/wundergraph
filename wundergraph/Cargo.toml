@@ -5,12 +5,12 @@ authors = ["Georg Semmler <georg_semmler_05@web.de>"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-diesel = { version = "=1.1.1", features = ["r2d2"]}
+diesel = { version = "=1.2.2", features = ["r2d2"]}
 juniper = "=0.9.2"
-ordermap = "0.2"
+indexmap = "1"
 wundergraph_derive = { path = "../wundergraph_derive" }
 clippy = { version = "0.0.188", optional = true }
-uuid = { version = "0.5", optional = true }
+uuid = { version = "0.6", optional = true }
 chrono = { version = "0.4", optional = true }
 failure = "0.1"
 

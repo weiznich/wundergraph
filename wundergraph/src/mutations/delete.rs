@@ -9,7 +9,9 @@ use diesel::Identifiable;
 use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
 use WundergraphContext;
 
-use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value};
+use juniper::{
+    Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value,
+};
 use LoadingHandler;
 
 pub fn handle_delete<DB, D, R, Ctx>(

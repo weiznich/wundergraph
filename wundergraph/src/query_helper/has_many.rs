@@ -1,6 +1,7 @@
 use juniper::meta::MetaType;
-use juniper::{Arguments, ExecutionResult, Executor, FieldError, GraphQLType, Registry, Selection,
-              Value};
+use juniper::{
+    Arguments, ExecutionResult, Executor, FieldError, GraphQLType, Registry, Selection, Value,
+};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum HasMany<T> {

@@ -4,12 +4,13 @@ use filter::transformator::Transformator;
 
 use diesel::backend::Backend;
 use diesel::sql_types::Bool;
-use diesel::{BoxableExpression, Column};
+use diesel::Column;
+use diesel_ext::BoxableFilter;
 
 use juniper::meta::Argument;
 use juniper::{FromInputValue, InputValue, LookAheadValue, Registry, ToInputValue};
 
-use ordermap::OrderMap;
+use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
@@ -39,9 +40,9 @@ impl<C, DB> BuildFilter<DB> for StringFilter<C>
 where
     DB: Backend,
     C: Column,
-    Like<C>: BuildFilter<DB, Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>>,
+    Like<C>: BuildFilter<DB, Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>>,
 {
-    type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter<F>(self, t: F) -> Option<Self::Ret>
     where
@@ -56,7 +57,7 @@ impl<C> InnerFilter for StringFilter<C> {
 
     const FIELD_COUNT: usize = 1;
 
-    fn from_inner_input_value(obj: OrderMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
         let like = obj.get("like")
             .map(|v| Option::from_input_value(*v))
             .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
@@ -76,7 +77,7 @@ impl<C> InnerFilter for StringFilter<C> {
         }
     }
 
-    fn to_inner_input_value(&self, map: &mut OrderMap<&str, InputValue>) {
+    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue>) {
         map.insert("is_null", self.like.to_input_value());
     }
 

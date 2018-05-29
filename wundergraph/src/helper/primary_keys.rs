@@ -2,9 +2,9 @@ use super::FromLookAheadValue;
 use diesel::associations::HasTable;
 use diesel::query_builder::nodes::Identifier;
 use diesel::{Column, Identifiable, QuerySource, Table};
+use indexmap::IndexMap;
 use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
-use ordermap::OrderMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
@@ -94,7 +94,7 @@ where
     }
 
     fn to_input_value(values: &V1) -> InputValue {
-        let mut map = OrderMap::with_capacity(1);
+        let mut map = IndexMap::with_capacity(1);
         map.insert(A::NAME, values.to_input_value());
         InputValue::object(map)
     }
@@ -125,7 +125,7 @@ where
     }
 
     fn to_input_value(values: &(V1,)) -> InputValue {
-        let mut map = OrderMap::with_capacity(1);
+        let mut map = IndexMap::with_capacity(1);
         map.insert(A::NAME, values.0.to_input_value());
         InputValue::object(map)
     }
@@ -165,7 +165,7 @@ where
     }
 
     fn to_input_value(values: &(V1, V2)) -> InputValue {
-        let mut map = OrderMap::with_capacity(2);
+        let mut map = IndexMap::with_capacity(2);
         map.insert(A::NAME, values.0.to_input_value());
         map.insert(B::NAME, values.1.to_input_value());
         InputValue::object(map)
@@ -216,7 +216,7 @@ where
     }
 
     fn to_input_value(values: &(V1, V2, V3)) -> InputValue {
-        let mut map = OrderMap::with_capacity(3);
+        let mut map = IndexMap::with_capacity(3);
         map.insert(A::NAME, values.0.to_input_value());
         map.insert(B::NAME, values.1.to_input_value());
         map.insert(C::NAME, values.2.to_input_value());
@@ -277,7 +277,7 @@ where
     }
 
     fn to_input_value(values: &(V1, V2, V3, V4)) -> InputValue {
-        let mut map = OrderMap::with_capacity(5);
+        let mut map = IndexMap::with_capacity(5);
         map.insert(A::NAME, values.0.to_input_value());
         map.insert(B::NAME, values.1.to_input_value());
         map.insert(C::NAME, values.2.to_input_value());
@@ -349,7 +349,7 @@ where
     }
 
     fn to_input_value(values: &(V1, V2, V3, V4, V5)) -> InputValue {
-        let mut map = OrderMap::with_capacity(5);
+        let mut map = IndexMap::with_capacity(5);
         map.insert(A::NAME, values.0.to_input_value());
         map.insert(B::NAME, values.1.to_input_value());
         map.insert(C::NAME, values.2.to_input_value());

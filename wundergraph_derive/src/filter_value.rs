@@ -1,6 +1,6 @@
+use diagnostic_shim::Diagnostic;
 use quote;
 use syn;
-use diagnostic_shim::Diagnostic;
 use utils::wrap_in_dummy_mod;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {

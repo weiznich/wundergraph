@@ -1,11 +1,11 @@
 use proc_macro2::Span;
 use quote;
-use syn::spanned::Spanned;
 use syn;
+use syn::spanned::Spanned;
 
+use diagnostic_shim::Diagnostic;
 use meta::*;
 use utils::*;
-use diagnostic_shim::Diagnostic;
 
 pub struct Field {
     pub ty: syn::Type,

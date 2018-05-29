@@ -4,12 +4,13 @@ use filter::transformator::Transformator;
 
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
-use diesel::{BoolExpressionMethods, BoxableExpression, SelectableExpression};
+use diesel::{AppearsOnTable, BoolExpressionMethods};
+use diesel_ext::BoxableFilter;
 
 use std::fmt::{self, Debug};
 
 pub struct AndCollector<'a, T, DB>(
-    Option<Box<BoxableExpression<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>>,
+    Option<Box<BoxableFilter<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>>,
 );
 
 impl<'a, T, DB> Debug for AndCollector<'a, T, DB>
@@ -39,7 +40,7 @@ where
     where
         C: Transformator,
         F: BuildFilter<DB> + 'a,
-        F::Ret: SelectableExpression<T> + QueryFragment<DB> + 'a,
+        F::Ret: AppearsOnTable<T> + QueryFragment<DB> + 'a,
     {
         let f = f.into_filter(t);
         let c = ::std::mem::replace(&mut self.0, None);
@@ -56,7 +57,7 @@ impl<'a, T, DB> BuildFilter<DB> for AndCollector<'a, T, DB>
 where
     DB: Backend,
 {
-    type Ret = Box<BoxableExpression<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>;
+    type Ret = Box<BoxableFilter<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>;
 
     fn into_filter<C>(self, _t: C) -> Option<Self::Ret>
     where

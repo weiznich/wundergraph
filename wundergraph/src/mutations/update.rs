@@ -7,7 +7,9 @@ use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl};
 use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
 use WundergraphContext;
 
-use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value};
+use juniper::{
+    Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value,
+};
 use LoadingHandler;
 
 pub fn handle_update<DB, U, R, Ctx>(

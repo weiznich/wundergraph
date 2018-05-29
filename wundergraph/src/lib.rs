@@ -21,7 +21,7 @@ pub extern crate diesel;
 #[doc(hidden)]
 pub extern crate juniper;
 #[doc(hidden)]
-pub extern crate ordermap;
+pub extern crate indexmap;
 #[macro_use]
 pub extern crate failure;
 #[cfg_attr(feature = "clippy", allow(useless_attribute))]
@@ -31,6 +31,7 @@ extern crate wundergraph_derive;
 #[doc(hidden)]
 pub use wundergraph_derive::*;
 
+pub mod diesel_ext;
 pub mod error;
 pub mod filter;
 pub mod helper;

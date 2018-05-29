@@ -8,12 +8,13 @@ use diesel::backend::Backend;
 use diesel::expression::{AsExpression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::sql_types::{Bool, SingleValue};
-use diesel::{BoxableExpression, Column, SelectableExpression};
+use diesel::{AppearsOnTable, Column};
+use diesel_ext::BoxableFilter;
 
 use juniper::meta::Argument;
 use juniper::{FromInputValue, InputValue, LookAheadValue, Registry};
 
-use ordermap::OrderMap;
+use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
@@ -49,15 +50,14 @@ where
     DB: Backend + 'static,
     V: FilterValue<C> + 'static,
     V::AdditionalFilter: BuildFilter<DB>,
-    <V::AdditionalFilter as BuildFilter<DB>>::Ret:
-        SelectableExpression<C::Table> + QueryFragment<DB>,
+    <V::AdditionalFilter as BuildFilter<DB>>::Ret: AppearsOnTable<C::Table> + QueryFragment<DB>,
     V::RawValue: AsExpression<C::SqlType> + 'static,
     <V::RawValue as AsExpression<C::SqlType>>::Expression:
-        SelectableExpression<C::Table> + NonAggregate + QueryFragment<DB> + 'static,
+        AppearsOnTable<C::Table> + NonAggregate + QueryFragment<DB> + 'static,
     IsNull<C>: BuildFilter<DB>,
-    <IsNull<C> as BuildFilter<DB>>::Ret: SelectableExpression<C::Table> + QueryFragment<DB>,
+    <IsNull<C> as BuildFilter<DB>>::Ret: AppearsOnTable<C::Table> + QueryFragment<DB>,
 {
-    type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter<F>(self, t: F) -> Option<Self::Ret>
     where
@@ -87,7 +87,7 @@ where
     type Context = ();
 
     const FIELD_COUNT: usize = 1 + V::AdditionalFilter::FIELD_COUNT;
-    fn from_inner_input_value(obj: OrderMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
         let is_null = obj.get("is_null").map(|v| bool::from_input_value(v));
         let is_null = match is_null {
             Some(Some(b)) => Some(IsNull::new(b)),
@@ -116,7 +116,7 @@ where
         }
     }
 
-    fn to_inner_input_value(&self, _v: &mut OrderMap<&str, InputValue>) {}
+    fn to_inner_input_value(&self, _v: &mut IndexMap<&str, InputValue>) {}
 
     fn register_fields<'r>(
         _info: &NameBuilder<Self>,

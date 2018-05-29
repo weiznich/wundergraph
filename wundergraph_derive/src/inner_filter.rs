@@ -1,8 +1,8 @@
+use diagnostic_shim::Diagnostic;
+use model::Model;
 use quote;
 use syn;
-use diagnostic_shim::Diagnostic;
 use utils::{inner_of_box_ty, inner_of_option_ty, is_box_ty, wrap_in_dummy_mod};
-use model::Model;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     let item_name = item.ident;
@@ -22,7 +22,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
         &quote! {
             use self::wundergraph::juniper::{self, InputValue, LookAheadValue, Registry};
             use self::wundergraph::juniper::meta::Argument;
-            use self::wundergraph::ordermap::OrderMap;
+            use self::wundergraph::indexmap::IndexMap;
             use self::wundergraph::filter::inner_filter::InnerFilter;
             use self::wundergraph::helper::NameBuilder;
 
@@ -33,7 +33,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
 
                 const FIELD_COUNT: usize = #field_count;
 
-                fn from_inner_input_value(obj: OrderMap<&str, &InputValue>) -> Option<Self> {
+                fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
                     #from_inner_input_value
                 }
 
@@ -41,7 +41,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
                     #from_inner_look_ahead
                 }
 
-                fn to_inner_input_value(&self, v: &mut OrderMap<&str, InputValue>) {
+                fn to_inner_input_value(&self, v: &mut IndexMap<&str, InputValue>) {
                     #to_inner_input_value
                 }
 

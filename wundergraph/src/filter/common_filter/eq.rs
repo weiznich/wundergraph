@@ -6,7 +6,8 @@ use diesel::expression::{operators, AsExpression, Expression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::serialize::ToSql;
 use diesel::sql_types::{Bool, HasSqlType};
-use diesel::{BoxableExpression, Column, ExpressionMethods, SelectableExpression};
+use diesel::{AppearsOnTable, Column, ExpressionMethods};
+use diesel_ext::BoxableFilter;
 
 use juniper::{InputValue, ToInputValue};
 
@@ -32,13 +33,13 @@ impl<C, T, DB> BuildFilter<DB> for Eq<T, C>
 where
     C: ExpressionMethods + NonAggregate + Column + QueryFragment<DB> + Default + 'static,
     T: AsExpression<C::SqlType> + ToSql<<C as Expression>::SqlType, DB>,
-    T::Expression: NonAggregate + SelectableExpression<C::Table> + QueryFragment<DB> + 'static,
+    T::Expression: NonAggregate + AppearsOnTable<C::Table> + QueryFragment<DB> + 'static,
     DB: Backend + HasSqlType<<C as Expression>::SqlType> + 'static,
     C::Table: 'static,
     operators::Eq<C, <T as AsExpression<C::SqlType>>::Expression>:
-        SelectableExpression<C::Table, SqlType = Bool>,
+        AppearsOnTable<C::Table, SqlType = Bool>,
 {
-    type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter<F>(self, t: F) -> Option<Self::Ret>
     where
