@@ -12,6 +12,7 @@ pub struct Field {
     pub name: FieldName,
     pub span: Span,
     pub doc: Option<String>,
+    pub deprecated: Option<String>,
     flags: MetaItem,
 }
 
@@ -30,6 +31,7 @@ impl Field {
             }),
         };
         let doc = MetaItem::get_docs(&field.attrs);
+        let deprecated = MetaItem::get_deprecated(&field.attrs);
         let flags = MetaItem::with_name(&field.attrs, "wundergraph")
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
         let span = field.span();
@@ -40,6 +42,7 @@ impl Field {
             flags,
             span,
             doc,
+            deprecated,
         }
     }
 

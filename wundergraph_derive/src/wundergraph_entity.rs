@@ -559,8 +559,11 @@ fn derive_graphql_object(
                     let field_name = &f.name;
                     let field_ty = &f.ty;
                     let docs = f.doc.as_ref().map(|d| quote!{.description(#d)});
+                    let deprecated = f.deprecated.as_ref().map(|d| quote!{.deprecated(#d)});
                     let field = quote!{
-                        let #field_name = registry.field::<#field_ty>(stringify!(#field_name), info)#docs;
+                        let #field_name = registry.field::<#field_ty>(stringify!(#field_name), info)
+                            #docs
+                            #deprecated;
                     };
 
                     if let Some(filter) = f.filter() {

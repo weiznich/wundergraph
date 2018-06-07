@@ -24,6 +24,12 @@ impl MetaItem {
             .collect()
     }
 
+    pub fn get_deprecated(attrs: &[syn::Attribute]) -> Option<String> {
+        Self::with_name(attrs, "deprecated").and_then(|d|{
+            d.nested_item("note").and_then(|n| n.str_value()).ok()
+        })
+    }
+
     pub fn get_docs(attrs: &[syn::Attribute]) -> Option<String> {
         attrs
             .iter()

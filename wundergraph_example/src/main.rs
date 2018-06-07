@@ -226,6 +226,7 @@ pub struct Hero {
     /// The name of a hero
     name: String,
     /// The hair color of a hero
+    #[deprecated(note = "Hair color should not be used because of unsafe things")]
     hair_color: Option<String>,
     /// Which species a hero belongs to
     species: HasOne<i32, Species>,
