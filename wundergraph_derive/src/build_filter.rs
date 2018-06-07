@@ -39,7 +39,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 
     let dummy_mod = model.dummy_mod_name("build_filter");
     Ok(wrap_in_dummy_mod(
-        dummy_mod,
+        &dummy_mod,
         &quote! {
             use self::wundergraph::filter::build_filter::BuildFilter;
             use self::wundergraph::filter::collector::AndCollector;

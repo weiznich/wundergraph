@@ -220,12 +220,12 @@ where
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult {
-            let n = batch
+            let n: usize = batch
                 .into_iter()
                 .map(|i| i.insert_into(T::table()).execute(conn))
                 .collect::<Result<Vec<_>, _>>()?
                 .into_iter()
-                .fold(0, |acc, n| acc + n);
+                .sum();
             let q = OrderDsl::order(R::default_query().into_boxed(), sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, n as i64);
             let items = R::load_items(&executor.look_ahead(), ctx, q)?;

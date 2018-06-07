@@ -91,7 +91,7 @@ where
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult {
-            let change_set: &'static U = unsafe { ::std::mem::transmute(change_set) };
+            let change_set: &'static U = unsafe { &*(change_set as *const U) };
             let u = ::diesel::update(change_set).set(change_set);
             println!("{}", ::diesel::debug_query(&u));
             u.execute(conn)?;

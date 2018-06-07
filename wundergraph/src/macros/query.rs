@@ -256,7 +256,7 @@ macro_rules! __wundergraph_expand_graphql_type_for_query {
                             field
                         },
                         {
-                            let key_info = $crate::helper::primary_keys::PrimaryKeyInfo::new(<$graphql_struct as $crate::diesel::associations::HasTable>::table());
+                            let key_info = $crate::helper::primary_keys::PrimaryKeyInfo::new(&<$graphql_struct as $crate::diesel::associations::HasTable>::table());
                             let key = registry.arg::<
                                 $crate::helper::primary_keys::PrimaryKeyArgument<
                                 'static,

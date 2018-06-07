@@ -362,7 +362,7 @@ where
 pub struct PrimaryKeyInfo(String);
 
 impl PrimaryKeyInfo {
-    pub fn new<T>(table: T) -> Self
+    pub fn new<T>(table: &T) -> Self
     where
         T: QuerySource<FromClause = Identifier<'static>>,
     {

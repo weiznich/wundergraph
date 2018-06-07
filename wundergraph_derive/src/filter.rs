@@ -85,7 +85,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(wrap_in_dummy_mod_with_reeport(
-        dummy_mod,
+        &dummy_mod,
         &quote! {
             use self::wundergraph::diesel;
 

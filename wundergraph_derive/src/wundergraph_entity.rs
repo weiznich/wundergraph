@@ -14,7 +14,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 
     let dummy_mod = model.dummy_mod_name("wundergraph_entity");
     Ok(wrap_in_dummy_mod(
-        dummy_mod,
+        &dummy_mod,
         &quote!{
             #graphql_type
             #loading_handler
@@ -308,6 +308,7 @@ fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<TokenStream>,
         .collect()
 }
 
+#[cfg_attr(feature = "clippy", allow(too_many_arguments))]
 fn impl_loading_handler(
     item: &syn::DeriveInput,
     backend: &TokenStream,
@@ -317,7 +318,7 @@ fn impl_loading_handler(
     order: Option<&TokenStream>,
     remote_fields: &[TokenStream],
     lazy_load_fields: &[TokenStream],
-    context: syn::Path,
+    context: &syn::Path,
     query_modifier: &syn::Path,
     select: Option<&TokenStream>,
 ) -> TokenStream {
@@ -415,7 +416,7 @@ fn derive_loading_handler(
 
     let pg = if cfg!(feature = "postgres") {
         let lazy_load = handle_lazy_load(model, &quote!(diesel::pg::Pg))?;
-        let context = model.context_type(parse_quote!(diesel::PgConnection))?;
+        let context = model.context_type(&parse_quote!(diesel::PgConnection))?;
         Some(impl_loading_handler(
             item,
             &quote!(diesel::pg::Pg),
@@ -425,7 +426,7 @@ fn derive_loading_handler(
             order.as_ref(),
             &remote_fields,
             &lazy_load,
-            context,
+            &context,
             &query_modifier,
             select.as_ref(),
         ))
@@ -435,7 +436,7 @@ fn derive_loading_handler(
 
     let sqlite = if cfg!(feature = "sqlite") {
         let lazy_load = handle_lazy_load(model, &quote!(diesel::sqlite::Sqlite))?;
-        let context = model.context_type(parse_quote!(diesel::SqliteConnection))?;
+        let context = model.context_type(&parse_quote!(diesel::SqliteConnection))?;
         Some(impl_loading_handler(
             item,
             &quote!(diesel::sqlite::Sqlite),
@@ -445,7 +446,7 @@ fn derive_loading_handler(
             order.as_ref(),
             &remote_fields,
             &lazy_load,
-            context,
+            &context,
             &query_modifier,
             select.as_ref(),
         ))

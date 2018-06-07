@@ -18,7 +18,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 
     let dummy_mod = model.dummy_mod_name("inner_filter");
     Ok(wrap_in_dummy_mod(
-        dummy_mod,
+        &dummy_mod,
         &quote! {
             use self::wundergraph::juniper::{self, InputValue, LookAheadValue, Registry};
             use self::wundergraph::juniper::meta::Argument;

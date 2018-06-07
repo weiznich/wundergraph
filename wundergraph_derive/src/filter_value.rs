@@ -15,7 +15,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         item.ident.to_string().to_lowercase()
     );
     Ok(wrap_in_dummy_mod(
-        syn::Ident::new(&dummy_mod, Span::call_site()),
+        &syn::Ident::new(&dummy_mod, Span::call_site()),
         &quote! {
             use self::wundergraph::filter::filter_value::FilterValue;
 

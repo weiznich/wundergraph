@@ -84,7 +84,7 @@ impl Model {
         }
     }
 
-    pub fn context_type(&self, connection: syn::Type) -> Result<syn::Path, Diagnostic> {
+    pub fn context_type(&self, connection: &syn::Type) -> Result<syn::Path, Diagnostic> {
         self.flags
             .get_flag::<syn::Path>("context")
             .map(|mut p| {

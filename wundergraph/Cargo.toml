@@ -9,7 +9,7 @@ diesel = { version = "=1.2.2", features = ["r2d2"]}
 juniper = "=0.9.2"
 indexmap = "1"
 wundergraph_derive = { path = "../wundergraph_derive" }
-clippy = { version = "0.0.188", optional = true }
+clippy = { version = "0.0.197", optional = true }
 uuid = { version = "0.6", optional = true }
 chrono = { version = "0.4", optional = true }
 failure = "0.1"

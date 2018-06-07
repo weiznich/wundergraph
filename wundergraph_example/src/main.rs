@@ -339,6 +339,7 @@ struct AppState {
     executor: Addr<Syn, GraphQLExecutor>,
 }
 
+#[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
 fn graphiql(_req: HttpRequest<AppState>) -> Result<HttpResponse, Error> {
     let html = graphiql_source("/graphql");
     Ok(HttpResponse::Ok()
@@ -346,6 +347,7 @@ fn graphiql(_req: HttpRequest<AppState>) -> Result<HttpResponse, Error> {
         .body(html))
 }
 
+#[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
 fn graphql(st: State<AppState>, data: Json<GraphQLData>) -> FutureResponse<HttpResponse> {
     st.executor
         .send(data.0)
@@ -398,9 +400,9 @@ fn main() {
             .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
             .default_resource(|r| r.get().f(|_| HttpResponse::Found().header("location", "/graphiql").finish()))
     }).bind("127.0.0.1:8000")
-        .unwrap()
+        .expect("Failed to start server")
         .start();
 
-    println!("Started http server: 127.0.0.1:8000");
+    println!("Started http server: http://127.0.0.1:8000");
     let _ = sys.run();
 }

@@ -98,7 +98,7 @@ where
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult {
             // this is safe becuse we do not leek self out of this function
-            let static_to_delete: &'static I = unsafe{ ::std::mem::transmute(to_delete) };
+            let static_to_delete: &'static I = unsafe{ &*(to_delete as *const I) };
             let filter =  T::table().primary_key().eq_all(static_to_delete.id());
             let to_delete = FilterDsl::filter(R::default_query(), filter);
             // We use identifiable so there should only be one element affected by this query

@@ -8,7 +8,7 @@ macro_rules! __wundergraph_expand_delete {
     ($registry: ident, $entity: ident, $fields: ident, $info: expr, $field_info: expr, $context: ty, delete = true) => {
         __wundergraph_expand_delete!{$registry, $entity, $fields,
                                      &$crate::helper::primary_keys::PrimaryKeyInfo::new(
-                                         <$entity as $crate::diesel::associations::HasTable>::table()
+                                         &<$entity as $crate::diesel::associations::HasTable>::table()
                                      ),
                                      $field_info,
                                      $context,
