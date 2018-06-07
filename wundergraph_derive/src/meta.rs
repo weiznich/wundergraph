@@ -1,4 +1,4 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenNode};
 use syn;
 use syn::fold::Fold;
 use syn::spanned::Spanned;
@@ -22,6 +22,37 @@ impl MetaItem {
             .filter(|m| m.name() == name)
             .map(|meta| Self { meta })
             .collect()
+    }
+
+    pub fn get_docs(attrs: &[syn::Attribute]) -> Option<String> {
+        attrs
+            .iter()
+            .filter_map(|a| {
+                if a.is_sugared_doc {
+                    let mut i = a.tts.clone().into_iter();
+                    let doc = i.next().and_then(|_| i.next());
+                    doc.and_then(|t| match t.kind {
+                        TokenNode::Literal(l) => Some(l.to_string()),
+                        _ => None,
+                    }).map(|s| {
+                        let s = s.replace("\"", "");
+                        let mut s = s.trim();
+                        if s.starts_with("///") {
+                            s = &s[3..];
+                        }
+                        s.trim().to_owned()
+                    })
+                } else {
+                    None
+                }
+            })
+            .fold(None, |acc, s| {
+                if let Some(acc) = acc {
+                    Some(format!("{}\n{}", acc, s))
+                } else {
+                    Some(s)
+                }
+            })
     }
 
     pub fn with_name(attrs: &[syn::Attribute], name: &str) -> Option<Self> {

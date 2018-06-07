@@ -11,6 +11,7 @@ pub struct Field {
     pub ty: syn::Type,
     pub name: FieldName,
     pub span: Span,
+    pub doc: Option<String>,
     flags: MetaItem,
 }
 
@@ -28,6 +29,7 @@ impl Field {
                 span: Span::call_site(),
             }),
         };
+        let doc = MetaItem::get_docs(&field.attrs);
         let flags = MetaItem::with_name(&field.attrs, "wundergraph")
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
         let span = field.span();
@@ -37,6 +39,7 @@ impl Field {
             name,
             flags,
             span,
+            doc,
         }
     }
 

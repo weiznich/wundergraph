@@ -558,8 +558,9 @@ fn derive_graphql_object(
                 } else {
                     let field_name = &f.name;
                     let field_ty = &f.ty;
+                    let docs = f.doc.as_ref().map(|d| quote!{.description(#d)});
                     let field = quote!{
-                        let #field_name = registry.field::<#field_ty>(stringify!(#field_name), info);
+                        let #field_name = registry.field::<#field_ty>(stringify!(#field_name), info)#docs;
                     };
 
                     if let Some(filter) = f.filter() {
@@ -611,6 +612,8 @@ fn derive_graphql_object(
             }
         });
 
+        let doc = model.docs.as_ref().map(|d| quote!{.description(#d)});
+
         Ok(quote! {
             use self::wundergraph::juniper::{GraphQLType, Registry, Arguments,
                                              Executor, ExecutionResult, FieldError, Value};
@@ -632,7 +635,7 @@ fn derive_graphql_object(
                     let ty = registry.build_object_type::<Self>(
                         info,
                         &[#(#fields,)*]
-                    );
+                    )#doc;
                     MetaType::Object(ty)
                 }
 

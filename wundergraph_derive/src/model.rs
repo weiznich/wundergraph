@@ -10,6 +10,7 @@ pub struct Model {
     fields: Vec<Field>,
     flags: MetaItem,
     table_name: Option<syn::Ident>,
+    pub docs: Option<String>,
 }
 
 impl Model {
@@ -19,11 +20,13 @@ impl Model {
         let fields = fields_from_item_data(&item.data)?;
         let flags = MetaItem::with_name(&item.attrs, "wundergraph")
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
+        let docs = MetaItem::get_docs(&item.attrs);
         Ok(Self {
             name: item.ident,
             fields,
             flags,
             table_name,
+            docs,
         })
     }
 

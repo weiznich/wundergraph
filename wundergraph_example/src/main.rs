@@ -200,12 +200,16 @@ impl BuildQueryModifier<HomeWorld> for TestModifier {
          WundergraphFilter)]
 #[table_name = "home_worlds"]
 #[wundergraph(query_modifier = "TestModifier", context = "MyContext<Conn>", select(id))]
+/// A world where a hero was born
 pub struct HomeWorld {
+    /// Internal id of a world
     id: i32,
     #[diesel(default)]
+    /// The name of a world
     name: LazyLoad<String>,
     #[diesel(default)]
     #[wundergraph(is_nullable_reference = "true")]
+    /// All heros of a given world
     heros: HasMany<Hero>,
 }
 
@@ -215,15 +219,23 @@ pub struct HomeWorld {
 #[belongs_to(Species, foreign_key = "species")]
 #[belongs_to(HomeWorld, foreign_key = "home_world")]
 #[wundergraph(context = "MyContext<Conn>")]
+/// A hero from Star Wars
 pub struct Hero {
+    /// Internal id of a hero
     id: i32,
+    /// The name of a hero
     name: String,
+    /// The hair color of a hero
     hair_color: Option<String>,
+    /// Which species a hero belongs to
     species: HasOne<i32, Species>,
+    /// On which world a hero was born
     home_world: HasOne<Option<i32>, Option<HomeWorld>>,
     #[diesel(default)]
+    /// Episodes a hero appears in
     appears_in: HasMany<AppearsIn>,
     #[diesel(default)]
+    /// List of friends of the current hero
     friends: HasMany<Friend>,
 }
 
@@ -231,10 +243,14 @@ pub struct Hero {
          WundergraphFilter)]
 #[table_name = "species"]
 #[wundergraph(context = "MyContext<Conn>")]
+/// A species
 pub struct Species {
+    /// Internal id of a species
     id: i32,
+    /// The name of a species
     name: String,
     #[diesel(default)]
+    /// A list of heros for a species
     heros: HasMany<Hero>,
 }
 
