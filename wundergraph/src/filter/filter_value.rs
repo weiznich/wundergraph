@@ -1,7 +1,7 @@
-use juniper::{FromInputValue, ToInputValue};
-use helper::FromLookAheadValue;
-use filter::string_filter::StringFilter;
 use filter::nullable_filter::NullableFilter;
+use filter::string_filter::StringFilter;
+use helper::FromLookAheadValue;
+use juniper::{FromInputValue, ToInputValue};
 
 pub trait FilterValue<C> {
     type RawValue: Clone + FromInputValue + FromLookAheadValue + ToInputValue;

@@ -1,22 +1,23 @@
-use filter::inner_filter::InnerFilter;
-use filter::filter_value::FilterValue;
 use filter::build_filter::BuildFilter;
-use filter::transformator::Transformator;
 use filter::collector::{AndCollector, FilterCollector};
+use filter::filter_value::FilterValue;
+use filter::inner_filter::InnerFilter;
+use filter::transformator::Transformator;
 
-use diesel::expression::{operators, AsExpression, NonAggregate, SelectableExpression};
-use diesel::expression::array_comparison::{In, Many};
 use diesel::backend::Backend;
-use diesel::{BoxableExpression, Column};
-use diesel::sql_types::{Bool, HasSqlType, SingleValue};
+use diesel::expression::array_comparison::{In, Many};
+use diesel::expression::{operators, AppearsOnTable, AsExpression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::serialize::ToSql;
+use diesel::sql_types::{Bool, HasSqlType, SingleValue};
+use diesel::Column;
+use diesel_ext::BoxableFilter;
 
-use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 use juniper::meta::{Argument, MetaType};
+use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
-use ordermap::OrderMap;
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
+use indexmap::IndexMap;
 
 mod eq;
 mod eq_any;
@@ -68,7 +69,7 @@ where
 
     const FIELD_COUNT: usize = 3 + V::AdditionalFilter::FIELD_COUNT;
 
-    fn from_inner_input_value(obj: OrderMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
         let eq = obj.get("eq")
             .map(|v| Option::from_input_value(*v))
             .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
@@ -128,7 +129,7 @@ where
         }
     }
 
-    fn to_inner_input_value(&self, map: &mut OrderMap<&str, InputValue>) {
+    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue>) {
         map.insert("eq", self.eq.to_input_value());
         map.insert("not_eq", self.neq.to_input_value());
         map.insert("eq_any", self.eq_any.to_input_value());
@@ -170,7 +171,7 @@ where
     Self: InnerFilter,
 {
     fn to_input_value(&self) -> InputValue {
-        let mut map = OrderMap::with_capacity(3);
+        let mut map = IndexMap::with_capacity(3);
         self.to_inner_input_value(&mut map);
         InputValue::object(map)
     }
@@ -226,22 +227,22 @@ where
     DB: Backend + HasSqlType<C::SqlType> + 'static,
     T: FilterValue<C>,
     T::AdditionalFilter: BuildFilter<DB> + 'static,
-    <T::AdditionalFilter as BuildFilter<DB>>::Ret: SelectableExpression<C::Table>
-        + QueryFragment<DB>
-        + 'static,
+    <T::AdditionalFilter as BuildFilter<DB>>::Ret:
+        AppearsOnTable<C::Table> + QueryFragment<DB> + 'static,
     T::RawValue: AsExpression<C::SqlType> + ToSql<C::SqlType, DB> + 'static,
-    <T::RawValue as AsExpression<C::SqlType>>::Expression: NonAggregate
-        + SelectableExpression<C::Table>
-        + QueryFragment<DB>
-        + 'static,
+    <T::RawValue as AsExpression<C::SqlType>>::Expression:
+        NonAggregate + AppearsOnTable<C::Table> + QueryFragment<DB> + 'static,
     C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C::SqlType: SingleValue,
     C::Table: 'static,
-    operators::Eq<C, <T::RawValue as AsExpression<C::SqlType>>::Expression>: SelectableExpression<C::Table, SqlType = Bool>,
-    operators::NotEq<C, <T::RawValue as AsExpression<C::SqlType>>::Expression>: SelectableExpression<C::Table, SqlType = Bool>,
-    In<C, Many<<T::RawValue as AsExpression<C::SqlType>>::Expression>>: SelectableExpression<C::Table, SqlType = Bool>,
+    operators::Eq<C, <T::RawValue as AsExpression<C::SqlType>>::Expression>:
+        AppearsOnTable<C::Table, SqlType = Bool>,
+    operators::NotEq<C, <T::RawValue as AsExpression<C::SqlType>>::Expression>:
+        AppearsOnTable<C::Table, SqlType = Bool>,
+    In<C, Many<<T::RawValue as AsExpression<C::SqlType>>::Expression>>:
+        AppearsOnTable<C::Table, SqlType = Bool>,
 {
-    type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter<F>(self, t: F) -> Option<Self::Ret>
     where

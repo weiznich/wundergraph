@@ -1,41 +1,41 @@
-use juniper::FromInputValue;
-use juniper::InputValue;
-use juniper::GraphQLType;
-use juniper::ToInputValue;
-use juniper::Registry;
 use juniper::meta::MetaType;
+use juniper::FromInputValue;
+use juniper::GraphQLType;
+use juniper::InputValue;
 use juniper::LookAheadValue;
+use juniper::Registry;
+use juniper::ToInputValue;
 
-use ordermap::OrderMap;
-use diesel::AppearsOnTable;
-use diesel::expression::BoxableExpression;
 use diesel::backend::Backend;
 use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
-use diesel::Table;
 use diesel::sql_types::Bool;
+use diesel::AppearsOnTable;
 use diesel::QueryDsl;
+use diesel::Table;
+use diesel_ext::BoxableFilter;
+use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
-mod nullable_filter;
-mod string_filter;
 mod common_filter;
+mod nullable_filter;
 mod reference_filter;
+mod string_filter;
 
-pub mod collector;
-pub mod transformator;
 pub mod build_filter;
+pub mod collector;
 pub mod filter_value;
 pub mod inner_filter;
+pub mod transformator;
 
 pub use self::common_filter::FilterOption;
 pub use self::nullable_filter::{NullableReferenceFilter, ReverseNullableReferenceFilter};
 pub use self::reference_filter::ReferenceFilter;
 
-use self::collector::{AndCollector, FilterCollector, OrCollector};
-use self::transformator::{NoTransformator, Transformator};
 use self::build_filter::BuildFilter;
+use self::collector::{AndCollector, FilterCollector, OrCollector};
 use self::inner_filter::InnerFilter;
+use self::transformator::{NoTransformator, Transformator};
 
 #[derive(Debug)]
 pub struct Filter<F, T> {
@@ -109,7 +109,7 @@ where
     F: InnerFilter,
 {
     fn to_input_value(&self) -> InputValue {
-        let mut map = OrderMap::with_capacity(2 + F::FIELD_COUNT);
+        let mut map = IndexMap::with_capacity(2 + F::FIELD_COUNT);
         map.insert("and", self.and.to_input_value());
         map.insert("or", self.or.to_input_value());
         self.inner.to_inner_input_value(&mut map);
@@ -170,7 +170,7 @@ where
 impl<F, DB, T> BuildFilter<DB> for Filter<F, T>
 where
     DB: Backend + 'static,
-    F: InnerFilter + BuildFilter<DB, Ret = Box<BoxableExpression<T, DB, SqlType = Bool>>> + 'static,
+    F: InnerFilter + BuildFilter<DB, Ret = Box<BoxableFilter<T, DB, SqlType = Bool>>> + 'static,
     T: 'static,
 {
     type Ret = F::Ret;

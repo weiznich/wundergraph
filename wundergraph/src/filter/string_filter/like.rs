@@ -1,12 +1,13 @@
 use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
 
-use diesel::{BoxableExpression, Column, SelectableExpression, TextExpressionMethods};
+use diesel::backend::Backend;
 use diesel::expression::{operators, AsExpression, NonAggregate};
 use diesel::query_builder::QueryFragment;
-use diesel::backend::Backend;
-use diesel::sql_types::{Bool, HasSqlType, Text};
 use diesel::serialize::ToSql;
+use diesel::sql_types::{Bool, HasSqlType, Text};
+use diesel::{AppearsOnTable, Column, TextExpressionMethods};
+use diesel_ext::BoxableFilter;
 
 use juniper::{InputValue, ToInputValue};
 
@@ -29,16 +30,15 @@ impl<C, DB> BuildFilter<DB> for Like<C>
 where
     C: TextExpressionMethods + NonAggregate + Column + QueryFragment<DB> + Default + 'static,
     String: AsExpression<C::SqlType>,
-    <String as AsExpression<C::SqlType>>::Expression: NonAggregate
-        + SelectableExpression<C::Table>
-        + QueryFragment<DB>
-        + 'static,
+    <String as AsExpression<C::SqlType>>::Expression:
+        NonAggregate + AppearsOnTable<C::Table> + QueryFragment<DB> + 'static,
     DB: Backend + HasSqlType<Text> + 'static,
     String: ToSql<Text, DB>,
     C::Table: 'static,
-    operators::Like<C, <String as AsExpression<C::SqlType>>::Expression>: SelectableExpression<C::Table, SqlType = Bool>,
+    operators::Like<C, <String as AsExpression<C::SqlType>>::Expression>:
+        AppearsOnTable<C::Table, SqlType = Bool>,
 {
-    type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter<F>(self, t: F) -> Option<Self::Ret>
     where

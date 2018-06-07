@@ -1,25 +1,28 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use quote;
-use syn::spanned::Spanned;
 use syn;
+use syn::spanned::Spanned;
 
+use diagnostic_shim::Diagnostic;
 use meta::*;
 use utils::*;
-use diagnostic_shim::Diagnostic;
 
 pub struct Field {
     pub ty: syn::Type,
     pub name: FieldName,
     pub span: Span,
+    pub doc: Option<String>,
+    pub deprecated: Option<String>,
     flags: MetaItem,
 }
 
 impl Field {
     pub fn from_struct_field(field: &syn::Field, index: usize) -> Self {
         let name = match field.ident {
-            Some(mut x) => {
+            Some(ref o) => {
+                let mut x = o.clone();
                 // https://github.com/rust-lang/rust/issues/47983#issuecomment-362817105
-                x.span = fix_span(x.span, Span::call_site());
+                x.set_span(fix_span(o.span(), Span::call_site()));
                 FieldName::Named(x)
             }
             None => FieldName::Unnamed(syn::Index {
@@ -28,6 +31,8 @@ impl Field {
                 span: Span::call_site(),
             }),
         };
+        let doc = MetaItem::get_docs(&field.attrs);
+        let deprecated = MetaItem::get_deprecated(&field.attrs);
         let flags = MetaItem::with_name(&field.attrs, "wundergraph")
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
         let span = field.span();
@@ -37,6 +42,8 @@ impl Field {
             name,
             flags,
             span,
+            doc,
+            deprecated,
         }
     }
 
@@ -99,7 +106,7 @@ impl FieldName {
         parse_quote!(#tokens)
     }
 
-    pub fn access(&self) -> quote::Tokens {
+    pub fn access(&self) -> TokenStream {
         let span = self.span();
         // Span of the dot is important due to
         // https://github.com/rust-lang/rust/issues/47312
@@ -108,16 +115,16 @@ impl FieldName {
 
     pub fn span(&self) -> Span {
         match *self {
-            FieldName::Named(x) => x.span,
-            FieldName::Unnamed(ref x) => x.span,
+            FieldName::Named(ref x) => x.span(),
+            FieldName::Unnamed(ref x) => x.span(),
         }
     }
 }
 
 impl quote::ToTokens for FieldName {
-    fn to_tokens(&self, tokens: &mut quote::Tokens) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match *self {
-            FieldName::Named(x) => x.to_tokens(tokens),
+            FieldName::Named(ref x) => x.to_tokens(tokens),
             FieldName::Unnamed(ref x) => x.to_tokens(tokens),
         }
     }

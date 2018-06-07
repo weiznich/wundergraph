@@ -1,13 +1,13 @@
-use quote;
-use syn;
 use diagnostic_shim::Diagnostic;
-use utils::wrap_in_dummy_mod;
-use model::Model;
 use field::Field;
+use model::Model;
+use proc_macro2::TokenStream;
+use syn;
+use utils::wrap_in_dummy_mod;
 
-pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
+pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let model = Model::from_item(item)?;
-    let table = model.table_type()?;
+    let table = &model.table_type()?;
 
     let fields = model
         .fields()
@@ -39,11 +39,11 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
 
     let dummy_mod = model.dummy_mod_name("build_filter");
     Ok(wrap_in_dummy_mod(
-        dummy_mod,
+        &dummy_mod,
         &quote! {
             use self::wundergraph::filter::build_filter::BuildFilter;
             use self::wundergraph::filter::collector::AndCollector;
-            use self::wundergraph::diesel::expression::BoxableExpression;
+            use self::wundergraph::diesel_ext::BoxableFilter;
             use self::wundergraph::diesel::sql_types::Bool;
             use self::wundergraph::filter::transformator::Transformator;
 
@@ -56,18 +56,18 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
 
 fn impl_build_filter(
     item: &syn::DeriveInput,
-    fields: &[quote::Tokens],
-    backend: &quote::Tokens,
-    table: syn::Ident,
-) -> quote::Tokens {
-    let item_name = item.ident;
+    fields: &[TokenStream],
+    backend: &TokenStream,
+    table: &syn::Ident,
+) -> TokenStream {
+    let item_name = &item.ident;
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
     quote!{
         impl #impl_generics BuildFilter<#backend> for #item_name #ty_generics
             #where_clause
 
         {
-            type Ret = Box<BoxableExpression<#table::table, #backend, SqlType = Bool>>;
+            type Ret = Box<BoxableFilter<#table::table, #backend, SqlType = Bool>>;
 
             fn into_filter<__T>(self, t: __T) -> Option<Self::Ret>
             where
@@ -84,7 +84,7 @@ fn impl_build_filter(
     }
 }
 
-fn build_field_filter(field: &Field) -> Result<quote::Tokens, Diagnostic> {
+fn build_field_filter(field: &Field) -> Result<TokenStream, Diagnostic> {
     let field_access = field.name.access();
     Ok(
         quote!(<_ as self::wundergraph::filter::collector::FilterCollector<_, _>>::append_filter(&mut and, self #field_access, t);),

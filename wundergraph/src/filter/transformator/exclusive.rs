@@ -1,7 +1,7 @@
 use super::{FilterType, Transformator};
 use diesel::backend::Backend;
-use diesel::BoxableExpression;
 use diesel::sql_types::Bool;
+use diesel_ext::BoxableFilter;
 
 #[derive(Debug, Clone, Copy)]
 pub struct OnlyExclusive;
@@ -9,9 +9,9 @@ pub struct OnlyExclusive;
 impl Transformator for OnlyExclusive {
     fn transform<Tab, DB>(
         &self,
-        f: Option<Box<BoxableExpression<Tab, DB, SqlType = Bool>>>,
+        f: Option<Box<BoxableFilter<Tab, DB, SqlType = Bool>>>,
         tpe: FilterType,
-    ) -> Option<Box<BoxableExpression<Tab, DB, SqlType = Bool>>>
+    ) -> Option<Box<BoxableFilter<Tab, DB, SqlType = Bool>>>
     where
         DB: Backend + 'static,
         Tab: 'static,

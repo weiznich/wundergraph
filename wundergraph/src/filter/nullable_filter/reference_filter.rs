@@ -1,25 +1,25 @@
+use filter::build_filter::BuildFilter;
 use filter::collector::{AndCollector, FilterCollector};
 use filter::inner_filter::InnerFilter;
-use filter::build_filter::BuildFilter;
 use filter::transformator::{OnlyExclusive, OnlySelective, Transformator};
 
-use diesel::{BoolExpressionMethods, BoxableExpression, Column, ExpressionMethods,
-             NullableExpressionMethods, QueryDsl, SelectableExpression};
-use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl};
-use diesel::query_builder::AsQuery;
-use diesel::sql_types::{Bool, NotNull, SingleValue};
-use diesel::backend::Backend;
-use diesel::expression::NonAggregate;
+use diesel;
 use diesel::associations::HasTable;
-use diesel::query_builder::QueryFragment;
+use diesel::backend::Backend;
+use diesel::dsl::{self, EqAny, Filter, NeAny, Select, SqlTypeOf};
 use diesel::expression::array_comparison::AsInExpression;
-use diesel::expression::nullable::Nullable;
-use diesel::dsl::{self, EqAny, Filter, IntoBoxed, NeAny, Or, Select};
+use diesel::expression::NonAggregate;
+use diesel::query_builder::AsQuery;
+use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
+use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl};
+use diesel::sql_types::{Bool, NotNull, SingleValue};
+use diesel::{AppearsOnTable, BoolExpressionMethods, Column, ExpressionMethods, QueryDsl};
+use diesel_ext::BoxableFilter;
 
-use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 use juniper::meta::{Argument, MetaType};
+use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
-use ordermap::OrderMap;
+use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
@@ -56,20 +56,27 @@ where
     C2: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
     C2::SqlType: NotNull,
     <C2::Table as AsQuery>::Query: FilterDsl<I::Ret>,
-    Filter<<C2::Table as AsQuery>::Query, I::Ret>: QueryDsl + SelectDsl<Nullable<C2>>,
-    Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, Nullable<C2>>: QueryDsl
-        + BoxedDsl<'static, DB>
+    Filter<<C2::Table as AsQuery>::Query, I::Ret>: QueryDsl + SelectDsl<C2>,
+    Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>: QueryDsl
+        + BoxedDsl<
+            'static,
+            DB,
+            Output = BoxedSelectStatement<'static, SqlTypeOf<C2>, C2::Table, DB>,
+        >
         + 'static,
-    IntoBoxed<'static, Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, Nullable<C2>>, DB>: AsInExpression<C::SqlType>,
-    <IntoBoxed<'static, Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, Nullable<C2>>, DB> as AsInExpression<C::SqlType>>::InExpression: SelectableExpression<C::Table> + QueryFragment<DB>,
-       IsNull<C>: BuildFilter<DB>,
-<IsNull<C> as BuildFilter<DB>>::Ret: SelectableExpression<C::Table> + QueryFragment<DB>,
-EqAny<C,
-      IntoBoxed<'static, Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, Nullable<C2>>, DB>>: SelectableExpression<C::Table, SqlType = Bool>,
-Or<NeAny<C,
-      IntoBoxed<'static, Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, Nullable<C2>>, DB>>, dsl::IsNull<C>>: SelectableExpression<C::Table, SqlType = Bool>,
+    dsl::IsNull<C>: AppearsOnTable<C::Table, SqlType = Bool>,
+    dsl::IsNotNull<C>: AppearsOnTable<C::Table, SqlType = Bool>,
+BoxedSelectStatement<'static, diesel::sql_types::Nullable<SqlTypeOf<C2>>, C2::Table, DB>:
+        AsInExpression<SqlTypeOf<C>>,
+    <BoxedSelectStatement<'static, diesel::sql_types::Nullable<SqlTypeOf<C2>>, C2::Table, DB> as AsInExpression<
+        SqlTypeOf<C>,
+    >>::InExpression: AppearsOnTable<C::Table> + QueryFragment<DB>,
+    EqAny<C, BoxedSelectStatement<'static, diesel::sql_types::Nullable<SqlTypeOf<C2>>, C2::Table, DB>>:
+AppearsOnTable<C::Table, SqlType = Bool>,
+    NeAny<C, BoxedSelectStatement<'static, diesel::sql_types::Nullable<SqlTypeOf<C2>>, C2::Table, DB>>:
+        AppearsOnTable<C::Table, SqlType = Bool>,
 {
-    type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter<F>(self, t: F) -> Option<Self::Ret>
     where
@@ -82,8 +89,8 @@ Or<NeAny<C,
             .clone()
             .into_filter(OnlySelective)
             .map(|f| <_ as QueryDsl>::filter(C2::Table::table(), f))
-            .map(|f| <_ as QueryDsl>::select(f, C2::default().nullable()))
-            .map(|f| f.into_boxed())
+            .map(|f| <_ as QueryDsl>::select(f, C2::default()))
+            .map(|f| f.into_boxed().nullable())
             .map(|q| Box::new(C::default().eq_any(q)) as Box<_>);
         and.append_filter(selective_inner, t);
 
@@ -91,8 +98,8 @@ Or<NeAny<C,
             .clone()
             .into_filter(OnlyExclusive)
             .map(|f| <_ as QueryDsl>::filter(C2::Table::table(), f))
-            .map(|f| <_ as QueryDsl>::select(f, C2::default().nullable()))
-            .map(|f| f.into_boxed())
+            .map(|f| <_ as QueryDsl>::select(f, C2::default()))
+            .map(|f| f.into_boxed().nullable())
             .map(|q| Box::new(C::default().ne_all(q).or(C::default().is_null())) as Box<_>);
         and.append_filter(exclusive_inner, t);
 
@@ -139,7 +146,7 @@ where
     I: InnerFilter,
 {
     fn to_input_value(&self) -> InputValue {
-        let mut map = OrderMap::with_capacity(I::FIELD_COUNT + 1);
+        let mut map = IndexMap::with_capacity(I::FIELD_COUNT + 1);
         self.inner.to_inner_input_value(&mut map);
         map.insert("is_null", self.is_null.as_ref().to_input_value());
         InputValue::object(map)
@@ -197,7 +204,7 @@ where
 
     const FIELD_COUNT: usize = I::FIELD_COUNT + 1;
 
-    fn from_inner_input_value(obj: OrderMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
         let is_null = obj.get("is_null")
             .map(|v| Option::from_input_value(*v))
             .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
@@ -228,7 +235,7 @@ where
             p: Default::default(),
         }
     }
-    fn to_inner_input_value(&self, map: &mut OrderMap<&str, InputValue>) {
+    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue>) {
         self.inner.to_inner_input_value(map);
         map.insert("is_null", self.is_null.as_ref().to_input_value());
     }

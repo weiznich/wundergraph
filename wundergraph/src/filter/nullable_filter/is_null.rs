@@ -1,11 +1,12 @@
 use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
 
-use diesel::{BoxableExpression, Column, ExpressionMethods, SelectableExpression};
+use diesel::backend::Backend;
 use diesel::expression::{operators, NonAggregate};
 use diesel::query_builder::QueryFragment;
-use diesel::backend::Backend;
 use diesel::sql_types::Bool;
+use diesel::{AppearsOnTable, Column, ExpressionMethods};
+use diesel_ext::BoxableFilter;
 
 use juniper::{InputValue, ToInputValue};
 
@@ -29,10 +30,10 @@ where
     C: Column + ExpressionMethods + NonAggregate + QueryFragment<DB> + Default + 'static,
     DB: Backend + 'static,
     C::Table: 'static,
-    operators::IsNull<C>: SelectableExpression<C::Table, SqlType = Bool>,
-    operators::IsNotNull<C>: SelectableExpression<C::Table, SqlType = Bool>,
+    operators::IsNull<C>: AppearsOnTable<C::Table, SqlType = Bool>,
+    operators::IsNotNull<C>: AppearsOnTable<C::Table, SqlType = Bool>,
 {
-    type Ret = Box<BoxableExpression<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter<F>(self, t: F) -> Option<Self::Ret>
     where

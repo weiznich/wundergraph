@@ -1,193 +1,113 @@
-use diesel::backend::Backend;
-use diesel::r2d2::{ConnectionManager, PooledConnection};
-use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
-use diesel::query_builder::{IntoUpdateTarget, Query, QueryFragment, QueryId};
 use diesel::associations::HasTable;
-use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, LimitDsl};
-use diesel::backend::UsesAnsiSavepointSyntax;
-use diesel::connection::AnsiTransactionManager;
-use diesel::expression::Expression;
-use diesel::sql_types::HasSqlType;
-use diesel::query_builder::BoxedSelectStatement;
-use diesel::query_builder::AsQuery;
+use diesel::backend::Backend;
 use diesel::dsl::{Filter, Limit};
+use diesel::query_builder::AsQuery;
+use diesel::query_builder::BoxedSelectStatement;
+use diesel::query_builder::{IntoUpdateTarget, QueryFragment, QueryId};
+use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, LimitDsl};
+use diesel::Identifiable;
+use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
+use WundergraphContext;
 
-use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value};
+use juniper::{
+    Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value,
+};
 use LoadingHandler;
 
-pub fn handle_delete<'a, Conn, R, Id, T, A>(
-    executor: &Executor<PooledConnection<ConnectionManager<Conn>>>,
-    arguments: &Arguments<'a>,
-    field_names: A,
+pub fn handle_delete<DB, D, R, Ctx>(
+    executor: &Executor<Ctx>,
+    arguments: &Arguments,
+    field_name: &'static str,
 ) -> ExecutionResult
 where
-    Conn: Connection + 'static,
-    Conn::Backend: HandleDelete<Conn, T, Id, R>,
-    Arguments<'a>: ReceiveDeleteId<A, Id>,
-    A: ::std::fmt::Debug + Copy,
+    DB: Backend,
+    Ctx: WundergraphContext<DB>,
+    D: DeleteHelper<DB, R, Ctx> + FromInputValue,
+    D::Handler: HandleDelete<DB, R, Ctx, Delete = D>,
 {
-    if let Some(n) = arguments.id_from_args(field_names) {
-        Conn::Backend::handle_delete(executor, n)
+    if let Some(n) = arguments.get::<D>(field_name) {
+        D::Handler::handle_delete(executor, &n)
     } else {
-        let msg = format!("Missing argument {:?}", field_names);
+        let msg = format!("Missing argument {:?}", field_name);
         Err(FieldError::new(&msg, Value::Null))
     }
 }
 
-pub trait ReceiveDeleteId<F, Id> {
-    fn id_from_args(&self, arg_names: F) -> Option<Id>;
+pub trait HandleDelete<DB, R, Ctx>: Sized {
+    type Delete;
+
+    fn handle_delete(executor: &Executor<Ctx>, to_delete: &Self::Delete) -> ExecutionResult;
 }
 
-impl<'a, Id> ReceiveDeleteId<&'static str, Id> for Arguments<'a>
+pub trait DeleteHelper<DB, R, Ctx> {
+    type Handler: HandleDelete<DB, R, Ctx>;
+}
+
+#[doc(hidden)]
+pub struct DeleteableWrapper<D>(D);
+
+impl<I, R, DB, Ctx, T> DeleteHelper<DB, R, Ctx> for I
 where
-    Id: FromInputValue,
+    I: 'static,
+    DB: Backend,
+    &'static I: Identifiable<Table = T>,
+    DeleteableWrapper<I>: HandleDelete<DB, R, Ctx>,
+    T: Table + HasTable<Table = T> + AsQuery + QueryId,
+    T::PrimaryKey: EqAll<<&'static I as Identifiable>::Id>,
+    Ctx: WundergraphContext<DB>,
+    T::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
+    R::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
+    Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>: LimitDsl,
+    Limit<Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>>:
+        QueryDsl + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, R::SqlType, T, DB>>,
+    R: LoadingHandler<DB, Table = T, Context = Ctx> + GraphQLType<TypeInfo = (), Context = ()>,
 {
-    fn id_from_args(&self, arg_name: &'static str) -> Option<Id> {
-        self.get::<Id>(arg_name)
-    }
+    type Handler = DeleteableWrapper<I>;
 }
 
-impl<'a, A, B> ReceiveDeleteId<(&'static str, &'static str), (A, B)> for Arguments<'a>
+// We use the 'static static lifetime here because otherwise rustc will
+// tell us that it could not find a applying lifetime (caused by broken projection
+// on higher ranked lifetime bounds)
+impl<DB, R, Ctx, T, I> HandleDelete<DB, R, Ctx> for DeleteableWrapper<I>
 where
-    A: FromInputValue,
-    B: FromInputValue,
-{
-    fn id_from_args(&self, (a1, a2): (&'static str, &'static str)) -> Option<(A, B)> {
-        self.get::<A>(a1)
-            .and_then(|a| self.get::<B>(a2).map(|b| (a, b)))
-    }
-}
-
-impl<'a, A, B, C> ReceiveDeleteId<(&'static str, &'static str, &'static str), (A, B, C)>
-    for Arguments<'a>
-where
-    A: FromInputValue,
-    B: FromInputValue,
-    C: FromInputValue,
-{
-    fn id_from_args(
-        &self,
-        (a1, a2, a3): (&'static str, &'static str, &'static str),
-    ) -> Option<(A, B, C)> {
-        self.get::<A>(a1)
-            .and_then(|a| self.get::<B>(a2).map(|b| (a, b)))
-            .and_then(|(a, b)| self.get::<C>(a3).map(|c| (a, b, c)))
-    }
-}
-
-impl<
-    'a,
-    A,
-    B,
-    C,
-    D,
-> ReceiveDeleteId<(&'static str, &'static str, &'static str, &'static str), (A, B, C, D)>
-    for Arguments<'a>
-where
-    A: FromInputValue,
-    B: FromInputValue,
-    C: FromInputValue,
-    D: FromInputValue,
-{
-    fn id_from_args(
-        &self,
-        (a1, a2, a3, a4): (&'static str, &'static str, &'static str, &'static str),
-    ) -> Option<(A, B, C, D)> {
-        self.get::<A>(a1)
-            .and_then(|a| self.get::<B>(a2).map(|b| (a, b)))
-            .and_then(|(a, b)| self.get::<C>(a3).map(|c| (a, b, c)))
-            .and_then(|(a, b, c)| self.get::<D>(a4).map(|d| (a, b, c, d)))
-    }
-}
-
-impl<
-    'a,
-    A,
-    B,
-    C,
-    D,
-    E,
-> ReceiveDeleteId<
-    (
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-    ),
-    (A, B, C, D, E),
-> for Arguments<'a>
-where
-    A: FromInputValue,
-    B: FromInputValue,
-    C: FromInputValue,
-    D: FromInputValue,
-    E: FromInputValue,
-{
-    fn id_from_args(
-        &self,
-        (a1, a2, a3, a4, a5): (
-            &'static str,
-            &'static str,
-            &'static str,
-            &'static str,
-            &'static str,
-        ),
-    ) -> Option<(A, B, C, D, E)> {
-        self.get::<A>(a1)
-            .and_then(|a| self.get::<B>(a2).map(|b| (a, b)))
-            .and_then(|(a, b)| self.get::<C>(a3).map(|c| (a, b, c)))
-            .and_then(|(a, b, c)| self.get::<D>(a4).map(|d| (a, b, c, d)))
-            .and_then(|(a, b, c, d)| self.get::<E>(a5).map(|e| (a, b, c, d, e)))
-    }
-}
-
-pub trait HandleDelete<Conn, T, Id, R>
-where
-    Conn: Connection + 'static,
-{
-    fn handle_delete(
-        executor: &Executor<PooledConnection<ConnectionManager<Conn>>>,
-        to_delete: Id,
-    ) -> ExecutionResult;
-}
-
-impl<T, Id, R, Conn, Q> HandleDelete<Conn, T, Id, R> for Conn::Backend
-where
-    Conn: Connection<TransactionManager = AnsiTransactionManager> + 'static,
-    Conn::Backend: UsesAnsiSavepointSyntax,
-    <Conn::Backend as Backend>::QueryBuilder: Default,
-    T: Table + HasTable<Table = T> + QueryId + AsQuery<Query = Q>,
-    Q: Query<SqlType = T::SqlType> + FilterDsl<<T::PrimaryKey as EqAll<Id>>::Output>,
-    T::PrimaryKey: EqAll<Id>,
-    T::FromClause: QueryFragment<Conn::Backend>,
-    T::AllColumns: QueryFragment<Conn::Backend> + QueryId,
-    Conn::Backend: HasSqlType<<T::AllColumns as Expression>::SqlType>,
-    R: LoadingHandler<Conn::Backend, Table = T, SqlType = T::SqlType>
+    I: 'static,
+    DB: Backend,
+    &'static I: Identifiable<Table = T>,
+    T: Table + HasTable<Table = T> + AsQuery + QueryId,
+    T::PrimaryKey: EqAll<<&'static I as Identifiable>::Id>,
+    Ctx: WundergraphContext<DB>,
+    T::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
+    R::Query:FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
+    Filter<T::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>: IntoUpdateTarget<Table = T>,
+    Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>:
+         LimitDsl,
+    Limit<Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>>: QueryDsl
+        + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, R::SqlType, T, DB>>,
+    R: LoadingHandler<DB, Table = T, Context = Ctx>
         + GraphQLType<TypeInfo = (), Context = ()>,
-    Filter<Q, <T::PrimaryKey as EqAll<Id>>::Output>: Copy + IntoUpdateTarget<Table = T> + LimitDsl,
-    Limit<Filter<Q, <T::PrimaryKey as EqAll<Id>>::Output>>: QueryDsl
-        + BoxedDsl<
-        'static,
-        Conn::Backend,
-        Output = BoxedSelectStatement<'static, T::SqlType, T, Conn::Backend>,
-    >,
-    <Filter<Q, <T::PrimaryKey as EqAll<Id>>::Output> as IntoUpdateTarget>::WhereClause: QueryFragment<Conn::Backend>
+    T::FromClause: QueryFragment<DB>,
+    DB::QueryBuilder: Default,
+    <Filter<T::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>
         + QueryId,
+    <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output: Copy
 {
-    fn handle_delete(
-        executor: &Executor<PooledConnection<ConnectionManager<Conn>>>,
-        to_delete: Id,
-    ) -> ExecutionResult {
-        let conn = executor.context();
+    type Delete = I;
+
+    fn handle_delete(executor: &Executor<Ctx>, to_delete: &Self::Delete) -> ExecutionResult {
+        let ctx = executor.context();
+        let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult {
-            let to_delete =
-                FilterDsl::filter(T::table(), T::table().primary_key().eq_all(to_delete));
+            // this is safe becuse we do not leek self out of this function
+            let static_to_delete: &'static I = unsafe{ &*(to_delete as *const I) };
+            let filter =  T::table().primary_key().eq_all(static_to_delete.id());
+            let to_delete = FilterDsl::filter(R::default_query(), filter);
+            // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(to_delete, 1).into_boxed();
-            let items = R::load_item(&executor.look_ahead(), conn, q)?;
+            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
+            let to_delete = FilterDsl::filter(T::table(), filter);
             let d = ::diesel::delete(to_delete);
             println!("{}", ::diesel::debug_query(&d));
-            d.execute(conn)?;
+            assert_eq!(1, d.execute(conn)?);
             executor.resolve_with_ctx(&(), &items.into_iter().next())
         })
     }

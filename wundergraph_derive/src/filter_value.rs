@@ -1,10 +1,10 @@
-use quote;
-use syn;
 use diagnostic_shim::Diagnostic;
+use proc_macro2::{TokenStream, Span};
+use syn;
 use utils::wrap_in_dummy_mod;
 
-pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
-    let item_name = item.ident;
+pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
+    let item_name = &item.ident;
     let (_, ty_generics, where_clause) = item.generics.split_for_impl();
     let mut generics = item.generics.clone();
     generics.params.push(parse_quote!(__C));
@@ -12,10 +12,10 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
 
     let dummy_mod = format!(
         "_impl_filter_value_for_{}",
-        item.ident.as_ref().to_lowercase()
+        item.ident.to_string().to_lowercase()
     );
     Ok(wrap_in_dummy_mod(
-        dummy_mod.into(),
+        &syn::Ident::new(&dummy_mod, Span::call_site()),
         &quote! {
             use self::wundergraph::filter::filter_value::FilterValue;
 
