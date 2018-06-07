@@ -125,7 +125,7 @@ macro_rules! __wundergraph_expand_sqlite_mutation {
     ) => {
         __wundergraph_expand_mutation_graphql_type! {
             $crate::diesel::SqliteConnection,
-            $mutation_name(context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::ConnectionManager<$crate::diesel::SqliteConnection>>) {
+            $mutation_name(context = $crate::diesel::r2d2::PooledConnection<$crate::diesel::r2d2::ConnectionManager<$crate::diesel::SqliteConnection>>) {
                 $($entity_name(
                     $(insert = $insert,)*
                         $(update = $update,)*
