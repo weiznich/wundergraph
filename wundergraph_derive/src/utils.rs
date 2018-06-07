@@ -1,16 +1,15 @@
-use proc_macro2::Span;
-use quote::Tokens;
+use proc_macro2::{Span, TokenStream};
 use syn::*;
 
-pub fn wrap_in_dummy_mod(const_name: Ident, item: &Tokens) -> Tokens {
+pub fn wrap_in_dummy_mod(const_name: Ident, item: &TokenStream) -> TokenStream {
     wrap_in_dummy_mod_with_reeport(const_name, item, &[])
 }
 
 pub fn wrap_in_dummy_mod_with_reeport(
     const_name: Ident,
-    item: &Tokens,
-    reexport: &[Tokens],
-) -> Tokens {
+    item: &TokenStream,
+    reexport: &[TokenStream],
+) -> TokenStream {
     let reexport = reexport.iter().map(|r| {
         quote!{
             #[doc(inline)]

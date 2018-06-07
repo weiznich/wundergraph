@@ -1,13 +1,13 @@
 use diagnostic_shim::Diagnostic;
 use model::Model;
-use quote;
+use proc_macro2::TokenStream;
 use syn;
 use utils::{
     inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_lazy_load, is_option_ty,
     wrap_in_dummy_mod,
 };
 
-pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
+pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let model = Model::from_item(item)?;
     let graphql_type = derive_graphql_object(&model, item)?;
     let loading_handler = derive_loading_handler(&model, item)?;
@@ -22,7 +22,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     ))
 }
 
-fn apply_filter(model: &Model) -> Option<quote::Tokens> {
+fn apply_filter(model: &Model) -> Option<TokenStream> {
     if let Some(filter) = model.filter_type() {
         Some(quote!{
            if let Some(f) = select.argument("filter") {
@@ -37,7 +37,7 @@ fn apply_filter(model: &Model) -> Option<quote::Tokens> {
     }
 }
 
-fn apply_limit(model: &Model) -> Option<quote::Tokens> {
+fn apply_limit(model: &Model) -> Option<TokenStream> {
     if model.should_have_limit() {
         Some(quote!{
             if let Some(l) = select.argument("limit") {
@@ -51,7 +51,7 @@ fn apply_limit(model: &Model) -> Option<quote::Tokens> {
     }
 }
 
-fn apply_offset(model: &Model) -> Option<quote::Tokens> {
+fn apply_offset(model: &Model) -> Option<TokenStream> {
     if model.should_have_offset() {
         Some(quote!{
             if let Some(o) = select.argument("offset") {
@@ -65,7 +65,7 @@ fn apply_offset(model: &Model) -> Option<quote::Tokens> {
     }
 }
 
-fn apply_order(model: &Model) -> Result<Option<quote::Tokens>, Diagnostic> {
+fn apply_order(model: &Model) -> Result<Option<TokenStream>, Diagnostic> {
     if model.should_have_order() {
         let table = model.table_type()?;
         let fields = model
@@ -112,7 +112,7 @@ fn apply_order(model: &Model) -> Result<Option<quote::Tokens>, Diagnostic> {
     }
 }
 
-fn handle_lazy_load(model: &Model, db: &quote::Tokens) -> Result<Vec<quote::Tokens>, Diagnostic> {
+fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>, Diagnostic> {
     model
         .fields()
         .iter()
@@ -171,7 +171,7 @@ fn handle_lazy_load(model: &Model, db: &quote::Tokens) -> Result<Vec<quote::Toke
         .collect()
 }
 
-fn handle_has_many(model: &Model, field_count: usize) -> Vec<quote::Tokens> {
+fn handle_has_many(model: &Model, field_count: usize) -> Vec<TokenStream> {
     model
         .fields()
         .iter()
@@ -222,7 +222,7 @@ fn handle_has_many(model: &Model, field_count: usize) -> Vec<quote::Tokens> {
         .collect()
 }
 
-fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<quote::Tokens>, Diagnostic> {
+fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<TokenStream>, Diagnostic> {
     model
         .fields()
         .iter()
@@ -310,18 +310,18 @@ fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<quote::Tokens
 
 fn impl_loading_handler(
     item: &syn::DeriveInput,
-    backend: &quote::Tokens,
-    filter: Option<&quote::Tokens>,
-    limit: Option<&quote::Tokens>,
-    offset: Option<&quote::Tokens>,
-    order: Option<&quote::Tokens>,
-    remote_fields: &[quote::Tokens],
-    lazy_load_fields: &[quote::Tokens],
+    backend: &TokenStream,
+    filter: Option<&TokenStream>,
+    limit: Option<&TokenStream>,
+    offset: Option<&TokenStream>,
+    order: Option<&TokenStream>,
+    remote_fields: &[TokenStream],
+    lazy_load_fields: &[TokenStream],
     context: syn::Path,
     query_modifier: &syn::Path,
-    select: Option<&quote::Tokens>,
-) -> quote::Tokens {
-    let item_name = item.ident;
+    select: Option<&TokenStream>,
+) -> TokenStream {
+    let item_name = &item.ident;
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
     let (query, query_ty, sql_ty) = if let Some(select) = select {
         let query =
@@ -386,7 +386,7 @@ fn impl_loading_handler(
 fn derive_loading_handler(
     model: &Model,
     item: &syn::DeriveInput,
-) -> Result<quote::Tokens, Diagnostic> {
+) -> Result<TokenStream, Diagnostic> {
     //    let item_name = item.ident;
 
     let field_count = model
@@ -468,8 +468,8 @@ fn derive_loading_handler(
 fn derive_graphql_object(
     model: &Model,
     item: &syn::DeriveInput,
-) -> Result<quote::Tokens, Diagnostic> {
-    let item_name = item.ident;
+) -> Result<TokenStream, Diagnostic> {
+    let item_name = &item.ident;
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
 
     let field_count = model

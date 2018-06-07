@@ -1,4 +1,4 @@
-use proc_macro2::Span;
+use proc_macro2::{Ident, Span};
 use syn;
 
 use diagnostic_shim::*;
@@ -22,7 +22,7 @@ impl Model {
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
         let docs = MetaItem::get_docs(&item.attrs);
         Ok(Self {
-            name: item.ident,
+            name: item.ident.clone(),
             fields,
             flags,
             table_name,
@@ -31,8 +31,11 @@ impl Model {
     }
 
     pub fn dummy_mod_name(&self, trait_name: &str) -> syn::Ident {
-        let name = self.name.as_ref().to_lowercase();
-        format!("_impl_{}_for_{}", trait_name, name).into()
+        let name = self.name.to_string().to_lowercase();
+        Ident::new(
+            &format!("_impl_{}_for_{}", trait_name, name),
+            Span::call_site(),
+        )
     }
 
     pub fn fields(&self) -> &[Field] {
@@ -40,7 +43,7 @@ impl Model {
     }
 
     pub fn table_type(&self) -> Result<syn::Ident, Diagnostic> {
-        self.table_name.map(Ok).unwrap_or_else(|| {
+        self.table_name.clone().map(Ok).unwrap_or_else(|| {
             self.flags
                 .nested_item("table_name")
                 .and_then(|t| t.ident_value())
@@ -152,9 +155,11 @@ impl Model {
             .nested_item("select")
             .ok()
             .and_then(|s| {
-                s.nested()
-                    .ok()
-                    .map(|m| m.into_iter().filter_map(|m| m.word().ok()).collect())
+                s.nested().ok().map(|m| {
+                    m.into_iter()
+                        .filter_map(|m| m.word().ok())
+                        .collect()
+                })
             })
             .unwrap_or_else(Vec::new)
     }

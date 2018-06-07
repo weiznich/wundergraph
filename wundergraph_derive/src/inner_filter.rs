@@ -1,11 +1,11 @@
 use diagnostic_shim::Diagnostic;
 use model::Model;
-use quote;
+use proc_macro2::TokenStream;
 use syn;
 use utils::{inner_of_box_ty, inner_of_option_ty, is_box_ty, wrap_in_dummy_mod};
 
-pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
-    let item_name = item.ident;
+pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
+    let item_name = &item.ident;
     let model = Model::from_item(item)?;
 
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
@@ -56,7 +56,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     ))
 }
 
-fn build_from_inner_input_value(model: &Model) -> Result<quote::Tokens, Diagnostic> {
+fn build_from_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic> {
     let build_field = model.fields().iter().map(|f| {
         let field_name = &f.name;
         let map_box = if is_box_ty(inner_of_option_ty(&f.ty)) {
@@ -82,7 +82,7 @@ fn build_from_inner_input_value(model: &Model) -> Result<quote::Tokens, Diagnost
     })
 }
 
-fn build_from_look_ahead(model: &Model) -> Result<quote::Tokens, Diagnostic> {
+fn build_from_look_ahead(model: &Model) -> Result<TokenStream, Diagnostic> {
     let build_field = model.fields().iter().map(|f| {
         let field_name = &f.name;
         let ty = inner_of_option_ty(&f.ty);
@@ -107,7 +107,7 @@ fn build_from_look_ahead(model: &Model) -> Result<quote::Tokens, Diagnostic> {
     })
 }
 
-fn build_to_inner_input_value(model: &Model) -> Result<quote::Tokens, Diagnostic> {
+fn build_to_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic> {
     let to_values = model.fields().iter().map(|f| {
         let name = &f.name.access();
 
@@ -120,7 +120,7 @@ fn build_to_inner_input_value(model: &Model) -> Result<quote::Tokens, Diagnostic
     })
 }
 
-fn build_register_fields(model: &Model) -> Result<quote::Tokens, Diagnostic> {
+fn build_register_fields(model: &Model) -> Result<TokenStream, Diagnostic> {
     let register_field = model.fields().iter().map(|f| {
         let field_name = &f.name;
         let ty = inner_of_option_ty(&f.ty);

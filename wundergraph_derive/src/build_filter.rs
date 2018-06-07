@@ -1,13 +1,13 @@
 use diagnostic_shim::Diagnostic;
 use field::Field;
 use model::Model;
-use quote;
+use proc_macro2::TokenStream;
 use syn;
 use utils::wrap_in_dummy_mod;
 
-pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
+pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let model = Model::from_item(item)?;
-    let table = model.table_type()?;
+    let table = &model.table_type()?;
 
     let fields = model
         .fields()
@@ -56,11 +56,11 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
 
 fn impl_build_filter(
     item: &syn::DeriveInput,
-    fields: &[quote::Tokens],
-    backend: &quote::Tokens,
-    table: syn::Ident,
-) -> quote::Tokens {
-    let item_name = item.ident;
+    fields: &[TokenStream],
+    backend: &TokenStream,
+    table: &syn::Ident,
+) -> TokenStream {
+    let item_name = &item.ident;
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
     quote!{
         impl #impl_generics BuildFilter<#backend> for #item_name #ty_generics
@@ -84,7 +84,7 @@ fn impl_build_filter(
     }
 }
 
-fn build_field_filter(field: &Field) -> Result<quote::Tokens, Diagnostic> {
+fn build_field_filter(field: &Field) -> Result<TokenStream, Diagnostic> {
     let field_access = field.name.access();
     Ok(
         quote!(<_ as self::wundergraph::filter::collector::FilterCollector<_, _>>::append_filter(&mut and, self #field_access, t);),

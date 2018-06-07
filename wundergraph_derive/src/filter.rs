@@ -1,15 +1,15 @@
 use diagnostic_shim::Diagnostic;
 use model::Model;
-use quote;
+use proc_macro2::{TokenStream, Span};
 use syn;
 use utils::{
     inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_option_ty,
     wrap_in_dummy_mod_with_reeport,
 };
 
-pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
-    let item_name = item.ident;
-    let filter_name = syn::Ident::from(format!("{}Filter", item_name));
+pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
+    let item_name = &item.ident;
+    let filter_name = syn::Ident::new(&format!("{}Filter", item_name), Span::call_site());
     let model = Model::from_item(item)?;
     let table_ty = model.table_type()?;
     let table = table_ty.to_string();

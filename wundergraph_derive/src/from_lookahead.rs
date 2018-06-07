@@ -1,16 +1,15 @@
 use diagnostic_shim::*;
-use proc_macro2::Span;
-use quote;
+use proc_macro2::{Span, TokenStream};
 use syn;
 use utils::wrap_in_dummy_mod;
 
-pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
+pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let e = match item.data {
         syn::Data::Enum(ref e) => e,
         _ => return Err(Span::call_site().error("This derive can only be used on enums")),
     };
 
-    let item_name = item.ident;
+    let item_name = &item.ident;
     let field_list = e.variants.iter().map(|f| {
         let name = f.ident.to_string().to_uppercase();
         let variant = &f.ident;
@@ -23,10 +22,10 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
 
     let dummy_mod = format!(
         "_impl_from_lookahead_for_{}",
-        item.ident.as_ref().to_lowercase()
+        item.ident.to_string().to_lowercase()
     );
     Ok(wrap_in_dummy_mod(
-        dummy_mod.into(),
+        syn::Ident::new(&dummy_mod, Span::call_site()),
         &quote! {
             use self::wundergraph::helper::FromLookAheadValue;
             use self::wundergraph::juniper::LookAheadValue;

@@ -26,6 +26,7 @@ extern crate quote;
 extern crate syn;
 
 mod diagnostic_shim;
+mod resolved_at_shim;
 mod field;
 mod meta;
 mod model;
@@ -79,7 +80,7 @@ pub fn derive_from_lookahead(input: TokenStream) -> TokenStream {
 
 fn expand_derive(
     input: TokenStream,
-    f: fn(&syn::DeriveInput) -> Result<quote::Tokens, Diagnostic>,
+    f: fn(&syn::DeriveInput) -> Result<proc_macro2::TokenStream, Diagnostic>,
 ) -> TokenStream {
     let item = syn::parse(input).expect("Failed to parse item");
     match f(&item) {

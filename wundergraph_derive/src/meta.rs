@@ -1,9 +1,10 @@
-use proc_macro2::{Span, TokenNode};
+use proc_macro2::{Span, TokenTree, Ident};
 use syn;
 use syn::fold::Fold;
 use syn::spanned::Spanned;
 
 use diagnostic_shim::*;
+use resolved_at_shim::*;
 use utils::*;
 
 #[derive(Debug)]
@@ -37,8 +38,8 @@ impl MetaItem {
                 if a.is_sugared_doc {
                     let mut i = a.tts.clone().into_iter();
                     let doc = i.next().and_then(|_| i.next());
-                    doc.and_then(|t| match t.kind {
-                        TokenNode::Literal(l) => Some(l.to_string()),
+                    doc.and_then(|t| match t {
+                        TokenTree::Literal(l) => Some(l.to_string()),
                         _ => None,
                     }).map(|s| {
                         let s = s.replace("\"", "");
@@ -68,7 +69,7 @@ impl MetaItem {
     pub fn empty(name: &str) -> Self {
         Self {
             meta: syn::Meta::List(syn::MetaList {
-                ident: name.into(),
+                ident: Ident::new(name, Span::call_site()),
                 paren_token: Default::default(),
                 nested: Default::default(),
             }),
@@ -113,7 +114,7 @@ impl MetaItem {
                         self.name(),
                     ))
                     .emit();
-                Ok(x)
+                Ok(x.clone())
             }
             _ => Ok(syn::Ident::new(
                 &self.str_value()?,
@@ -126,7 +127,7 @@ impl MetaItem {
         use syn::Meta::*;
 
         match self.meta {
-            Word(x) => Ok(x),
+            Word(ref x) => Ok(x.clone()),
             _ => {
                 let meta = &self.meta;
                 Err(self.span().error(format!(
@@ -195,7 +196,7 @@ impl MetaItem {
             Ok(x) => x,
             Err(_) => return,
         };
-        let unrecognized_options = nested.filter(|n| !options.contains(&n.name().as_ref()));
+        let unrecognized_options = nested.filter(|n| !options.contains(&(&n.name().to_string() as _)));
         for ignored in unrecognized_options {
             ignored
                 .span()
@@ -208,7 +209,7 @@ impl MetaItem {
         use syn::Meta::*;
 
         match self.meta {
-            Word(ident) => ident.span,
+            Word(ref ident) => ident.span(),
             List(ref meta) => meta.nested.span(),
             NameValue(ref meta) => meta.lit.span(),
         }
@@ -232,7 +233,7 @@ impl MetaItem {
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)] // https://github.com/rust-lang-nursery/rustfmt/issues/2392
-pub struct Nested<'a>(syn::punctuated::Iter<'a, syn::NestedMeta, Token![,]>);
+pub struct Nested<'a>(syn::punctuated::Iter<'a, syn::NestedMeta>);
 
 impl<'a> Iterator for Nested<'a> {
     type Item = MetaItem;
