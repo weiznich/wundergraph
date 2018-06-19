@@ -173,7 +173,7 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
         .collect()
 }
 
-fn handle_has_many(model: &Model, field_count: usize) -> Vec<TokenStream> {
+fn handle_has_many(model: &Model, field_count: usize, backend: &TokenStream) -> Vec<TokenStream> {
     model
         .fields()
         .iter()
@@ -185,18 +185,18 @@ fn handle_has_many(model: &Model, field_count: usize) -> Vec<TokenStream> {
                 let parent_ty = inner_ty_arg(&f.ty, "HasMany", 0);
                 let field_access = f.name.access();
                 let inner = quote! {
-                    let query = <#parent_ty as LoadingHandler<_>>::default_query().into_boxed();
+                    let query = <#parent_ty as LoadingHandler<#backend>>::default_query().into_boxed();
                     let p = {
-                        let ids = ret.iter().map(diesel::Identifiable::id).collect::<Vec<_>>();
+                        let ids = ret.iter().map(diesel::Identifiable::id).collect::<self::std::collections::HashSet<_>>();
                         let eq = diesel::expression_methods::ExpressionMethods::eq_any(
                             <#parent_ty as diesel::associations::BelongsTo<Self>>::foreign_key_column(),
-                            &ids
+                            ids.iter()
                         );
                         let query = diesel::query_dsl::methods::FilterDsl::filter(
                             query,
                             eq
                         );
-                        <#parent_ty as LoadingHandler<_>>::load_items(
+                        <#parent_ty as LoadingHandler<#backend>>::load_items(
                             select,
                             ctx,
                             query)?
@@ -224,7 +224,11 @@ fn handle_has_many(model: &Model, field_count: usize) -> Vec<TokenStream> {
         .collect()
 }
 
-fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<TokenStream>, Diagnostic> {
+fn handle_has_one(
+    model: &Model,
+    field_count: usize,
+    backend: &TokenStream,
+) -> Result<Vec<TokenStream>, Diagnostic> {
     model
         .fields()
         .iter()
@@ -255,7 +259,7 @@ fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<TokenStream>,
                     let ids = ret
                         .iter()
                         .#map_fn(|i| *i#field_access.expect_id("Id is there"))
-                        .collect::<Vec<_>>();
+                        .collect::<self::std::collections::HashSet<_>>();
                 };
                 let lookup_and_assign = if is_option_ty(id_ty) {
                     quote!{
@@ -276,16 +280,17 @@ fn handle_has_one(model: &Model, field_count: usize) -> Result<Vec<TokenStream>,
                 };
                 let inner = quote!{
                     #collect_ids
-                    let items = <#child_ty as LoadingHandler<_>>::load_items(
+                    let items = <#child_ty as LoadingHandler<#backend>>::load_items(
                         select,
                         ctx,
-                        <#child_ty as LoadingHandler<_>>::default_query()
+                        <#child_ty as LoadingHandler<#backend>>::default_query()
                             .filter(<_ as diesel::ExpressionMethods>::eq_any(
                                 <_ as diesel::Table>::primary_key(&<#table as diesel::associations::HasTable>::table()),
-                                ids)).into_boxed()
+                                ids.iter()))
+                            .into_boxed()
                     )?.into_iter()
-                        .map(|c| (*<_ as diesel::Identifiable>::id(&c), c))
-                        .collect::<self::std::collections::HashMap<_, _>>();
+                       .map(|c| (*<_ as diesel::Identifiable>::id(&c), c))
+                       .collect::<self::std::collections::HashMap<_, _>>();
                     for i in &mut ret {
                         let id = *i#field_access.expect_id("Id is there");
                         #lookup_and_assign
@@ -404,10 +409,6 @@ fn derive_loading_handler(
     let limit = apply_limit(model);
     let offset = apply_offset(model);
     let order = apply_order(model)?;
-    let has_many = handle_has_many(model, field_count);
-    let has_one = handle_has_one(model, field_count)?;
-    let mut remote_fields = has_many;
-    remote_fields.extend(has_one);
     let query_modifier = model.query_modifier_type();
     let select = model.select();
     let table = model.table_type()?;
@@ -419,11 +420,16 @@ fn derive_loading_handler(
     };
 
     let pg = if cfg!(feature = "postgres") {
-        let lazy_load = handle_lazy_load(model, &quote!(diesel::pg::Pg))?;
+        let backend = &quote!(diesel::pg::Pg);
+        let lazy_load = handle_lazy_load(model, backend)?;
+        let has_many = handle_has_many(model, field_count, backend);
+        let has_one = handle_has_one(model, field_count, backend)?;
+        let mut remote_fields = has_many;
+        remote_fields.extend(has_one);
         let context = model.context_type(&parse_quote!(diesel::PgConnection))?;
         Some(impl_loading_handler(
             item,
-            &quote!(diesel::pg::Pg),
+            backend,
             filter.as_ref(),
             limit.as_ref(),
             offset.as_ref(),
@@ -439,11 +445,16 @@ fn derive_loading_handler(
     };
 
     let sqlite = if cfg!(feature = "sqlite") {
-        let lazy_load = handle_lazy_load(model, &quote!(diesel::sqlite::Sqlite))?;
+        let backend = &quote!(diesel::sqlite::Sqlite);
+        let lazy_load = handle_lazy_load(model, backend)?;
+        let has_many = handle_has_many(model, field_count, backend);
+        let has_one = handle_has_one(model, field_count, backend)?;
+        let mut remote_fields = has_many;
+        remote_fields.extend(has_one);
         let context = model.context_type(&parse_quote!(diesel::SqliteConnection))?;
         Some(impl_loading_handler(
             item,
-            &quote!(diesel::sqlite::Sqlite),
+            backend,
             filter.as_ref(),
             limit.as_ref(),
             offset.as_ref(),
