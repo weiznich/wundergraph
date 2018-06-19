@@ -147,7 +147,9 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
                                 let query = <Self as diesel::associations::HasTable>::table()
                                     .select((#primary_key, #table::#field_name))
                                     .filter(filter);
-                                println!("{}", diesel::debug_query::<#db, _>(&query));
+                                if cfg!(feature = "debug") {
+                                    println!("{}", diesel::debug_query::<#db, _>(&query));
+                                }
                                 query
                                     .load(conn)?
                                     .into_iter()
@@ -368,7 +370,9 @@ fn impl_loading_handler(
 
                 #order
                 source = modifier.modify_query(source, select)?;
-                println!("{}", diesel::debug_query(&source));
+                if cfg!(feature = "debug") {
+                    println!("{}", diesel::debug_query(&source));
+                }
                 let mut ret: Vec<Self> = source.load(conn)?;
 
                 #(#lazy_load_fields)*
