@@ -3,6 +3,7 @@ members = [
     "wundergraph",
     "wundergraph_derive",
     "wundergraph_example",
+    "wundergraph_cli",
 ]
 
 [replace]

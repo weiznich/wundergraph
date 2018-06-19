@@ -1,0 +1,15 @@
+[package]
+authors = ["Georg Semmler <georg_semmler_05@web.de>"]
+name = "wundergraph_cli"
+version = "0.1.0"
+
+[dependencies]
+structopt = "0.2"
+clap = "2.27"
+infer_schema_internals = "1.2"
+diesel = "1.2"
+
+[features]
+default = ["postgres", "sqlite"]
+sqlite = ["infer_schema_internals/sqlite"]
+postgres = ["infer_schema_internals/postgres"]
