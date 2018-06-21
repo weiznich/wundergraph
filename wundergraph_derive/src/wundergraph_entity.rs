@@ -635,8 +635,11 @@ fn derive_graphql_object(
 
         Ok(quote! {
             use self::wundergraph::juniper::{GraphQLType, Registry, Arguments,
-                                             Executor, ExecutionResult, FieldError, Value};
+                                             Executor, ExecutionResult, FieldError, Value, Selection, Object};
             use self::wundergraph::juniper::meta::MetaType;
+            use self::wundergraph::juniper_helper::resolve_selection_set_into;
+            use self::wundergraph::indexmap::IndexMap;
+            use self::wundergraph::fnv::FnvBuildHasher;
 
             impl #impl_generics GraphQLType for #item_name #ty_generics
                 #where_clause
@@ -672,6 +675,24 @@ fn derive_graphql_object(
                             "Unknown field:",
                             Value::String(e.to_owned()),
                         )),
+                    }
+                }
+
+                fn resolve(
+                    &self,
+                    info: &Self::TypeInfo,
+                    selection_set: Option<&[Selection]>,
+                    executor: &Executor<Self::Context>,
+                ) -> Value {
+                    if let Some(selection_set) = selection_set {
+                        let mut result = Object::with_capacity(selection_set.len());
+                        if resolve_selection_set_into(self, info, selection_set, executor, &mut result) {
+                            Value::Object(result)
+                        } else {
+                            Value::null()
+                        }
+                    } else {
+                        panic!("resolve() must be implemented by non-object output types");
                     }
                 }
 

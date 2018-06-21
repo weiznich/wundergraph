@@ -112,9 +112,9 @@ fn graphql(st: State<AppState>, data: Json<GraphQLData>) -> FutureResponse<HttpR
         .send(data.0)
         .from_err()
         .and_then(|res| match res {
-            Ok(user) => Ok(HttpResponse::Ok()
+            Ok(res) => Ok(HttpResponse::Ok()
                 .content_type("application/json")
-                .body(user)),
+                .body(res)),
             Err(_) => Ok(HttpResponse::InternalServerError().into()),
         })
         .responder()
@@ -139,7 +139,7 @@ fn main() {
 
     let schema = Arc::new(schema);
     let pool = Arc::new(pool);
-    let addr = SyncArbiter::start(num_cpus::get(), move || {
+    let addr = SyncArbiter::start(num_cpus::get() + 1, move || {
         GraphQLExecutor::new(schema.clone(), pool.clone())
     });
     let url = env::var("URL").unwrap_or_else(|_| String::from("127.0.0.1:8000"));
