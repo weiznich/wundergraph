@@ -28,14 +28,6 @@ impl<'a> Display for TableDefinitions<'a> {
             )?;
         }
 
-        // if !self.fk_constraints.is_empty() {
-        //     writeln!(f)?;
-        // }
-
-        // for foreign_key in &self.fk_constraints {
-        //     writeln!(f, "{}", Joinable(foreign_key))?;
-        // }
-
         if self.tables.len() > 1 {
             write!(f, "\nallow_tables_to_appear_in_same_query!(")?;
             {
@@ -333,25 +325,20 @@ impl<'a> Display for GraphqlColumn<'a> {
         let tpe = GraphqlType {
             sql_type: &self.column.ty,
         };
-        if let Some(ref rust_name) = self.column.rust_name {
-            // TODO: implement this
-            unimplemented!()
-        } else {
-            if let Some(foreign_key) = self.foreign_key {
-                let referenced = if self.column.ty.is_nullable {
-                    format!("Option<{}>", fix_table_name(&foreign_key.parent_table.name))
-                } else {
-                    fix_table_name(&foreign_key.parent_table.name)
-                };
-
-                write!(
-                    f,
-                    "{}: HasOne<{}, {}>,",
-                    self.column.sql_name, tpe, referenced
-                )?;
+        let name = self.column
+            .rust_name
+            .as_ref()
+            .unwrap_or(&self.column.sql_name);
+        if let Some(foreign_key) = self.foreign_key {
+            let referenced = if self.column.ty.is_nullable {
+                format!("Option<{}>", fix_table_name(&foreign_key.parent_table.name))
             } else {
-                write!(f, "{}: {},", self.column.sql_name, tpe)?;
-            }
+                fix_table_name(&foreign_key.parent_table.name)
+            };
+
+            write!(f, "{}: HasOne<{}, {}>,", name, tpe, referenced)?;
+        } else {
+            write!(f, "{}: {},", name, tpe)?;
         }
         Ok(())
     }
@@ -493,11 +480,8 @@ impl<'a> Display for GraphqlInsertable<'a> {
                 .filter(|c| !self.table.primary_key.contains(&c.sql_name))
             {
                 let t = GraphqlType { sql_type: &c.ty };
-                if let Some(rust_name) = c.rust_name.as_ref() {
-                    // TODO: sql name annotation
-                } else {
-                    writeln!(out, "{}: {},", c.sql_name, t)?;
-                }
+                let name = c.rust_name.as_ref().unwrap_or(&c.sql_name);
+                writeln!(out, "{}: {},", name, t)?;
             }
         }
         writeln!(f, "}}")?;
@@ -530,11 +514,8 @@ impl<'a> Display for GraphqlChangeSet<'a> {
             writeln!(out)?;
             for c in &self.table.column_data {
                 let t = GraphqlType { sql_type: &c.ty };
-                if let Some(rust_name) = c.rust_name.as_ref() {
-                    // TODO: sql name annotation
-                } else {
-                    writeln!(out, "{}: {},", c.sql_name, t)?;
-                }
+                let name = c.rust_name.as_ref().unwrap_or(&c.sql_name);
+                writeln!(out, "{}: {},", name, t)?;
             }
         }
         writeln!(f, "}}")?;

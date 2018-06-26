@@ -1,4 +1,3 @@
-use diesel::*;
 use infer_schema_internals::*;
 use std::error::Error;
 

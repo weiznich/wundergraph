@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate structopt;
 extern crate infer_schema_internals;
-#[macro_use]
 extern crate diesel;
 
 use structopt::StructOpt;

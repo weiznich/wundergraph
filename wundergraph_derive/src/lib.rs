@@ -26,10 +26,10 @@ extern crate quote;
 extern crate syn;
 
 mod diagnostic_shim;
-mod resolved_at_shim;
 mod field;
 mod meta;
 mod model;
+mod resolved_at_shim;
 mod utils;
 
 mod build_filter;

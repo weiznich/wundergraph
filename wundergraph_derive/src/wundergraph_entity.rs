@@ -75,13 +75,14 @@ fn apply_order(model: &Model) -> Result<Option<TokenStream>, Diagnostic> {
                 if f.has_flag("skip") || is_has_one(&f.ty) || is_has_many(&f.ty) {
                     None
                 } else {
-                    let field_name = &f.name;
+                    let sql_name = f.sql_name();
+                    let graphql_name = f.graphql_name();
                     Some(quote!{
-                        (stringify!(#field_name), self::wundergraph::order::Order::Desc) => {
-                            source = source.then_order_by(diesel::ExpressionMethods::desc(#table::#field_name));
+                        (stringify!(#graphql_name), self::wundergraph::order::Order::Desc) => {
+                            source = source.then_order_by(diesel::ExpressionMethods::desc(#table::#sql_name));
                         }
-                        (stringify!(#field_name), self::wundergraph::order::Order::Asc) => {
-                            source = source.then_order_by(diesel::ExpressionMethods::asc(#table::#field_name));
+                        (stringify!(#graphql_name), self::wundergraph::order::Order::Asc) => {
+                            source = source.then_order_by(diesel::ExpressionMethods::asc(#table::#sql_name));
                         }
                     })
                 }
@@ -125,12 +126,13 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
             if f.has_flag("skip") || !is_lazy_load(&f.ty) {
                 None
             } else {
-                let field_name = &f.name;
+                let field_name = f.rust_name();
+                let sql_name = f.sql_name();
                 let table = match model.table_type() {
                     Ok(t) => t,
                     Err(e) => return Some(Err(e)),
                 };
-                let field_access = f.name.access();
+                let field_access = field_name.access();
                 let inner_ty = inner_ty_arg(&f.ty, "LazyLoad", 0);
                 let primary_key = &quote!{
                     <<Self as diesel::associations::HasTable>::Table as diesel::Table>::primary_key(
@@ -150,7 +152,7 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
                                 }).collect::<Vec<_>>();
                                 let filter = <_ as diesel::ExpressionMethods>::eq_any(#primary_key, &collected_ids);
                                 let query = <Self as diesel::associations::HasTable>::table()
-                                    .select((#primary_key, #table::#field_name))
+                                    .select((#primary_key, #table::#sql_name))
                                     .filter(filter);
 
                                 #debug_query
@@ -186,9 +188,9 @@ fn handle_has_many(model: &Model, field_count: usize, backend: &TokenStream) -> 
             if f.has_flag("skip") || !is_has_many(&f.ty) {
                 None
             } else {
-                let field_name = &f.name;
+                let field_name = f.rust_name();
                 let parent_ty = inner_ty_arg(&f.ty, "HasMany", 0);
-                let field_access = f.name.access();
+                let field_access = field_name.access();
                 let inner = quote! {
                     let query = <#parent_ty as LoadingHandler<#backend>>::default_query().into_boxed();
                     let p = {
@@ -241,10 +243,10 @@ fn handle_has_one(
             if f.has_flag("skip") {
                 None
             } else if let Some(child_ty) = inner_ty_arg(&f.ty, "HasOne", 1) {
-                let field_name = &f.name;
+                let field_name = f.rust_name();
                 let child_ty = inner_of_option_ty(child_ty);
                 let id_ty = inner_ty_arg(&f.ty, "HasOne", 0).expect("Is HasOne, so this exists");
-                let field_access = f.name.access();
+                let field_access = field_name.access();
                 let table = f.remote_table()
                     .map(|t| quote!(#t::table))
                     .unwrap_or_else(|_| {
@@ -512,7 +514,7 @@ fn derive_graphql_object(
             .expect("This exists because we have at least one field");
 
         let ty = &field.ty;
-        let field_access = field.name.access();
+        let field_access = field.rust_name().access();
         Ok(quote!{
             use self::wundergraph::juniper::{GraphQLType, Registry, Arguments, Executor, ExecutionResult, Selection, Value};
             use self::wundergraph::juniper::meta::MetaType;
@@ -583,7 +585,7 @@ fn derive_graphql_object(
                 if f.has_flag("skip") {
                     None
                 } else {
-                    let field_name = &f.name;
+                    let field_name = f.graphql_name();
                     let field_ty = &f.ty;
                     let docs = f.doc.as_ref().map(|d| quote!{.description(#d)});
                     let deprecated = f.deprecated.as_ref().map(|d| quote!{.deprecated(#d)});
@@ -627,7 +629,7 @@ fn derive_graphql_object(
             if f.has_flag("skip") {
                 None
             } else {
-                let field_name = &f.name;
+                let field_name = f.graphql_name();
                 Some(quote!(#field_name))
             }
         });
@@ -636,9 +638,11 @@ fn derive_graphql_object(
             if f.has_flag("skip") {
                 None
             } else {
-                let field_access = f.name.access();
-                let field_name = &f.name;
-                Some(quote!(stringify!(#field_name) => executor.resolve(info, &self#field_access)))
+                let field_access = f.rust_name().access();
+                let graphql_name = f.graphql_name();
+                Some(
+                    quote!(stringify!(#graphql_name) => executor.resolve(info, &self#field_access)),
+                )
             }
         });
 

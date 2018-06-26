@@ -155,11 +155,9 @@ impl Model {
             .nested_item("select")
             .ok()
             .and_then(|s| {
-                s.nested().ok().map(|m| {
-                    m.into_iter()
-                        .filter_map(|m| m.word().ok())
-                        .collect()
-                })
+                s.nested()
+                    .ok()
+                    .map(|m| m.into_iter().filter_map(|m| m.word().ok()).collect())
             })
             .unwrap_or_else(Vec::new)
     }
@@ -172,10 +170,10 @@ fn fields_from_item_data(data: &syn::Data) -> Result<Vec<Field>, Diagnostic> {
         Struct(ref d) => d,
         _ => return Err(Span::call_site().error("This derive can only be used on structs")),
     };
-    Ok(struct_data
+    struct_data
         .fields
         .iter()
         .enumerate()
         .map(|(i, f)| Field::from_struct_field(f, i))
-        .collect())
+        .collect()
 }

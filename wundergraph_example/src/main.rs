@@ -224,7 +224,9 @@ pub struct Hero {
     /// Internal id of a hero
     id: i32,
     /// The name of a hero
-    name: String,
+    #[wundergraph(graphql_name = "heroName")]
+    #[column_name = "name"]
+    something: String,
     /// The hair color of a hero
     #[deprecated(note = "Hair color should not be used because of unsafe things")]
     hair_color: Option<String>,

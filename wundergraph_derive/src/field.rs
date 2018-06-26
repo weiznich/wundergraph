@@ -3,13 +3,15 @@ use quote;
 use syn;
 use syn::spanned::Spanned;
 
-use diagnostic_shim::Diagnostic;
+use diagnostic_shim::{Diagnostic, DiagnosticShim};
 use meta::*;
 use utils::*;
 
 pub struct Field {
     pub ty: syn::Type,
-    pub name: FieldName,
+    rust_name: FieldName,
+    graphql_name: syn::Ident,
+    sql_name: syn::Ident,
     pub span: Span,
     pub doc: Option<String>,
     pub deprecated: Option<String>,
@@ -17,8 +19,8 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn from_struct_field(field: &syn::Field, index: usize) -> Self {
-        let name = match field.ident {
+    pub fn from_struct_field(field: &syn::Field, index: usize) -> Result<Self, Diagnostic> {
+        let rust_name = match field.ident {
             Some(ref o) => {
                 let mut x = o.clone();
                 // https://github.com/rust-lang/rust/issues/47983#issuecomment-362817105
@@ -31,20 +33,41 @@ impl Field {
                 span: Span::call_site(),
             }),
         };
+        let span = field.span();
         let doc = MetaItem::get_docs(&field.attrs);
         let deprecated = MetaItem::get_deprecated(&field.attrs);
         let flags = MetaItem::with_name(&field.attrs, "wundergraph")
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
-        let span = field.span();
 
-        Self {
+        let sql_name = MetaItem::with_name(&field.attrs, "column_name")
+            .ok_or_else(|| span.error("No `#[column_name = \"name\"]` annotation found"))
+            .and_then(|i| i.ident_value())
+            .or_else(|_| {
+                match rust_name {
+                FieldName::Named(ref x) => Ok(x.clone()),
+                FieldName::Unnamed(_) => Err(span.error("Tuple struct fields needed to be annotated with `#[column_name = \"sql_name\"]")),
+            }
+            })?;
+        let graphql_name = flags
+            .nested_item("graphql_name")
+            .and_then(|i| i.ident_value())
+            .or_else(|_| {
+                match rust_name {
+                FieldName::Named(ref x) => Ok(x.clone()),
+                FieldName::Unnamed(_) => Err(span.error("Tuple struct fields needed to be annotated with `#[wundergraph(graphql_name = \"sql_name\")]")),
+            }
+            })?;
+
+        Ok(Self {
             ty: field.ty.clone(),
-            name,
+            rust_name,
+            graphql_name,
+            sql_name,
             flags,
             span,
             doc,
             deprecated,
-        }
+        })
     }
 
     pub fn has_flag(&self, flag: &str) -> bool {
@@ -89,6 +112,18 @@ impl Field {
             .nested_item("is_nullable_reference")
             .and_then(|m| m.bool_value())
             .unwrap_or(false)
+    }
+
+    pub fn rust_name(&self) -> &FieldName {
+        &self.rust_name
+    }
+
+    pub fn graphql_name(&self) -> &syn::Ident {
+        &self.graphql_name
+    }
+
+    pub fn sql_name(&self) -> &syn::Ident {
+        &self.sql_name
     }
 }
 

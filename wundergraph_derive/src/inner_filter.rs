@@ -58,14 +58,15 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 
 fn build_from_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic> {
     let build_field = model.fields().iter().map(|f| {
-        let field_name = &f.name;
+        let field_name = f.rust_name();
+        let graphql_name = f.graphql_name();
         let map_box = if is_box_ty(inner_of_option_ty(&f.ty)) {
             Some(quote!(.map(Box::new)))
         } else {
             None
         };
         quote!(
-            let #field_name = obj.get(stringify!(#field_name))
+            let #field_name = obj.get(stringify!(#graphql_name))
                 .map(|v| <Option<_> as juniper::FromInputValue>::from_input_value(*v))
                 .unwrap_or_else(|| <Option<_> as juniper::FromInputValue>::from_input_value(&InputValue::Null));
             let #field_name = match #field_name {
@@ -74,7 +75,7 @@ fn build_from_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic
             };
         )
     });
-    let fields = model.fields().iter().map(|f| &f.name);
+    let fields = model.fields().iter().map(|f| f.rust_name());
     Ok(quote!{
         #(#build_field)*
 
@@ -84,7 +85,8 @@ fn build_from_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic
 
 fn build_from_look_ahead(model: &Model) -> Result<TokenStream, Diagnostic> {
     let build_field = model.fields().iter().map(|f| {
-        let field_name = &f.name;
+        let field_name = f.rust_name();
+        let graphq_name = f.graphql_name();
         let ty = inner_of_option_ty(&f.ty);
         let map_box = if is_box_ty(ty) {
             Some(quote!(.map(Box::new)))
@@ -94,12 +96,12 @@ fn build_from_look_ahead(model: &Model) -> Result<TokenStream, Diagnostic> {
         let ty = inner_of_box_ty(ty);
         quote!{
             let #field_name = obj.iter()
-                .find(|o| o.0 == stringify!(#field_name))
+                .find(|o| o.0 == stringify!(#graphq_name))
                 .and_then(|o| <#ty as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(&o.1))
                 #map_box;
         }
     });
-    let fields = model.fields().iter().map(|f| &f.name);
+    let fields = model.fields().iter().map(|f| f.rust_name());
     Ok(quote!{
         #(#build_field)*
 
@@ -109,7 +111,7 @@ fn build_from_look_ahead(model: &Model) -> Result<TokenStream, Diagnostic> {
 
 fn build_to_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic> {
     let to_values = model.fields().iter().map(|f| {
-        let name = &f.name.access();
+        let name = &f.rust_name().access();
 
         quote!{
             v.insert(stringify!(#name), juniper::ToInputValue::to_input_value(&self#name));
@@ -122,7 +124,7 @@ fn build_to_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic> 
 
 fn build_register_fields(model: &Model) -> Result<TokenStream, Diagnostic> {
     let register_field = model.fields().iter().map(|f| {
-        let field_name = &f.name;
+        let field_name = f.graphql_name();
         let ty = inner_of_option_ty(&f.ty);
         quote!{
             let #field_name = registry.arg_with_default::<Option<#ty>>(
@@ -132,7 +134,7 @@ fn build_register_fields(model: &Model) -> Result<TokenStream, Diagnostic> {
             );
         }
     });
-    let fields = model.fields().iter().map(|f| &f.name);
+    let fields = model.fields().iter().map(|f| f.graphql_name());
     Ok(quote!{
         #(#register_field)*
         vec![#(#fields,)*]

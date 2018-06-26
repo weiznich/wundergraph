@@ -1,6 +1,6 @@
 use diagnostic_shim::Diagnostic;
 use model::Model;
-use proc_macro2::{TokenStream, Span};
+use proc_macro2::{Span, TokenStream};
 use syn;
 use utils::{
     inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_option_ty,
@@ -19,7 +19,8 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         .fields()
         .iter()
         .filter_map(|f| {
-            let field_name = &f.name;
+            let field_name = f.rust_name();
+            let sql_name = f.sql_name();
             let field_ty = &f.ty;
             if f.has_flag("skip") {
                 None
@@ -42,9 +43,11 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
                     },
                 );
                 let remote_filter = f.filter().expect("Filter is missing");
+                let graphql_name = f.graphql_name().to_string();
                 Some(Ok(quote!{
+                    #[wundergraph(graphql_name = #graphql_name)]
                     #field_name: Option<#reference_ty<
-                    #table_ty::#field_name,
+                    #table_ty::#sql_name,
                     #remote_filter,
                     <#remote_table as diesel::Table>::PrimaryKey,
                     >>
@@ -66,7 +69,9 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
                         quote!(<#remote_type as diesel::associations::BelongsTo<#item_name>>::ForeignKeyColumn)
                     });
                 let remote_filter = f.filter().expect("Filter is missing");
+                let graphql_name = f.graphql_name().to_string();
                 Some(Ok(quote!{
+                    #[wundergraph(graphql_name = #graphql_name)]
                     #field_name: Option<#reference_ty<
                     <#table_ty::table as diesel::Table>::PrimaryKey,
                     #remote_filter,
@@ -74,10 +79,12 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
                     >>
                 }))
             } else {
+                let graphql_name = f.graphql_name().to_string();
                 Some(Ok(quote!{
+                    #[wundergraph(graphql_name = #graphql_name)]
                     #field_name: Option<self::wundergraph::filter::FilterOption<
                         #field_ty,
-                        #table_ty::#field_name,
+                        #table_ty::#sql_name,
                     >>
                 }))
             }

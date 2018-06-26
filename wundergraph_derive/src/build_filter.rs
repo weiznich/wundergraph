@@ -85,7 +85,7 @@ fn impl_build_filter(
 }
 
 fn build_field_filter(field: &Field) -> Result<TokenStream, Diagnostic> {
-    let field_access = field.name.access();
+    let field_access = field.rust_name().access();
     Ok(
         quote!(<_ as self::wundergraph::filter::collector::FilterCollector<_, _>>::append_filter(&mut and, self #field_access, t);),
     )
