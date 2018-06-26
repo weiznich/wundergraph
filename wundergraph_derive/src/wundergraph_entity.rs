@@ -649,8 +649,6 @@ fn derive_graphql_object(
                                              Executor, ExecutionResult, FieldError, Value, Selection, Object};
             use self::wundergraph::juniper::meta::MetaType;
             use self::wundergraph::juniper_helper::resolve_selection_set_into;
-            use self::wundergraph::indexmap::IndexMap;
-            use self::wundergraph::fnv::FnvBuildHasher;
 
             impl #impl_generics GraphQLType for #item_name #ty_generics
                 #where_clause

@@ -1,8 +1,6 @@
 //use indexmap::map::Entry;
-use indexmap::IndexMap;
 use juniper::parser::Spanning;
 use juniper::*;
-use fnv::FnvBuildHasher;
 
 pub fn resolve_selection_set_into<T, CtxT>(
     instance: &T,
@@ -29,7 +27,7 @@ where
                 let response_name = &item.alias.as_ref().unwrap_or(&item.name).item;
 
                 if item.name.item == "__typename" {
-                    result.insert(
+                    result.add_field(
                         (*response_name).to_owned(),
                         Value::string(instance.concrete_type_name(executor.context(), info)),
                     );
@@ -63,7 +61,7 @@ where
                 match field_result {
                     Ok(Value::Null) if meta_field.field_type.is_non_null() => return false,
                     Ok(v) => {
-                        result.insert((*response_name).to_owned(), v);
+                        result.add_field((*response_name).to_owned(), v);
                     }
                     Err(e) => {
                         sub_exec.push_error_at(e, start.clone());
@@ -72,7 +70,7 @@ where
                             return false;
                         }
 
-                        result.insert((*response_name).to_owned(), Value::null());
+                        result.add_field((*response_name).to_owned(), Value::null());
                     }
                 }
             }
