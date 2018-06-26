@@ -144,7 +144,9 @@ where
             let inserted = insertable
                 .insert_into(T::table())
                 .returning(T::table().primary_key());
-            println!("{}", ::diesel::debug_query(&inserted));
+            if cfg!(feature = "debug") {
+                println!("{}", ::diesel::debug_query(&inserted));
+            }
             let inserted: Id = inserted.get_result(conn)?;
 
             let q = FilterDsl::filter(
@@ -165,7 +167,9 @@ where
             let inserted = batch
                 .insert_into(T::table())
                 .returning(T::table().primary_key());
-            println!("{}", ::diesel::debug_query(&inserted));
+            if cfg!(feature = "debug") {
+                println!("{}", ::diesel::debug_query(&inserted));
+            }
             let inserted: Vec<Id> = inserted.get_results(conn)?;
 
             let mut ids = inserted.into_iter();

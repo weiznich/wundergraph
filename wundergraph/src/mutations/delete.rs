@@ -106,7 +106,9 @@ where
             let items = R::load_items(&executor.look_ahead(), ctx, q)?;
             let to_delete = FilterDsl::filter(T::table(), filter);
             let d = ::diesel::delete(to_delete);
-            println!("{}", ::diesel::debug_query(&d));
+            if cfg!(feature = "debug") {
+                println!("{}", ::diesel::debug_query(&d));
+            }
             assert_eq!(1, d.execute(conn)?);
             executor.resolve_with_ctx(&(), &items.into_iter().next())
         })

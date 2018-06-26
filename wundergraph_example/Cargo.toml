@@ -23,7 +23,7 @@ path = "../wundergraph"
 default-features = false
 
 [features]
-default = ["sqlite"]
+default = ["sqlite", "wundergraph/debug"]
 #default = ["postgres"]
 lint = ["clippy"]
 sqlite = ["wundergraph/sqlite"]

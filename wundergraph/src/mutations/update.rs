@@ -91,9 +91,14 @@ where
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult {
+            // this is safe becuse we do not leak change_set out of this function
+            // this is required because otherwise rustc fails to project the temporary
+            // lifetime
             let change_set: &'static U = unsafe { &*(change_set as *const U) };
             let u = ::diesel::update(change_set).set(change_set);
-            println!("{}", ::diesel::debug_query(&u));
+            if cfg!(feature = "debug") {
+                println!("{}", ::diesel::debug_query(&u));
+            }
             u.execute(conn)?;
             let f = FilterDsl::filter(
                 R::default_query(),

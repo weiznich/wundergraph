@@ -16,6 +16,7 @@ failure = "0.1"
 
 [features]
 default = ["sqlite", "postgres", "extras"]
+debug = ["wundergraph_derive/debug"]
 lint = ["clippy"]
 sqlite = ["diesel/sqlite", "wundergraph_derive/sqlite"]
 postgres = ["diesel/postgres", "wundergraph_derive/postgres"]

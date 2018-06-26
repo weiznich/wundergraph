@@ -113,6 +113,11 @@ fn apply_order(model: &Model) -> Result<Option<TokenStream>, Diagnostic> {
 }
 
 fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>, Diagnostic> {
+    let debug_query = if cfg!(feature = "debug") {
+        Some(quote!(println!("{}", diesel::debug_query::<#db, _>(&query));))
+    } else {
+        None
+    };
     model
         .fields()
         .iter()
@@ -147,9 +152,9 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
                                 let query = <Self as diesel::associations::HasTable>::table()
                                     .select((#primary_key, #table::#field_name))
                                     .filter(filter);
-                                if cfg!(feature = "debug") {
-                                    println!("{}", diesel::debug_query::<#db, _>(&query));
-                                }
+
+                                #debug_query
+
                                 query
                                     .load(conn)?
                                     .into_iter()
@@ -345,6 +350,12 @@ fn impl_loading_handler(
         let sql_ty = quote!(<<Self as diesel::associations::HasTable>::Table as diesel::query_builder::AsQuery>::SqlType);
         (query, query_ty, sql_ty)
     };
+    let debug_query = if cfg!(feature = "debug") {
+        Some(quote!(println!("{}", diesel::debug_query(&source));))
+    } else {
+        None
+    };
+
     quote!{
         #[allow(unused_mut)]
         impl#impl_generics LoadingHandler<#backend> for #item_name #ty_generics
@@ -375,9 +386,9 @@ fn impl_loading_handler(
 
                 #order
                 source = modifier.modify_query(source, select)?;
-                if cfg!(feature = "debug") {
-                    println!("{}", diesel::debug_query(&source));
-                }
+
+                #debug_query
+
                 let mut ret: Vec<Self> = source.load(conn)?;
 
                 #(#lazy_load_fields)*
