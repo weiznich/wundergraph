@@ -11,29 +11,29 @@ before_script:
   - pip install 'travis-cargo<0.2' --user
   - export PATH=$HOME/.local/bin:$PATH
 script:
-  - (cd wundergraph_derive && cargo rustc --no-default-features --features "$BACKEND" -- -Zno-trans)
-  - (cd wundergraph && cargo rustc --no-default-features --features "$BACKEND extras" -- -Zno-trans)
-  - (cd wundergraph_example && cargo rustc --no-default-features --features "$BACKEND" -- -Zno-trans)
-  - (cd wundergraph_bench && cargo rustc --no-default-features  -- -Zno-trans)
-  - (cd wundergraph_cli && cargo rustc --no-default-features --features "$BACKEND" -- -Zno-trans)
+  - (cd wundergraph_derive && cargo check --no-default-features --features "$BACKEND")
+  - (cd wundergraph && cargo check --no-default-features --features "$BACKEND extras")
+  - (cd wundergraph_example && cargo check --no-default-features --features "$BACKEND" )
+  - (cd wundergraph_bench && cargo check --no-default-features)
+  - (cd wundergraph_cli && cargo check --no-default-features --features "$BACKEND")
 matrix:
   allow_failures:
     - rust: nightly
   include:
-  - rust: nightly-2018-05-10
+  - rust: nightly-2018-06-15
     env: CLIPPY=YESPLEASE
     script:
-      - (cd wundergraph_derive && cargo rustc --no-default-features --features "lint postgres sqlite" -- -Zno-trans)
-      - (cd wundergraph && cargo rustc --no-default-features --features "lint postgres sqlite extras" -- -Zno-trans)
-      - (cd wundergraph_example && cargo rustc --no-default-features --features "lint sqlite" -- -Zno-trans)
-      - (cd wundergraph_example && cargo rustc --no-default-features --features "lint postgres" -- -Zno-trans)
-      - (cd wundergraph_bench && cargo rustc --no-default-features --features "lint" -- -Zno-trans)
-      - (cd wundergraph_cli && cargo rustc --no-default-features --features "lint postgres sqlite" -- -Zno-trans)
+      - (cd wundergraph_derive && cargo check --no-default-features --features "lint postgres sqlite")
+      - (cd wundergraph && cargo check --no-default-features --features "lint postgres sqlite extras")
+      - (cd wundergraph_example && cargo check --no-default-features --features "lint sqlite")
+      - (cd wundergraph_example && cargo check --no-default-features --features "lint postgres")
+      - (cd wundergraph_bench && cargo check --no-default-features --features "lint")
+      - (cd wundergraph_cli && cargo check --no-default-features --features "lint postgres sqlite")
   - rust: nightly-2018-06-15
     env: RUSTFMT=YESPLEASE
     script:
     - rustup component add rustfmt-preview
-    - cargo fmt --all -- --write-mode=diff
+    - cargo fmt --all -- --check
 
 env:
   matrix:
