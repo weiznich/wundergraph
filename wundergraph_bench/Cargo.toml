@@ -16,7 +16,7 @@ futures = "0.1"
 env_logger = "0.5"
 chrono = "0.4"
 num_cpus = "1.8"
-clippy = { version = "0.0.197", optional = true }
+clippy = { version = "0.0.207", optional = true }
 
 [features]
 default = []

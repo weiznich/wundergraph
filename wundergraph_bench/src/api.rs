@@ -1,4 +1,4 @@
-#![allow(similar_names)]
+#![cfg_attr(feature = "clippy", allow(similar_names))]
 use chrono::NaiveDateTime;
 use wundergraph::query_helper::{HasMany, HasOne};
 

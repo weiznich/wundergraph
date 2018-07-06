@@ -238,7 +238,7 @@ fn uppercase_table_name(name: &str) -> String {
 
 fn fix_table_name(name: &str) -> String {
     let mut name = uppercase_table_name(name);
-    if name.ends_with("s") {
+    if name.ends_with('s') {
         name.pop();
         name
     } else {
@@ -269,7 +269,8 @@ impl<'a> Display for GraphqlData<'a> {
         writeln!(f, "#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity, WundergraphFilter, Associations)]")?;
         writeln!(f, "#[table_name = \"{}\"]", self.table.name.name)?;
         write_primary_key_section(f, self.table)?;
-        for key in self.foreign_keys
+        for key in self
+            .foreign_keys
             .iter()
             .filter(|f| f.child_table == self.table.name)
         {
@@ -290,14 +291,14 @@ impl<'a> Display for GraphqlData<'a> {
                     "{}",
                     GraphqlColumn {
                         column: c,
-                        foreign_key: self.foreign_keys
-                            .iter()
-                            .filter(|f| f.child_table == self.table.name && f.foreign_key == c.sql_name)
-                            .next(),
+                        foreign_key: self.foreign_keys.iter().find(|f| f.child_table
+                            == self.table.name
+                            && f.foreign_key == c.sql_name),
                     }
                 )?;
             }
-            for f in self.foreign_keys
+            for f in self
+                .foreign_keys
                 .iter()
                 .filter(|f| f.parent_table == self.table.name)
             {
@@ -325,7 +326,8 @@ impl<'a> Display for GraphqlColumn<'a> {
         let tpe = GraphqlType {
             sql_type: &self.column.ty,
         };
-        let name = self.column
+        let name = self
+            .column
             .rust_name
             .as_ref()
             .unwrap_or(&self.column.sql_name);
@@ -474,7 +476,8 @@ impl<'a> Display for GraphqlInsertable<'a> {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
             // TODO: we need some information about autoincrementing here
-            for c in self.table
+            for c in self
+                .table
                 .column_data
                 .iter()
                 .filter(|c| !self.table.primary_key.contains(&c.sql_name))

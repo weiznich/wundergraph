@@ -15,19 +15,21 @@ script:
   - (cd wundergraph && cargo rustc --no-default-features --features "$BACKEND extras" -- -Zno-trans)
   - (cd wundergraph_example && cargo rustc --no-default-features --features "$BACKEND" -- -Zno-trans)
   - (cd wundergraph_bench && cargo rustc --no-default-features  -- -Zno-trans)
+  - (cd wundergraph_cli && cargo rustc --no-default-features --features "$BACKEND" -- -Zno-trans)
 matrix:
   allow_failures:
     - rust: nightly
   include:
   - rust: nightly-2018-05-10
-    env: CLIPPY_=YESPLEASE
+    env: CLIPPY=YESPLEASE
     script:
       - (cd wundergraph_derive && cargo rustc --no-default-features --features "lint postgres sqlite" -- -Zno-trans)
       - (cd wundergraph && cargo rustc --no-default-features --features "lint postgres sqlite extras" -- -Zno-trans)
       - (cd wundergraph_example && cargo rustc --no-default-features --features "lint sqlite" -- -Zno-trans)
       - (cd wundergraph_example && cargo rustc --no-default-features --features "lint postgres" -- -Zno-trans)
       - (cd wundergraph_bench && cargo rustc --no-default-features --features "lint" -- -Zno-trans)
-  - rust: nightly-2018-05-10
+      - (cd wundergraph_cli && cargo rustc --no-default-features --features "lint postgres sqlite" -- -Zno-trans)
+  - rust: nightly-2018-06-15
     env: RUSTFMT=YESPLEASE
     script:
     - rustup component add rustfmt-preview
