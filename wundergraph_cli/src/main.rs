@@ -18,8 +18,8 @@
 
 #[macro_use]
 extern crate structopt;
-extern crate infer_schema_internals;
 extern crate diesel;
+extern crate infer_schema_internals;
 
 use structopt::StructOpt;
 
@@ -40,9 +40,7 @@ fn main() {
         Wundergraph::PrintSchema {
             database_url,
             schema,
-        } => print_schema::print(
-            &database_url,
-            schema.as_ref().map(|s| s as &str),
-        ).expect("Failed to infer the schema"),
+        } => print_schema::print(&database_url, schema.as_ref().map(|s| s as &str))
+            .expect("Failed to infer the schema"),
     }
 }

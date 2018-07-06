@@ -35,12 +35,12 @@ pub mod diesel_ext;
 pub mod error;
 pub mod filter;
 pub mod helper;
+#[doc(hidden)]
+pub mod juniper_helper;
 pub mod mutations;
 pub mod order;
 pub mod query_helper;
 pub mod query_modifier;
-#[doc(hidden)]
-pub mod juniper_helper;
 #[macro_use]
 mod macros;
 

@@ -76,7 +76,8 @@ where
     {
         let mut and = AndCollector::default();
 
-        let selective_inner = self.inner
+        let selective_inner = self
+            .inner
             .clone()
             .into_filter(OnlySelective)
             .map(|f| <_ as FilterDsl<I::Ret>>::filter(C2::Table::table(), f))
@@ -86,7 +87,8 @@ where
             .map(|f| Box::new(C::default().nullable().eq_any(f)) as Box<_>);
         and.append_filter(selective_inner, t);
 
-        let exclusive_inner = self.inner
+        let exclusive_inner = self
+            .inner
             .clone()
             .into_filter(OnlyExclusive)
             .map(|f| <_ as FilterDsl<I::Ret>>::filter(C2::Table::table(), f))

@@ -35,8 +35,7 @@ extern crate serde_json;
 
 use actix::{Actor, Addr, Handler, Message, Syn, SyncArbiter, SyncContext};
 use actix_web::{
-    http, server, App, AsyncResponder, FutureResponse, HttpRequest, HttpResponse, Json,
-    State,
+    http, server, App, AsyncResponder, FutureResponse, HttpRequest, HttpResponse, Json, State,
 };
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -121,8 +120,8 @@ fn graphql(st: State<AppState>, data: Json<GraphQLData>) -> FutureResponse<HttpR
 }
 
 fn main() {
- //   env::set_var("RUST_LOG", "actix_web=info");
- //   env_logger::init();
+    //   env::set_var("RUST_LOG", "actix_web=info");
+    //   env_logger::init();
     let manager = ConnectionManager::<PgConnection>::new(
         env::var("DATABASE_URL").expect("Database url not set"),
     );

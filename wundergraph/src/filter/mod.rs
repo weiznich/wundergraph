@@ -74,14 +74,16 @@ where
 {
     fn from_input_value(v: &InputValue) -> Option<Self> {
         if let Some(obj) = v.to_object_value() {
-            let and = obj.get("and")
+            let and = obj
+                .get("and")
                 .map(|v| Option::from_input_value(*v))
                 .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
             let and = match and {
                 Some(and) => and,
                 None => return None,
             };
-            let or = obj.get("or")
+            let or = obj
+                .get("or")
                 .map(|v| Option::from_input_value(*v))
                 .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
             let or = match or {
@@ -145,11 +147,13 @@ where
 {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
-            let and = obj.iter()
+            let and = obj
+                .iter()
                 .find(|o| o.0 == "and")
                 .and_then(|o| Vec::from_look_ahead(&o.1));
 
-            let or = obj.iter()
+            let or = obj
+                .iter()
                 .find(|o| o.0 == "or")
                 .and_then(|o| Vec::from_look_ahead(&o.1));
 
@@ -180,18 +184,20 @@ where
         C: Transformator,
     {
         let Filter { and, or, inner, .. } = self;
-        let mut and = and.map(|a| {
-            a.into_iter().fold(AndCollector::default(), |mut a, f| {
-                a.append_filter(f, t);
-                a
-            })
-        }).unwrap_or_default();
-        let or = or.map(|a| {
-            a.into_iter().fold(OrCollector::default(), |mut o, f| {
-                o.append_filter(f, t);
-                o
-            })
-        }).unwrap_or_default();
+        let mut and =
+            and.map(|a| {
+                a.into_iter().fold(AndCollector::default(), |mut a, f| {
+                    a.append_filter(f, t);
+                    a
+                })
+            }).unwrap_or_default();
+        let or =
+            or.map(|a| {
+                a.into_iter().fold(OrCollector::default(), |mut o, f| {
+                    o.append_filter(f, t);
+                    o
+                })
+            }).unwrap_or_default();
         and.append_filter(or, t);
         and.append_filter(inner, t);
         and.into_filter(t)

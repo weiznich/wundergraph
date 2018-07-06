@@ -20,5 +20,4 @@ where
     T: AppearsOnTable<QS>,
     T: NonAggregate,
     T: QueryFragment<DB>,
-{
-}
+{}

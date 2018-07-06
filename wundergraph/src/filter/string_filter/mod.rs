@@ -58,7 +58,8 @@ impl<C> InnerFilter for StringFilter<C> {
     const FIELD_COUNT: usize = 1;
 
     fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
-        let like = obj.get("like")
+        let like = obj
+            .get("like")
             .map(|v| Option::from_input_value(*v))
             .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
         let like = match like {
@@ -69,7 +70,8 @@ impl<C> InnerFilter for StringFilter<C> {
     }
 
     fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
-        let like = obj.iter()
+        let like = obj
+            .iter()
             .find(|o| o.0 == "like")
             .and_then(|o| String::from_look_ahead(&o.1));
         Self {

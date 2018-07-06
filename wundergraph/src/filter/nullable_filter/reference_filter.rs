@@ -122,7 +122,8 @@ where
 {
     fn from_input_value(v: &InputValue) -> Option<Self> {
         if let Some(obj) = v.to_object_value() {
-            let is_null = obj.get("is_null")
+            let is_null = obj
+                .get("is_null")
                 .map(|v| Option::from_input_value(*v))
                 .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
             let is_null = match is_null {
@@ -159,7 +160,8 @@ where
 {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
-            let is_null = obj.iter()
+            let is_null = obj
+                .iter()
                 .find(|o| o.0 == "is_null")
                 .and_then(|o| bool::from_look_ahead(&o.1))
                 .map(IsNull::new);
@@ -205,7 +207,8 @@ where
     const FIELD_COUNT: usize = I::FIELD_COUNT + 1;
 
     fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
-        let is_null = obj.get("is_null")
+        let is_null = obj
+            .get("is_null")
             .map(|v| Option::from_input_value(*v))
             .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
         let is_null = match is_null {
@@ -225,7 +228,8 @@ where
     }
     fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
         let inner = I::from_inner_look_ahead(obj);
-        let is_null = obj.iter()
+        let is_null = obj
+            .iter()
             .find(|o| o.0 == "is_null")
             .and_then(|o| bool::from_look_ahead(&o.1))
             .map(IsNull::new);

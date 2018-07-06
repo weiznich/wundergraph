@@ -105,7 +105,8 @@ where
     }
 
     fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
-        let is_null = obj.iter()
+        let is_null = obj
+            .iter()
             .find(|o| o.0 == "is_null")
             .and_then(|o| bool::from_look_ahead(&o.1))
             .map(IsNull::new);

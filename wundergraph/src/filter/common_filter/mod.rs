@@ -70,21 +70,24 @@ where
     const FIELD_COUNT: usize = 3 + V::AdditionalFilter::FIELD_COUNT;
 
     fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
-        let eq = obj.get("eq")
+        let eq = obj
+            .get("eq")
             .map(|v| Option::from_input_value(*v))
             .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
         let eq = match eq {
             Some(eq) => Eq::new(eq),
             None => return None,
         };
-        let neq = obj.get("not_eq")
+        let neq = obj
+            .get("not_eq")
             .map(|v| Option::from_input_value(*v))
             .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
         let neq = match neq {
             Some(neq) => NotEq::new(neq),
             None => return None,
         };
-        let eq_any = obj.get("eq_any")
+        let eq_any = obj
+            .get("eq_any")
             .map(|v| Option::from_input_value(*v))
             .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
         let eq_any = match eq_any {
@@ -104,17 +107,20 @@ where
     }
 
     fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
-        let eq = obj.iter()
+        let eq = obj
+            .iter()
             .find(|o| o.0 == "eq")
             .and_then(|o| V::RawValue::from_look_ahead(&o.1));
         let eq = Eq::new(eq);
 
-        let neq = obj.iter()
+        let neq = obj
+            .iter()
             .find(|o| o.0 == "not_eq")
             .and_then(|o| V::RawValue::from_look_ahead(&o.1));
         let neq = NotEq::new(neq);
 
-        let eq_any = obj.iter()
+        let eq_any = obj
+            .iter()
             .find(|o| o.0 == "eq_any")
             .and_then(|o| Vec::from_look_ahead(&o.1));
         let eq_any = EqAny::new(eq_any);

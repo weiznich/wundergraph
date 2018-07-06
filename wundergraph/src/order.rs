@@ -30,14 +30,16 @@ pub struct OrderBy {
 impl FromLookAheadValue for OrderBy {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
-            let column = obj.iter()
+            let column = obj
+                .iter()
                 .find(|o| o.0 == "column")
                 .and_then(|o| String::from_look_ahead(&o.1));
             let column = match column {
                 Some(column) => column,
                 None => return None,
             };
-            let direction = obj.iter()
+            let direction = obj
+                .iter()
                 .find(|o| o.0 == "direction")
                 .and_then(|o| Order::from_look_ahead(&o.1));
             let direction = match direction {
