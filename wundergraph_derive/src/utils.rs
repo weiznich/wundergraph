@@ -1,16 +1,15 @@
-use proc_macro2::Span;
-use quote::Tokens;
+use proc_macro2::{Span, TokenStream};
 use syn::*;
 
-pub fn wrap_in_dummy_mod(const_name: Ident, item: &Tokens) -> Tokens {
+pub fn wrap_in_dummy_mod(const_name: &Ident, item: &TokenStream) -> TokenStream {
     wrap_in_dummy_mod_with_reeport(const_name, item, &[])
 }
 
 pub fn wrap_in_dummy_mod_with_reeport(
-    const_name: Ident,
-    item: &Tokens,
-    reexport: &[Tokens],
-) -> Tokens {
+    const_name: &Ident,
+    item: &TokenStream,
+    reexport: &[TokenStream],
+) -> TokenStream {
     let reexport = reexport.iter().map(|r| {
         quote!{
             #[doc(inline)]
@@ -56,6 +55,10 @@ pub fn is_has_many(ty: &Type) -> bool {
 
 pub fn is_has_one(ty: &Type) -> bool {
     inner_ty_arg(ty, "HasOne", 0).is_some()
+}
+
+pub fn is_lazy_load(ty: &Type) -> bool {
+    inner_ty_arg(ty, "LazyLoad", 0).is_some()
 }
 
 pub fn inner_ty_arg<'a>(ty: &'a Type, type_name: &str, index: usize) -> Option<&'a Type> {

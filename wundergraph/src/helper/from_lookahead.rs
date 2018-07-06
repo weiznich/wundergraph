@@ -4,6 +4,20 @@ pub trait FromLookAheadValue: Sized {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self>;
 }
 
+impl FromLookAheadValue for i16 {
+    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+        if let LookAheadValue::Int(i) = *v {
+            if i <= i32::from(::std::i16::MAX) && i >= i32::from(::std::i16::MIN) {
+                Some(i as i16)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
 impl FromLookAheadValue for i32 {
     fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
         if let LookAheadValue::Int(i) = *v {

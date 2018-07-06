@@ -1,11 +1,16 @@
-use juniper::{FromInputValue, ToInputValue};
-use helper::FromLookAheadValue;
-use filter::string_filter::StringFilter;
 use filter::nullable_filter::NullableFilter;
+use filter::string_filter::StringFilter;
+use helper::FromLookAheadValue;
+use juniper::{FromInputValue, ToInputValue};
 
 pub trait FilterValue<C> {
     type RawValue: Clone + FromInputValue + FromLookAheadValue + ToInputValue;
     type AdditionalFilter;
+}
+
+impl<C> FilterValue<C> for i16 {
+    type RawValue = i16;
+    type AdditionalFilter = ();
 }
 
 impl<C> FilterValue<C> for i32 {
@@ -25,6 +30,14 @@ impl<C> FilterValue<C> for bool {
 
 impl<C> FilterValue<C> for f64 {
     type RawValue = f64;
+    type AdditionalFilter = ();
+}
+
+impl<C, V> FilterValue<C> for Vec<V>
+where
+    V: FromLookAheadValue + FromInputValue + ToInputValue + FilterValue<C> + Clone,
+{
+    type RawValue = Vec<V>;
     type AdditionalFilter = ();
 }
 

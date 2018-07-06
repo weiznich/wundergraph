@@ -28,6 +28,12 @@ impl Nameable for String {
     }
 }
 
+impl Nameable for i16 {
+    fn name() -> String {
+        String::from("Int")
+    }
+}
+
 impl Nameable for i32 {
     fn name() -> String {
         String::from("Int")
@@ -52,6 +58,15 @@ where
 {
     fn name() -> String {
         format!("Nullable_{}_", T::name())
+    }
+}
+
+impl<T> Nameable for Vec<T>
+where
+    T: Nameable,
+{
+    fn name() -> String {
+        format!("Vec_{}_", T::name())
     }
 }
 

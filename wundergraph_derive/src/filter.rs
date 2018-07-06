@@ -1,13 +1,15 @@
-use quote;
-use syn;
 use diagnostic_shim::Diagnostic;
-use utils::{inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_option_ty,
-            wrap_in_dummy_mod_with_reeport};
 use model::Model;
+use proc_macro2::{Span, TokenStream};
+use syn;
+use utils::{
+    inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_option_ty,
+    wrap_in_dummy_mod_with_reeport,
+};
 
-pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
-    let item_name = item.ident;
-    let filter_name = syn::Ident::from(format!("{}Filter", item_name));
+pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
+    let item_name = &item.ident;
+    let filter_name = syn::Ident::new(&format!("{}Filter", item_name), Span::call_site());
     let model = Model::from_item(item)?;
     let table_ty = model.table_type()?;
     let table = table_ty.to_string();
@@ -17,7 +19,8 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
         .fields()
         .iter()
         .filter_map(|f| {
-            let field_name = &f.name;
+            let field_name = f.rust_name();
+            let sql_name = f.sql_name();
             let field_ty = &f.ty;
             if f.has_flag("skip") {
                 None
@@ -40,9 +43,11 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
                     },
                 );
                 let remote_filter = f.filter().expect("Filter is missing");
+                let graphql_name = f.graphql_name().to_string();
                 Some(Ok(quote!{
+                    #[wundergraph(graphql_name = #graphql_name)]
                     #field_name: Option<#reference_ty<
-                    #table_ty::#field_name,
+                    #table_ty::#sql_name,
                     #remote_filter,
                     <#remote_table as diesel::Table>::PrimaryKey,
                     >>
@@ -64,7 +69,9 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
                         quote!(<#remote_type as diesel::associations::BelongsTo<#item_name>>::ForeignKeyColumn)
                     });
                 let remote_filter = f.filter().expect("Filter is missing");
+                let graphql_name = f.graphql_name().to_string();
                 Some(Ok(quote!{
+                    #[wundergraph(graphql_name = #graphql_name)]
                     #field_name: Option<#reference_ty<
                     <#table_ty::table as diesel::Table>::PrimaryKey,
                     #remote_filter,
@@ -72,10 +79,12 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
                     >>
                 }))
             } else {
+                let graphql_name = f.graphql_name().to_string();
                 Some(Ok(quote!{
+                    #[wundergraph(graphql_name = #graphql_name)]
                     #field_name: Option<self::wundergraph::filter::FilterOption<
                         #field_ty,
-                        #table_ty::#field_name,
+                        #table_ty::#sql_name,
                     >>
                 }))
             }
@@ -83,7 +92,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(wrap_in_dummy_mod_with_reeport(
-        dummy_mod,
+        &dummy_mod,
         &quote! {
             use self::wundergraph::diesel;
 

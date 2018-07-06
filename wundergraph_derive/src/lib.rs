@@ -5,13 +5,18 @@
 #![cfg_attr(feature = "clippy", allow(unstable_features))]
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy(conf_file = "../../clippy.toml")))]
-#![cfg_attr(feature = "clippy",
-            allow(option_map_unwrap_or_else, option_map_unwrap_or, match_same_arms,
-                  type_complexity))]
-#![cfg_attr(feature = "clippy",
-            warn(option_unwrap_used, result_unwrap_used, wrong_pub_self_convention, mut_mut,
-                 non_ascii_literal, similar_names, unicode_not_nfc, enum_glob_use, if_not_else,
-                 items_after_statements, used_underscore_binding))]
+#![cfg_attr(
+    feature = "clippy",
+    allow(option_map_unwrap_or_else, option_map_unwrap_or, match_same_arms, type_complexity)
+)]
+#![cfg_attr(
+    feature = "clippy",
+    warn(
+        option_unwrap_used, result_unwrap_used, wrong_pub_self_convention, mut_mut,
+        non_ascii_literal, similar_names, unicode_not_nfc, enum_glob_use, if_not_else,
+        items_after_statements, used_underscore_binding
+    )
+)]
 
 extern crate proc_macro;
 extern crate proc_macro2;
@@ -20,22 +25,23 @@ extern crate quote;
 #[macro_use]
 extern crate syn;
 
-mod utils;
 mod diagnostic_shim;
 mod field;
 mod meta;
 mod model;
+mod resolved_at_shim;
+mod utils;
 
-mod nameable;
-mod filter_value;
-mod inner_filter;
 mod build_filter;
-mod wundergraph_entity;
 mod filter;
+mod filter_value;
 mod from_lookahead;
+mod inner_filter;
+mod nameable;
+mod wundergraph_entity;
 
-use proc_macro::TokenStream;
 use self::diagnostic_shim::Diagnostic;
+use proc_macro::TokenStream;
 
 #[proc_macro_derive(Nameable)]
 pub fn derive_nameable(input: TokenStream) -> TokenStream {
@@ -74,7 +80,7 @@ pub fn derive_from_lookahead(input: TokenStream) -> TokenStream {
 
 fn expand_derive(
     input: TokenStream,
-    f: fn(&syn::DeriveInput) -> Result<quote::Tokens, Diagnostic>,
+    f: fn(&syn::DeriveInput) -> Result<proc_macro2::TokenStream, Diagnostic>,
 ) -> TokenStream {
     let item = syn::parse(input).expect("Failed to parse item");
     match f(&item) {

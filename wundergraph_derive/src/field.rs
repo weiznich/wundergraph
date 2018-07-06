@@ -1,25 +1,30 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use quote;
-use syn::spanned::Spanned;
 use syn;
+use syn::spanned::Spanned;
 
+use diagnostic_shim::{Diagnostic, DiagnosticShim};
 use meta::*;
 use utils::*;
-use diagnostic_shim::Diagnostic;
 
 pub struct Field {
     pub ty: syn::Type,
-    pub name: FieldName,
+    rust_name: FieldName,
+    graphql_name: syn::Ident,
+    sql_name: syn::Ident,
     pub span: Span,
+    pub doc: Option<String>,
+    pub deprecated: Option<String>,
     flags: MetaItem,
 }
 
 impl Field {
-    pub fn from_struct_field(field: &syn::Field, index: usize) -> Self {
-        let name = match field.ident {
-            Some(mut x) => {
+    pub fn from_struct_field(field: &syn::Field, index: usize) -> Result<Self, Diagnostic> {
+        let rust_name = match field.ident {
+            Some(ref o) => {
+                let mut x = o.clone();
                 // https://github.com/rust-lang/rust/issues/47983#issuecomment-362817105
-                x.span = fix_span(x.span, Span::call_site());
+                x.set_span(fix_span(o.span(), Span::call_site()));
                 FieldName::Named(x)
             }
             None => FieldName::Unnamed(syn::Index {
@@ -28,16 +33,41 @@ impl Field {
                 span: Span::call_site(),
             }),
         };
+        let span = field.span();
+        let doc = MetaItem::get_docs(&field.attrs);
+        let deprecated = MetaItem::get_deprecated(&field.attrs);
         let flags = MetaItem::with_name(&field.attrs, "wundergraph")
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
-        let span = field.span();
 
-        Self {
+        let sql_name = MetaItem::with_name(&field.attrs, "column_name")
+            .ok_or_else(|| span.error("No `#[column_name = \"name\"]` annotation found"))
+            .and_then(|i| i.ident_value())
+            .or_else(|_| {
+                match rust_name {
+                FieldName::Named(ref x) => Ok(x.clone()),
+                FieldName::Unnamed(_) => Err(span.error("Tuple struct fields needed to be annotated with `#[column_name = \"sql_name\"]")),
+            }
+            })?;
+        let graphql_name = flags
+            .nested_item("graphql_name")
+            .and_then(|i| i.ident_value())
+            .or_else(|_| {
+                match rust_name {
+                FieldName::Named(ref x) => Ok(x.clone()),
+                FieldName::Unnamed(_) => Err(span.error("Tuple struct fields needed to be annotated with `#[wundergraph(graphql_name = \"sql_name\")]")),
+            }
+            })?;
+
+        Ok(Self {
             ty: field.ty.clone(),
-            name,
+            rust_name,
+            graphql_name,
+            sql_name,
             flags,
             span,
-        }
+            doc,
+            deprecated,
+        })
     }
 
     pub fn has_flag(&self, flag: &str) -> bool {
@@ -83,6 +113,18 @@ impl Field {
             .and_then(|m| m.bool_value())
             .unwrap_or(false)
     }
+
+    pub fn rust_name(&self) -> &FieldName {
+        &self.rust_name
+    }
+
+    pub fn graphql_name(&self) -> &syn::Ident {
+        &self.graphql_name
+    }
+
+    pub fn sql_name(&self) -> &syn::Ident {
+        &self.sql_name
+    }
 }
 
 pub enum FieldName {
@@ -99,7 +141,7 @@ impl FieldName {
         parse_quote!(#tokens)
     }
 
-    pub fn access(&self) -> quote::Tokens {
+    pub fn access(&self) -> TokenStream {
         let span = self.span();
         // Span of the dot is important due to
         // https://github.com/rust-lang/rust/issues/47312
@@ -108,16 +150,16 @@ impl FieldName {
 
     pub fn span(&self) -> Span {
         match *self {
-            FieldName::Named(x) => x.span,
-            FieldName::Unnamed(ref x) => x.span,
+            FieldName::Named(ref x) => x.span(),
+            FieldName::Unnamed(ref x) => x.span(),
         }
     }
 }
 
 impl quote::ToTokens for FieldName {
-    fn to_tokens(&self, tokens: &mut quote::Tokens) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match *self {
-            FieldName::Named(x) => x.to_tokens(tokens),
+            FieldName::Named(ref x) => x.to_tokens(tokens),
             FieldName::Unnamed(ref x) => x.to_tokens(tokens),
         }
     }

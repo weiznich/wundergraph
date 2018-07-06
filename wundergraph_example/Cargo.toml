@@ -5,21 +5,26 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-diesel = { version = "=1.1.1", features = ["r2d2", "sqlite", "chrono", "postgres"]}
-diesel_migrations = "1"
+diesel = { version = "=1.2.2", features = ["r2d2", "sqlite", "chrono", "postgres"]}
+diesel_migrations = "=1.2.0"
 juniper = "=0.9.2"
-juniper_rocket = "=0.1.2"
-rocket = "0.3"
-rocket_codegen = "0.3"
-ordermap = "0.2"
-clippy = { version = "0.0.188", optional = true }
+actix = "0.5"
+actix-web = "0.6"
+indexmap = "1"
+clippy = { version = "0.0.197", optional = true }
+failure = "0.1"
+serde = {version = "1", features = ["derive"]}
+serde_json = "1"
+futures = "0.1"
+env_logger = "0.5"
 
 [dependencies.wundergraph]
 path = "../wundergraph"
 default-features = false
 
 [features]
-default = ["sqlite"]
+default = ["sqlite", "wundergraph/debug"]
+#default = ["postgres"]
 lint = ["clippy"]
 sqlite = ["wundergraph/sqlite"]
 postgres = ["wundergraph/postgres"]

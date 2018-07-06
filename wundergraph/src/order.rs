@@ -1,5 +1,5 @@
-use juniper::LookAheadValue;
 use helper::FromLookAheadValue;
+use juniper::LookAheadValue;
 
 #[derive(Debug, GraphQLEnum, Copy, Clone, PartialEq)]
 pub enum Order {
