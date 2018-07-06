@@ -1,3 +1,4 @@
+#![allow(similar_names)]
 use chrono::NaiveDateTime;
 use wundergraph::query_helper::{HasMany, HasOne};
 
@@ -276,7 +277,7 @@ struct Employee {
 }
 
 #[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+         WundergraphFilter, Associations, Copy)]
 #[table_name = "film_actor"]
 #[primary_key(actor_id, film_id)]
 struct FilmActor {
@@ -566,13 +567,13 @@ struct EmployeeChangeset {
     email: Option<String>,
 }
 
-#[derive(Insertable, GraphQLInputObject, Clone, Debug)]
+#[derive(Insertable, GraphQLInputObject, Clone, Debug, Copy)]
 #[table_name = "film_actor"]
 struct NewFilmActor {
     last_update: NaiveDateTime,
 }
 
-#[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
+#[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug, Copy)]
 #[table_name = "film_actor"]
 #[primary_key(actor_id, film_id)]
 struct FilmActorChangeset {
@@ -631,7 +632,7 @@ struct GenreChangeset {
     name: Option<String>,
 }
 
-#[derive(Insertable, GraphQLInputObject, Clone, Debug)]
+#[derive(Insertable, GraphQLInputObject, Clone, Debug, Copy)]
 #[table_name = "invoice_lines"]
 struct NewInvoiceLine {
     invoice_id: i32,
@@ -640,7 +641,7 @@ struct NewInvoiceLine {
     quantity: i32,
 }
 
-#[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
+#[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug, Copy)]
 #[table_name = "invoice_lines"]
 #[primary_key(id)]
 struct InvoiceLineChangeset {

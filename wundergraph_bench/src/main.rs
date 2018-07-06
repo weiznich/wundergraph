@@ -1,4 +1,4 @@
-//#![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
+#![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
 // Clippy lints
 #![cfg_attr(feature = "clippy", allow(unstable_features))]
 #![cfg_attr(feature = "clippy", feature(plugin))]
@@ -35,7 +35,7 @@ extern crate serde_json;
 
 use actix::{Actor, Addr, Handler, Message, Syn, SyncArbiter, SyncContext};
 use actix_web::{
-    http, middleware, server, App, AsyncResponder, FutureResponse, HttpRequest, HttpResponse, Json,
+    http, server, App, AsyncResponder, FutureResponse, HttpRequest, HttpResponse, Json,
     State,
 };
 use diesel::pg::PgConnection;

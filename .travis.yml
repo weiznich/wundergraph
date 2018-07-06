@@ -14,6 +14,7 @@ script:
   - (cd wundergraph_derive && cargo rustc --no-default-features --features "$BACKEND" -- -Zno-trans)
   - (cd wundergraph && cargo rustc --no-default-features --features "$BACKEND extras" -- -Zno-trans)
   - (cd wundergraph_example && cargo rustc --no-default-features --features "$BACKEND" -- -Zno-trans)
+  - (cd wundergraph_bench && cargo rustc --no-default-features  -- -Zno-trans)
 matrix:
   allow_failures:
     - rust: nightly
@@ -25,6 +26,7 @@ matrix:
       - (cd wundergraph && cargo rustc --no-default-features --features "lint postgres sqlite extras" -- -Zno-trans)
       - (cd wundergraph_example && cargo rustc --no-default-features --features "lint sqlite" -- -Zno-trans)
       - (cd wundergraph_example && cargo rustc --no-default-features --features "lint postgres" -- -Zno-trans)
+      - (cd wundergraph_bench && cargo rustc --no-default-features --features "lint" -- -Zno-trans)
   - rust: nightly-2018-05-10
     env: RUSTFMT=YESPLEASE
     script:

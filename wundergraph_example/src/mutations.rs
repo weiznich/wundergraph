@@ -69,20 +69,12 @@ pub struct NewAppearsIn {
     episode: Episode,
 }
 
-#[derive(GraphQLInputObject, Debug, Clone, Identifiable, Copy)]
-#[table_name = "friends"]
-#[primary_key(hero_id, friend_id)]
-pub struct FriendId {
-    hero_id: i32,
-    friend_id: i32,
-}
-
 wundergraph_mutation_object! {
     Mutation(context = super::MyContext<Conn>) {
         Hero(insert = NewHero, update = HeroChangeset,),
         Species(insert = NewSpecies, update = SpeciesChangeset,),
         HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset,),
-        Friend(insert = NewFriend, delete = FriendId),
+        Friend( insert = NewFriend,),
         AppearsIn(insert = NewAppearsIn,),
     }
 }

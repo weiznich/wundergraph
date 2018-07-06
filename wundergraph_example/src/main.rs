@@ -1,4 +1,3 @@
-#![feature(trace_macros)]
 #![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
 // Clippy lints
 #![cfg_attr(feature = "clippy", allow(unstable_features))]
@@ -41,6 +40,7 @@ use actix_web::{
 };
 use futures::future::Future;
 
+use diesel::associations::HasTable;
 use diesel::backend::{Backend, UsesAnsiSavepointSyntax};
 use diesel::connection::AnsiTransactionManager;
 use diesel::deserialize::{self, FromSql};
@@ -48,7 +48,7 @@ use diesel::query_builder::BoxedSelectStatement;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::serialize::{self, ToSql};
 use diesel::sql_types::{Integer, SmallInt};
-use diesel::Connection;
+use diesel::{Connection, Identifiable};
 use juniper::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
 use juniper::LookAheadSelection;
@@ -149,16 +149,36 @@ pub struct AppearsIn {
     episode: Episode,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
+#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, WundergraphEntity,
          WundergraphFilter, Associations)]
 #[table_name = "friends"]
-#[primary_key(hero_id)]
 #[belongs_to(Hero)]
 #[wundergraph(context = "MyContext<Conn>")]
 pub struct Friend {
     #[wundergraph(skip)]
     hero_id: i32,
     friend_id: HasOne<i32, Hero>,
+}
+
+// TODO: make this two impls deriveable
+impl HasTable for Friend {
+    type Table = friends::table;
+
+    fn table() -> Self::Table {
+        friends::table
+    }
+}
+
+impl<'a> Identifiable for &'a Friend {
+    type Id = (&'a i32, &'a i32);
+
+    fn id(self) -> Self::Id {
+        let friend_id = match self.friend_id {
+            HasOne::Id(ref id) => id,
+            HasOne::Item(ref hero) => &hero.id
+        };
+        (&self.hero_id, friend_id)
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -213,34 +233,40 @@ pub struct HomeWorld {
     heros: HasMany<Hero>,
 }
 
-#[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
-         WundergraphFilter, Associations)]
-#[table_name = "heros"]
-#[belongs_to(Species, foreign_key = "species")]
-#[belongs_to(HomeWorld, foreign_key = "home_world")]
-#[wundergraph(context = "MyContext<Conn>")]
-/// A hero from Star Wars
-pub struct Hero {
-    /// Internal id of a hero
-    id: i32,
-    /// The name of a hero
-    #[wundergraph(graphql_name = "heroName")]
-    #[column_name = "name"]
-    something: String,
-    /// The hair color of a hero
-    #[deprecated(note = "Hair color should not be used because of unsafe things")]
-    hair_color: Option<String>,
-    /// Which species a hero belongs to
-    species: HasOne<i32, Species>,
-    /// On which world a hero was born
-    home_world: HasOne<Option<i32>, Option<HomeWorld>>,
-    #[diesel(default)]
-    /// Episodes a hero appears in
-    appears_in: HasMany<AppearsIn>,
-    #[diesel(default)]
-    /// List of friends of the current hero
-    friends: HasMany<Friend>,
+#[allow(deprecated)]
+mod hero {
+    use super::*;
+    #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
+             WundergraphFilter, Associations)]
+    #[table_name = "heros"]
+    #[belongs_to(Species, foreign_key = "species")]
+    #[belongs_to(HomeWorld, foreign_key = "home_world")]
+    #[wundergraph(context = "MyContext<Conn>")]
+    /// A hero from Star Wars
+    pub struct Hero {
+        /// Internal id of a hero
+        pub(super) id: i32,
+        /// The name of a hero
+        #[wundergraph(graphql_name = "heroName")]
+        #[column_name = "name"]
+        something: String,
+        /// The hair color of a hero
+        #[deprecated(note = "Hair color should not be used because of unsafe things")]
+        hair_color: Option<String>,
+        /// Which species a hero belongs to
+        species: HasOne<i32, Species>,
+        /// On which world a hero was born
+        home_world: HasOne<Option<i32>, Option<HomeWorld>>,
+        #[diesel(default)]
+        /// Episodes a hero appears in
+        appears_in: HasMany<AppearsIn>,
+        #[diesel(default)]
+        /// List of friends of the current hero
+        friends: HasMany<Friend>,
+    }
 }
+pub use self::hero::{Hero, HeroFilter};
+
 
 #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
          WundergraphFilter)]
@@ -301,13 +327,14 @@ type DBConnection = ::diesel::PgConnection;
 type DBConnection = ::diesel::SqliteConnection;
 
 // actix integration stuff
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct GraphQLData(GraphQLRequest);
 
 impl Message for GraphQLData {
     type Result = Result<String, Error>;
 }
 
+#[allow(missing_debug_implementations)]
 pub struct GraphQLExecutor {
     schema: Arc<Schema<DBConnection>>,
     pool: Arc<Pool<ConnectionManager<DBConnection>>>,
