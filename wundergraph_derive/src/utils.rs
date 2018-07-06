@@ -66,7 +66,8 @@ pub fn inner_ty_arg<'a>(ty: &'a Type, type_name: &str, index: usize) -> Option<&
 
     match *ty {
         Type::Path(ref ty) => {
-            let last_segment = ty.path
+            let last_segment = ty
+                .path
                 .segments
                 .iter()
                 .last()
@@ -88,7 +89,8 @@ pub fn inner_ty_arg<'a>(ty: &'a Type, type_name: &str, index: usize) -> Option<&
 pub fn ty_name(ty: &Type) -> Option<&Ident> {
     match *ty {
         Type::Path(ref ty) => {
-            let last_segment = ty.path
+            let last_segment = ty
+                .path
                 .segments
                 .iter()
                 .last()

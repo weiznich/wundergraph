@@ -1,4 +1,4 @@
-use proc_macro2::{Span, TokenTree, Ident};
+use proc_macro2::{Ident, Span, TokenTree};
 use syn;
 use syn::fold::Fold;
 use syn::spanned::Spanned;
@@ -26,9 +26,8 @@ impl MetaItem {
     }
 
     pub fn get_deprecated(attrs: &[syn::Attribute]) -> Option<String> {
-        Self::with_name(attrs, "deprecated").and_then(|d|{
-            d.nested_item("note").and_then(|n| n.str_value()).ok()
-        })
+        Self::with_name(attrs, "deprecated")
+            .and_then(|d| d.nested_item("note").and_then(|n| n.str_value()).ok())
     }
 
     pub fn get_docs(attrs: &[syn::Attribute]) -> Option<String> {
@@ -144,7 +143,8 @@ impl MetaItem {
 
         match self.meta {
             List(ref list) => Ok(Nested(list.nested.iter())),
-            _ => Err(self.span()
+            _ => Err(self
+                .span()
                 .error(format!("`{0}` must be in the form `{0}(...)`", self.name()))),
         }
     }
@@ -196,7 +196,8 @@ impl MetaItem {
             Ok(x) => x,
             Err(_) => return,
         };
-        let unrecognized_options = nested.filter(|n| !options.contains(&(&n.name().to_string() as _)));
+        let unrecognized_options =
+            nested.filter(|n| !options.contains(&(&n.name().to_string() as _)));
         for ignored in unrecognized_options {
             ignored
                 .span()

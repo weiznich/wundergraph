@@ -1,5 +1,5 @@
 use diagnostic_shim::Diagnostic;
-use proc_macro2::{TokenStream, Span};
+use proc_macro2::{Span, TokenStream};
 use syn;
 use utils::wrap_in_dummy_mod;
 

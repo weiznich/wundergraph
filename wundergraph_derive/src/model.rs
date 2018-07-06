@@ -120,9 +120,8 @@ impl Model {
                             ));
                         }
                     } else {
-                        return Err(span.error(
-                            "Context type needs exactly one generic argument called Conn",
-                        ));
+                        return Err(span
+                            .error("Context type needs exactly one generic argument called Conn"));
                     }
                 } else {
                     return Err(span.error("Invalid context type"));

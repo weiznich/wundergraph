@@ -1,7 +1,6 @@
 use infer_schema_internals::*;
 use std::error::Error;
 
-
 mod print_helper;
 use self::print_helper::*;
 

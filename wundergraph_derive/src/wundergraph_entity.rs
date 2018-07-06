@@ -247,7 +247,8 @@ fn handle_has_one(
                 let child_ty = inner_of_option_ty(child_ty);
                 let id_ty = inner_ty_arg(&f.ty, "HasOne", 0).expect("Is HasOne, so this exists");
                 let field_access = field_name.access();
-                let table = f.remote_table()
+                let table = f
+                    .remote_table()
                     .map(|t| quote!(#t::table))
                     .unwrap_or_else(|_| {
                         let remote_type = inner_of_option_ty(

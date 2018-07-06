@@ -149,8 +149,8 @@ pub struct AppearsIn {
     episode: Episode,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, WundergraphEntity, WundergraphFilter,
+         Associations)]
 #[table_name = "friends"]
 #[belongs_to(Hero)]
 #[wundergraph(context = "MyContext<Conn>")]
@@ -175,7 +175,7 @@ impl<'a> Identifiable for &'a Friend {
     fn id(self) -> Self::Id {
         let friend_id = match self.friend_id {
             HasOne::Id(ref id) => id,
-            HasOne::Item(ref hero) => &hero.id
+            HasOne::Item(ref hero) => &hero.id,
         };
         (&self.hero_id, friend_id)
     }
@@ -266,7 +266,6 @@ mod hero {
     }
 }
 pub use self::hero::{Hero, HeroFilter};
-
 
 #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
          WundergraphFilter)]

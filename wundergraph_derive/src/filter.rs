@@ -62,7 +62,8 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
                     let remote_type = inner_ty_arg(&f.ty, "HasMany", 0).expect("It is HasMany");
                     quote!(<<#remote_type as diesel::associations::BelongsTo<#item_name>>::ForeignKeyColumn as diesel::Column>::Table)
                 });
-                let foreign_key = f.foreign_key()
+                let foreign_key = f
+                    .foreign_key()
                     .map(|k| quote!(#remote_table::#k))
                     .unwrap_or_else(|_| {
                         let remote_type = inner_ty_arg(&f.ty, "HasMany", 0).expect("It is HasMany");
