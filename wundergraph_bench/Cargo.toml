@@ -7,8 +7,8 @@ authors = ["Georg Semmler <georg_semmler_05@web.de>"]
 wundergraph = {path = "../wundergraph", default-features = false, features = ["postgres", "chrono"]}
 diesel = {version = "=1.2.2", features = ["r2d2", "sqlite", "chrono", "postgres"]}
 juniper = "=0.9.2"
-actix = "0.5"
-actix-web = "0.6"
+actix = "0.7"
+actix-web = "0.7"
 failure = "0.1"
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"

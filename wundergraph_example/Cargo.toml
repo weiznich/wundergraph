@@ -8,8 +8,8 @@ license = "MIT OR Apache-2.0"
 diesel = { version = "=1.2.2", features = ["r2d2", "sqlite", "chrono", "postgres"]}
 diesel_migrations = "=1.2.0"
 juniper = "=0.9.2"
-actix = "0.5"
-actix-web = "0.6"
+actix = "0.7"
+actix-web = "0.7"
 indexmap = "1"
 clippy = { version = "0.0.207", optional = true }
 failure = "0.1"

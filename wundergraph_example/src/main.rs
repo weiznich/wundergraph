@@ -367,11 +367,11 @@ impl Handler<GraphQLData> for GraphQLExecutor {
 }
 
 struct AppState {
-    executor: Addr<Syn, GraphQLExecutor>,
+    executor: Addr<GraphQLExecutor>,
 }
 
 #[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphiql(_req: HttpRequest<AppState>) -> Result<HttpResponse, Error> {
+fn graphiql(_req: &HttpRequest<AppState>) -> Result<HttpResponse, Error> {
     let html = graphiql_source("/graphql");
     Ok(HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
@@ -379,7 +379,7 @@ fn graphiql(_req: HttpRequest<AppState>) -> Result<HttpResponse, Error> {
 }
 
 #[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphql(st: State<AppState>, data: Json<GraphQLData>) -> FutureResponse<HttpResponse> {
+fn graphql((st, data): (State<AppState>, Json<GraphQLData>)) -> FutureResponse<HttpResponse> {
     st.executor
         .send(data.0)
         .from_err()
@@ -426,8 +426,8 @@ fn main() {
         App::with_state(AppState{executor: addr.clone()})
             // enable logger
             .middleware(middleware::Logger::default())
-            .resource("/graphql", |r| r.method(http::Method::POST).with2(graphql))
-            .resource("/graphql", |r| r.method(http::Method::GET).with2(graphql))
+            .resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
+            .resource("/graphql", |r| r.method(http::Method::GET).with(graphql))
             .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
             .default_resource(|r| r.get().f(|_| HttpResponse::Found().header("location", "/graphiql").finish()))
     }).bind("127.0.0.1:8000")

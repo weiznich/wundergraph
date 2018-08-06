@@ -36,7 +36,7 @@ extern crate futures;
 extern crate num_cpus;
 extern crate serde_json;
 
-use actix::{Actor, Addr, Handler, Message, Syn, SyncArbiter, SyncContext};
+use actix::{Actor, Addr, Handler, Message, SyncArbiter, SyncContext};
 use actix_web::{
     http, server, App, AsyncResponder, FutureResponse, HttpRequest, HttpResponse, Json, State,
 };
@@ -97,11 +97,11 @@ impl Handler<GraphQLData> for GraphQLExecutor {
 }
 
 struct AppState {
-    executor: Addr<Syn, GraphQLExecutor>,
+    executor: Addr<GraphQLExecutor>,
 }
 
 #[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphiql(_req: HttpRequest<AppState>) -> Result<HttpResponse, Error> {
+fn graphiql(_req: &HttpRequest<AppState>) -> Result<HttpResponse, Error> {
     let html = graphiql_source("/graphql");
     Ok(HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
@@ -109,14 +109,16 @@ fn graphiql(_req: HttpRequest<AppState>) -> Result<HttpResponse, Error> {
 }
 
 #[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphql(st: State<AppState>, data: Json<GraphQLData>) -> FutureResponse<HttpResponse> {
+fn graphql(
+    (st, data): (State<AppState>, Json<GraphQLData>),
+) -> FutureResponse<HttpResponse> {
     st.executor
         .send(data.0)
         .from_err()
         .and_then(|res| match res {
-            Ok(res) => Ok(HttpResponse::Ok()
+            Ok(user) => Ok(HttpResponse::Ok()
                 .content_type("application/json")
-                .body(res)),
+                .body(user)),
             Err(_) => Ok(HttpResponse::InternalServerError().into()),
         })
         .responder()
@@ -151,8 +153,8 @@ fn main() {
         App::with_state(AppState{executor: addr.clone()})
             // enable logger
    //         .middleware(middleware::Logger::default())
-            .resource("/graphql", |r| r.method(http::Method::POST).with2(graphql))
-            .resource("/graphql", |r| r.method(http::Method::GET).with2(graphql))
+            .resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
+            .resource("/graphql", |r| r.method(http::Method::GET).with(graphql))
             .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
             .default_resource(|r| r.get().f(|_| HttpResponse::Found().header("location", "/graphiql").finish()))
     }).workers(num_cpus::get() * 2)
