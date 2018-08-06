@@ -181,7 +181,8 @@ impl<'a> Display for GraphqlDefinition<'a> {
                 "{}",
                 GraphqlData {
                     table: t,
-                    foreign_keys: &self.foreign_keys
+                    foreign_keys: &self.foreign_keys,
+                    table_data: self.tables
                 }
             )?;
         }
@@ -216,6 +217,7 @@ impl<'a> Display for GraphqlDefinition<'a> {
 struct GraphqlData<'a> {
     table: &'a TableData,
     foreign_keys: &'a [ForeignKeyConstraint],
+    table_data: &'a [TableData],
 }
 
 fn uppercase_table_name(name: &str) -> String {
@@ -303,6 +305,9 @@ impl<'a> Display for GraphqlData<'a> {
                 .filter(|f| f.parent_table == self.table.name)
             {
                 writeln!(out, "#[diesel(default)]")?;
+                if is_reverse_nullable_reference(f, self.table_data) {
+                    writeln!(out, "#[wundergraph(is_nullable_reference = \"true\")]")?;
+                }
                 writeln!(
                     out,
                     "{}: HasMany<{}>,",
@@ -313,6 +318,20 @@ impl<'a> Display for GraphqlData<'a> {
         }
         writeln!(f, "}}")?;
         Ok(())
+    }
+}
+
+fn is_reverse_nullable_reference(fk: &ForeignKeyConstraint, tables: &[TableData]) -> bool {
+    if let Some(t) = tables.iter().find(|t| {
+        t.name == fk.child_table && t.column_data.iter().any(|c| c.sql_name == fk.foreign_key)
+    }) {
+        if let Some(c) = t.column_data.iter().find(|c| c.sql_name == fk.foreign_key) {
+            c.ty.is_nullable
+        } else {
+            false
+        }
+    } else {
+        false
     }
 }
 
@@ -337,7 +356,6 @@ impl<'a> Display for GraphqlColumn<'a> {
             } else {
                 fix_table_name(&foreign_key.parent_table.name)
             };
-
             write!(f, "{}: HasOne<{}, {}>,", name, tpe, referenced)?;
         } else {
             write!(f, "{}: {},", name, tpe)?;
@@ -475,12 +493,7 @@ impl<'a> Display for GraphqlInsertable<'a> {
         {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
-            for c in self
-                .table
-                .column_data
-                .iter()
-                .filter(|c| !c.has_default)
-            {
+            for c in self.table.column_data.iter().filter(|c| !c.has_default) {
                 let t = GraphqlType { sql_type: &c.ty };
                 let name = c.rust_name.as_ref().unwrap_or(&c.sql_name);
                 writeln!(out, "{}: {},", name, t)?;
