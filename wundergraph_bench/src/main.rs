@@ -109,9 +109,7 @@ fn graphiql(_req: &HttpRequest<AppState>) -> Result<HttpResponse, Error> {
 }
 
 #[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphql(
-    (st, data): (State<AppState>, Json<GraphQLData>),
-) -> FutureResponse<HttpResponse> {
+fn graphql((st, data): (State<AppState>, Json<GraphQLData>)) -> FutureResponse<HttpResponse> {
     st.executor
         .send(data.0)
         .from_err()

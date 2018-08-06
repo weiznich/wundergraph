@@ -24,9 +24,9 @@ extern crate diesel;
 
 use structopt::StructOpt;
 
-mod print_schema;
-mod infer_schema_internals;
 mod database;
+mod infer_schema_internals;
+mod print_schema;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "wundergraph")]
