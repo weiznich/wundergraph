@@ -475,12 +475,11 @@ impl<'a> Display for GraphqlInsertable<'a> {
         {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
-            // TODO: we need some information about autoincrementing here
             for c in self
                 .table
                 .column_data
                 .iter()
-                .filter(|c| !self.table.primary_key.contains(&c.sql_name))
+                .filter(|c| !c.has_default)
             {
                 let t = GraphqlType { sql_type: &c.ty };
                 let name = c.rust_name.as_ref().unwrap_or(&c.sql_name);

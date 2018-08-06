@@ -18,12 +18,15 @@
 
 #[macro_use]
 extern crate structopt;
+#[macro_use]
 extern crate diesel;
-extern crate infer_schema_internals;
+//extern crate infer_schema_internals;
 
 use structopt::StructOpt;
 
 mod print_schema;
+mod infer_schema_internals;
+mod database;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "wundergraph")]

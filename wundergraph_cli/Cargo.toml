@@ -6,12 +6,11 @@ version = "0.1.0"
 [dependencies]
 structopt = "0.2"
 clap = "2.27"
-infer_schema_internals = "1.2"
 diesel = "1.2"
 clippy = { version = "0.0.207", optional = true }
 
 [features]
 default = ["postgres", "sqlite"]
 lint = ["clippy"]
-sqlite = ["infer_schema_internals/sqlite"]
-postgres = ["infer_schema_internals/postgres"]
+sqlite = ["diesel/sqlite"]
+postgres = ["diesel/postgres"]
