@@ -7,6 +7,7 @@ use diagnostic_shim::{Diagnostic, DiagnosticShim};
 use meta::*;
 use utils::*;
 
+#[derive(Debug)]
 pub struct Field {
     pub ty: syn::Type,
     rust_name: FieldName,
@@ -83,12 +84,13 @@ impl Field {
     }
 
     pub fn filter(&self) -> Option<syn::Path> {
-        let filter_name = if let Some(n) = inner_ty_arg(&self.ty, "HasMany", 0) {
+        let filter_name = if let Some(n) = inner_ty_arg(inner_of_option_ty(&self.ty), "HasMany", 0)
+        {
             format!(
                 "{}Filter",
                 ty_name(inner_of_option_ty(n)).expect("Invalid type")
             )
-        } else if let Some(n) = inner_ty_arg(&self.ty, "HasOne", 1) {
+        } else if let Some(n) = inner_ty_arg(inner_of_option_ty(&self.ty), "HasOne", 1) {
             format!(
                 "{}Filter",
                 ty_name(inner_of_option_ty(n)).expect("Invalid type")
@@ -127,6 +129,7 @@ impl Field {
     }
 }
 
+#[derive(Debug)]
 pub enum FieldName {
     Named(syn::Ident),
     Unnamed(syn::Index),

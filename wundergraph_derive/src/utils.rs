@@ -50,15 +50,15 @@ pub fn is_box_ty(ty: &Type) -> bool {
 }
 
 pub fn is_has_many(ty: &Type) -> bool {
-    inner_ty_arg(ty, "HasMany", 0).is_some()
+    inner_ty_arg(inner_of_option_ty(ty), "HasMany", 0).is_some()
 }
 
 pub fn is_has_one(ty: &Type) -> bool {
-    inner_ty_arg(ty, "HasOne", 0).is_some()
+    inner_ty_arg(inner_of_option_ty(ty), "HasOne", 0).is_some()
 }
 
 pub fn is_lazy_load(ty: &Type) -> bool {
-    inner_ty_arg(ty, "LazyLoad", 0).is_some()
+    inner_ty_arg(inner_of_option_ty(ty), "LazyLoad", 0).is_some()
 }
 
 pub fn inner_ty_arg<'a>(ty: &'a Type, type_name: &str, index: usize) -> Option<&'a Type> {

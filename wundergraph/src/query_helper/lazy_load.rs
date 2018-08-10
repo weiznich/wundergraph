@@ -1,4 +1,5 @@
 use diesel::backend::Backend;
+use diesel::sql_types::{NotNull, Nullable};
 use diesel::Queryable;
 use filter::filter_value::FilterValue;
 use helper::{FromLookAheadValue, Nameable};
@@ -30,25 +31,28 @@ impl<T> LazyLoad<T> {
     }
 }
 
+impl<DB, T, ST> Queryable<Nullable<ST>, DB> for LazyLoad<T>
+where
+    DB: Backend,
+    T: Queryable<ST, DB>,
+    ST: NotNull,
+{
+    type Row = <Option<T> as Queryable<Nullable<ST>, DB>>::Row;
+
+    fn build(row: Self::Row) -> Self {
+        match Queryable::build(row) {
+            None => LazyLoad::NotLoaded,
+            Some(i) => LazyLoad::Item(i),
+        }
+    }
+}
+
 impl<T, C> FilterValue<C> for LazyLoad<T>
 where
     T: FilterValue<C>,
 {
     type RawValue = <T as FilterValue<C>>::RawValue;
     type AdditionalFilter = <T as FilterValue<C>>::AdditionalFilter;
-}
-
-impl<T, ST, DB> Queryable<ST, DB> for LazyLoad<T>
-where
-    DB: Backend,
-    T: Queryable<ST, DB>,
-{
-    type Row = <T as Queryable<ST, DB>>::Row;
-
-    fn build(row: Self::Row) -> Self {
-        let row = Queryable::build(row);
-        LazyLoad::Item(row)
-    }
 }
 
 impl<T> GraphQLType for LazyLoad<T>

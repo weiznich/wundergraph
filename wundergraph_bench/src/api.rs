@@ -202,7 +202,6 @@ struct Album {
     id: i32,
     title: String,
     artist_id: HasOne<i32, Artist>,
-    #[diesel(default)]
     #[wundergraph(is_nullable_reference = "true")]
     tracks: HasMany<Track>,
 }
@@ -214,7 +213,6 @@ struct Album {
 struct Artist {
     id: i32,
     name: Option<String>,
-    #[diesel(default)]
     albums: HasMany<Album>,
 }
 
@@ -246,8 +244,7 @@ struct Customer {
     phone: Option<String>,
     fax: Option<String>,
     email: String,
-    support_rep_id: HasOne<Option<i32>, Option<Employee>>,
-    #[diesel(default)]
+    support_rep_id: Option<HasOne<i32, Employee>>,
     invoices: HasMany<Invoice>,
 }
 
@@ -271,7 +268,6 @@ struct Employee {
     phone: Option<String>,
     fax: Option<String>,
     email: Option<String>,
-    #[diesel(default)]
     #[wundergraph(is_nullable_reference = "true")]
     customers: HasMany<Customer>,
 }
@@ -313,7 +309,6 @@ struct Film {
 struct Genre {
     id: i32,
     name: Option<String>,
-    #[diesel(default)]
     #[wundergraph(is_nullable_reference = "true")]
     tracks: HasMany<Track>,
 }
@@ -347,7 +342,6 @@ struct Invoice {
     billing_country: Option<String>,
     billing_postal_code: Option<String>,
     //    total: BigDecimal,
-    #[diesel(default)]
     invoice_lines: HasMany<InvoiceLine>,
 }
 
@@ -358,7 +352,6 @@ struct Invoice {
 struct MediaType {
     id: i32,
     name: Option<String>,
-    #[diesel(default)]
     tracks: HasMany<Track>,
 }
 
@@ -369,7 +362,6 @@ struct MediaType {
 struct Playlist {
     id: i32,
     name: Option<String>,
-    #[diesel(default)]
     playlist_track: HasMany<PlaylistTrack>,
 }
 
@@ -394,16 +386,14 @@ struct PlaylistTrack {
 struct Track {
     id: i32,
     name: String,
-    album_id: HasOne<Option<i32>, Option<Album>>,
+    album_id: Option<HasOne<i32, Album>>,
     media_type_id: HasOne<i32, MediaType>,
-    genre_id: HasOne<Option<i32>, Option<Genre>>,
+    genre_id: Option<HasOne<i32, Genre>>,
     composer: Option<String>,
     milliseconds: i32,
     bytes: Option<i32>,
     //    unit_price: BigDecimal,
-    #[diesel(default)]
     invoice_lines: HasMany<InvoiceLine>,
-    #[diesel(default)]
     playlist_track: HasMany<PlaylistTrack>,
 }
 

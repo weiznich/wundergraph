@@ -1,3 +1,6 @@
+use diesel::backend::Backend;
+use diesel::sql_types::{Bool, Nullable};
+use diesel::Queryable;
 use juniper::meta::MetaType;
 use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, GraphQLType, Registry, Selection, Value,
@@ -22,6 +25,19 @@ impl<T> HasMany<T> {
         } else {
             panic!("{}", msg)
         }
+    }
+}
+
+impl<DB, T> Queryable<Nullable<Bool>, DB> for HasMany<T>
+where
+    DB: Backend,
+    bool: Queryable<Bool, DB>,
+{
+    type Row = <Option<bool> as Queryable<Nullable<Bool>, DB>>::Row;
+
+    fn build(row: Self::Row) -> Self {
+        assert!(<Option<bool> as Queryable<_, _>>::build(row).is_none());
+        HasMany::NotLoaded
     }
 }
 

@@ -41,6 +41,7 @@ pub trait UpdateHelper<DB, R, Ctx> {
 }
 
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct AsChangeSetWrapper<U>(U);
 
 impl<U, DB, R, Ctx, T> UpdateHelper<DB, R, Ctx> for U

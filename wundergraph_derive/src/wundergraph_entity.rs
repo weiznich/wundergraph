@@ -1,6 +1,8 @@
-use diagnostic_shim::Diagnostic;
+use diagnostic_shim::{Diagnostic, DiagnosticShim};
+use field::Field;
 use model::Model;
-use proc_macro2::TokenStream;
+use proc_macro2::Ident;
+use proc_macro2::{Span, TokenStream};
 use syn;
 use utils::{
     inner_of_option_ty, inner_ty_arg, is_has_many, is_has_one, is_lazy_load, is_option_ty,
@@ -25,7 +27,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 fn apply_filter(model: &Model) -> Option<TokenStream> {
     if let Some(filter) = model.filter_type() {
         Some(quote!{
-           if let Some(f) = select.argument("filter") {
+           if let std::option::Option::Some(f) = select.argument("filter") {
                source = <self::wundergraph::filter::Filter<#filter, <Self as diesel::associations::HasTable>::Table> as
                    self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(f.value())
                    .ok_or(WundergraphError::CouldNotBuildFilterArgument)?
@@ -40,7 +42,7 @@ fn apply_filter(model: &Model) -> Option<TokenStream> {
 fn apply_limit(model: &Model) -> Option<TokenStream> {
     if model.should_have_limit() {
         Some(quote!{
-            if let Some(l) = select.argument("limit") {
+            if let std::option::Option::Some(l) = select.argument("limit") {
                 source = source.limit(<i32 as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(l.value())
                                       .ok_or(WundergraphError::CouldNotBuildFilterArgument)?
                                       as i64);
@@ -54,7 +56,7 @@ fn apply_limit(model: &Model) -> Option<TokenStream> {
 fn apply_offset(model: &Model) -> Option<TokenStream> {
     if model.should_have_offset() {
         Some(quote!{
-            if let Some(o) = select.argument("offset") {
+            if let std::option::Option::Some(o) = select.argument("offset") {
                 source = source.offset(<i32 as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
                                        .ok_or(WundergraphError::CouldNotBuildFilterArgument)?
                                        as i64);
@@ -92,7 +94,7 @@ fn apply_order(model: &Model) -> Result<Option<TokenStream>, Diagnostic> {
             Ok(None)
         } else {
             Ok(Some(quote!{
-                if let Some(o) = select.argument("order") {
+                if let std::option::Option::Some(o) = select.argument("order") {
                     let order: Vec<_> = <Vec<self::wundergraph::order::OrderBy> as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
                         .ok_or(WundergraphError::CouldNotBuildFilterArgument)?;
                     for o in order {
@@ -133,7 +135,7 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
                     Err(e) => return Some(Err(e)),
                 };
                 let field_access = field_name.access();
-                let inner_ty = inner_ty_arg(&f.ty, "LazyLoad", 0);
+                let inner_ty = inner_ty_arg(inner_of_option_ty(&f.ty), "LazyLoad", 0);
                 let primary_key = &quote!{
                     <<Self as diesel::associations::HasTable>::Table as diesel::Table>::primary_key(
                         &<Self as diesel::associations::HasTable>::table()
@@ -141,7 +143,7 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
                 };
 
                 let inner = quote!{
-                    if let Some(_select) =
+                    if let std::option::Option::Some(_select) =
                         <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
                             select,
                             stringify!(#field_name),
@@ -152,7 +154,10 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
                                 }).collect::<Vec<_>>();
                                 let filter = <_ as diesel::ExpressionMethods>::eq_any(#primary_key, &collected_ids);
                                 let query = <Self as diesel::associations::HasTable>::table()
-                                    .select((#primary_key, #table::#sql_name))
+                                    .select((
+                                        #primary_key,
+                                        <#table::#sql_name as diesel::expression_methods::NullableExpressionMethods>::nullable(#table::#sql_name)
+                                    ))
                                     .filter(filter);
 
                                 #debug_query
@@ -189,7 +194,7 @@ fn handle_has_many(model: &Model, field_count: usize, backend: &TokenStream) -> 
                 None
             } else {
                 let field_name = f.rust_name();
-                let parent_ty = inner_ty_arg(&f.ty, "HasMany", 0);
+                let parent_ty = inner_ty_arg(inner_of_option_ty(&f.ty), "HasMany", 0);
                 let field_access = field_name.access();
                 let inner = quote! {
                     let query = <#parent_ty as LoadingHandler<#backend>>::default_query().into_boxed();
@@ -215,7 +220,7 @@ fn handle_has_many(model: &Model, field_count: usize, backend: &TokenStream) -> 
                 };
                 if field_count > 1 {
                     Some(quote!{
-                        if let Some(select) =
+                        if let std::option::Option::Some(select) =
                             <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
                                 select,
                                 stringify!(#field_name),
@@ -242,46 +247,58 @@ fn handle_has_one(
         .filter_map(|f| {
             if f.has_flag("skip") {
                 None
-            } else if let Some(child_ty) = inner_ty_arg(&f.ty, "HasOne", 1) {
+            } else if let Some(child_ty) = inner_ty_arg(inner_of_option_ty(&f.ty), "HasOne", 1) {
                 let field_name = f.rust_name();
                 let child_ty = inner_of_option_ty(child_ty);
-                let id_ty = inner_ty_arg(&f.ty, "HasOne", 0).expect("Is HasOne, so this exists");
                 let field_access = field_name.access();
                 let table = f
                     .remote_table()
                     .map(|t| quote!(#t::table))
                     .unwrap_or_else(|_| {
                         let remote_type = inner_of_option_ty(
-                            inner_ty_arg(&f.ty, "HasOne", 1).expect("It's HasOne"),
+                            inner_ty_arg(inner_of_option_ty(&f.ty), "HasOne", 1)
+                                .expect("It's HasOne"),
                         );
                         quote!{
                             <#remote_type as diesel::associations::HasTable>::Table
                         }
                     });
-                let map_fn = if is_option_ty(id_ty) {
-                    quote!(filter_map)
+                let map_fn = if is_option_ty(&f.ty) {
+                    quote!(filter_map(|i| i#field_access.as_ref().map(|g| {
+                        g.expect_id("Id is there").clone()
+                    })))
                 } else {
-                    quote!(map)
+                    quote!(map(|i| i#field_access.expect_id("Id is there").clone()))
                 };
+
                 let collect_ids = quote!{
                     let ids = ret
                         .iter()
-                        .#map_fn(|i| *i#field_access.expect_id("Id is there"))
+                        .#map_fn
                         .collect::<self::std::collections::HashSet<_>>();
                 };
-                let lookup_and_assign = if is_option_ty(id_ty) {
+                let lookup_and_assign = if is_option_ty(&f.ty) {
                     quote!{
-                        if let Some(id) = id {
-                            if let Some(c) = items.get(&id).cloned() {
-                                i#field_access = self::wundergraph::query_helper::HasOne::Item(Some(c));
+                        if let std::option::Option::Some(id)
+                            = i#field_access.as_ref().map(|g| {
+                                g.expect_id("Id is there").clone()
+                            })
+                        {
+                            if let std::option::Option::Some(c) = items.get(&id).cloned() {
+                                i#field_access = std::option::Option::Some(
+                                    self::wundergraph::query_helper::HasOne::Item(c)
+                                );
                             }
                         } else {
-                            i#field_access = self::wundergraph::query_helper::HasOne::Item(None);
+                            i#field_access = std::option::Option::None;
                         }
                     }
                 } else {
                     quote!{
-                        if let Some(c) = items.get(&id).cloned() {
+                        let id = i#field_access.expect_id("Id is there").clone();
+                        if let std::option::Option::Some(c)
+                            = items.get(&id).cloned()
+                        {
                             i#field_access = self::wundergraph::query_helper::HasOne::Item(c);
                         }
                     }
@@ -294,19 +311,19 @@ fn handle_has_one(
                         <#child_ty as LoadingHandler<#backend>>::default_query()
                             .filter(<_ as diesel::ExpressionMethods>::eq_any(
                                 <_ as diesel::Table>::primary_key(&<#table as diesel::associations::HasTable>::table()),
+
                                 ids.iter()))
                             .into_boxed()
                     )?.into_iter()
-                       .map(|c| (*<_ as diesel::Identifiable>::id(&c), c))
-                       .collect::<self::std::collections::HashMap<_, _>>();
+                        .map(|c| (*<_ as diesel::Identifiable>::id(&c), c))
+                        .collect::<self::std::collections::HashMap<_, _>>();
                     for i in &mut ret {
-                        let id = *i#field_access.expect_id("Id is there");
                         #lookup_and_assign
                     }
                 };
                 if field_count > 1 {
                     Some(Ok(quote!{
-                        if let Some(select) = <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
+                        if let std::option::Option::Some(select) = <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
                             select,
                             stringify!(#field_name)
                         ) {
@@ -335,24 +352,16 @@ fn impl_loading_handler(
     lazy_load_fields: &[TokenStream],
     context: &syn::Path,
     query_modifier: &syn::Path,
-    select: Option<&TokenStream>,
+    &(ref select_expr, ref select_ty): &(TokenStream, TokenStream),
 ) -> TokenStream {
     let item_name = &item.ident;
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
-    let (query, query_ty, sql_ty) = if let Some(select) = select {
-        let query =
-            quote!(<Self::Table as diesel::associations::HasTable>::table().select(#select));
-        let query_ty = quote!(
-            diesel::dsl::Select<Self::Table, #select>
+    let query =
+        quote!(<Self::Table as diesel::associations::HasTable>::table().select(#select_expr));
+    let query_ty = quote!(
+            diesel::dsl::Select<Self::Table, #select_ty>
         );
-        let sql_ty = quote!(diesel::dsl::SqlTypeOf<#select>);
-        (query, query_ty, sql_ty)
-    } else {
-        let query = quote!(<Self::Table as diesel::associations::HasTable>::table());
-        let query_ty = quote!(Self::Table);
-        let sql_ty = quote!(<<Self as diesel::associations::HasTable>::Table as diesel::query_builder::AsQuery>::SqlType);
-        (query, query_ty, sql_ty)
-    };
+    let sql_ty = quote!(diesel::dsl::SqlTypeOf<#select_ty>);
     let debug_query = if cfg!(feature = "debug") {
         Some(quote!(println!("{}", diesel::debug_query(&source));))
     } else {
@@ -407,12 +416,50 @@ fn impl_loading_handler(
     }
 }
 
+fn build_select_clause<'a, I1, I2>(
+    mut select: I1,
+    fields: I2,
+    span: Span,
+    table: &Ident,
+) -> Result<(TokenStream, TokenStream), Diagnostic>
+where
+    I1: Iterator<Item = &'a Ident>,
+    I2: Iterator<Item = &'a Field>,
+{
+    let res = fields
+        .map(|f| {
+            if is_has_many(&f.ty) {
+                let expr = quote!(wundergraph::query_helper::null::null());
+                let ty = quote!(wundergraph::query_helper::Null<diesel::sql_types::Bool>);
+                Ok((expr, ty))
+            } else if let Some(s) = select.next() {
+                if is_lazy_load(&f.ty) {
+                    let expr = quote!(wundergraph::query_helper::null::null());
+                    let ty = quote!(
+                    wundergraph::query_helper::Null<diesel::dsl::SqlTypeOf<#table::#s>>
+                );
+                    Ok((expr, ty))
+                } else {
+                    let t = quote!(#table::#s);
+                    Ok((t.clone(), t))
+                }
+            } else {
+                Err(span.error("Found a unmatched number of select fields. More fields required"))
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if let Some(_) = select.next() {
+        Err(span.error("Found to many select fields"))
+    } else {
+        let (expr, ty): (Vec<_>, Vec<_>) = res.into_iter().unzip();
+        Ok((quote!((#(#expr,)*)), quote!((#(#ty,)*))))
+    }
+}
+
 fn derive_loading_handler(
     model: &Model,
     item: &syn::DeriveInput,
 ) -> Result<TokenStream, Diagnostic> {
-    //    let item_name = item.ident;
-
     let field_count = model
         .fields()
         .iter()
@@ -426,11 +473,23 @@ fn derive_loading_handler(
     let query_modifier = model.query_modifier_type();
     let select = model.select();
     let table = model.table_type()?;
+    let span = model.select_span();
+
     let select = if select.is_empty() {
-        None
+        build_select_clause(
+            model.fields().iter().filter_map(|f| {
+                if is_has_many(&f.ty) {
+                    None
+                } else {
+                    Some(f.sql_name())
+                }
+            }),
+            model.fields().iter(),
+            span,
+            &table,
+        )?
     } else {
-        let select = select.into_iter().map(|s| quote!{#table::#s});
-        Some(quote!((#(#select,)*)))
+        build_select_clause(select.iter(), model.fields().iter(), span, &table)?
     };
 
     let pg = if cfg!(feature = "postgres") {
@@ -452,7 +511,7 @@ fn derive_loading_handler(
             &lazy_load,
             &context,
             &query_modifier,
-            select.as_ref(),
+            &select,
         ))
     } else {
         None
@@ -477,7 +536,7 @@ fn derive_loading_handler(
             &lazy_load,
             &context,
             &query_modifier,
-            select.as_ref(),
+            &select,
         ))
     } else {
         None
@@ -601,7 +660,8 @@ fn derive_graphql_object(
                             let table = f.remote_table().map(|t| quote!(#t::table)).unwrap_or_else(
                                 |_| {
                                     let remote_type =
-                                        inner_ty_arg(&f.ty, "HasMany", 0).expect("It is HasMany");
+                                        inner_ty_arg(inner_of_option_ty(&f.ty), "HasMany", 0)
+                                            .expect("It is HasMany");
                                     quote!(<<#remote_type as diesel::associations::BelongsTo<#item_name>>::ForeignKeyColumn as diesel::Column>::Table)
                                 },
                             );

@@ -342,8 +342,9 @@ struct GraphqlColumn<'a> {
 
 impl<'a> Display for GraphqlColumn<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let tpe = GraphqlType {
+        let mut tpe = GraphqlType {
             sql_type: &self.column.ty,
+            allow_option: true,
         };
         let name = self
             .column
@@ -351,12 +352,13 @@ impl<'a> Display for GraphqlColumn<'a> {
             .as_ref()
             .unwrap_or(&self.column.sql_name);
         if let Some(foreign_key) = self.foreign_key {
-            let referenced = if self.column.ty.is_nullable {
-                format!("Option<{}>", fix_table_name(&foreign_key.parent_table.name))
+            tpe.allow_option = false;
+            let referenced = fix_table_name(&foreign_key.parent_table.name);
+            if self.column.ty.is_nullable {
+                write!(f, "{}: Option<HasOne<{}, {}>>,", name, tpe, referenced)?;
             } else {
-                fix_table_name(&foreign_key.parent_table.name)
-            };
-            write!(f, "{}: HasOne<{}, {}>,", name, tpe, referenced)?;
+                write!(f, "{}: HasOne<{}, {}>,", name, tpe, referenced)?;
+            }
         } else {
             write!(f, "{}: {},", name, tpe)?;
         }
@@ -364,26 +366,22 @@ impl<'a> Display for GraphqlColumn<'a> {
     }
 }
 
+#[derive(Debug, Clone)]
 struct GraphqlType<'a> {
     sql_type: &'a ColumnType,
+    allow_option: bool,
 }
 
 impl<'a> Display for GraphqlType<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self.sql_type {
             ColumnType {
-                is_nullable: true,
-                ref rust_name,
-                is_array,
-                is_unsigned,
-            } => {
-                let t = ColumnType {
-                    is_nullable: false,
-                    rust_name: rust_name.clone(),
-                    is_array,
-                    is_unsigned,
-                };
-                write!(f, "Option<{}>", GraphqlType { sql_type: &t })?;
+                is_nullable: true, ..
+            } if self.allow_option =>
+            {
+                let mut t = self.clone();
+                t.allow_option = false;
+                write!(f, "Option<{}>", t)?;
             }
             ColumnType {
                 is_array: true,
@@ -397,7 +395,14 @@ impl<'a> Display for GraphqlType<'a> {
                     rust_name: rust_name.clone(),
                     is_unsigned,
                 };
-                write!(f, "Vec<{}>", GraphqlType { sql_type: &t })?;
+                write!(
+                    f,
+                    "Vec<{}>",
+                    GraphqlType {
+                        sql_type: &t,
+                        ..self.clone()
+                    }
+                )?;
             }
             ColumnType { ref rust_name, .. } if rust_name == "Int2" || rust_name == "SmallInt" => {
                 write!(f, "i16")?;
@@ -494,7 +499,10 @@ impl<'a> Display for GraphqlInsertable<'a> {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
             for c in self.table.column_data.iter().filter(|c| !c.has_default) {
-                let t = GraphqlType { sql_type: &c.ty };
+                let t = GraphqlType {
+                    sql_type: &c.ty,
+                    allow_option: true,
+                };
                 let name = c.rust_name.as_ref().unwrap_or(&c.sql_name);
                 writeln!(out, "{}: {},", name, t)?;
             }
@@ -528,7 +536,10 @@ impl<'a> Display for GraphqlChangeSet<'a> {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
             for c in &self.table.column_data {
-                let t = GraphqlType { sql_type: &c.ty };
+                let t = GraphqlType {
+                    sql_type: &c.ty,
+                    allow_option: true,
+                };
                 let name = c.rust_name.as_ref().unwrap_or(&c.sql_name);
                 writeln!(out, "{}: {},", name, t)?;
             }

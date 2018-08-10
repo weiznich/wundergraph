@@ -43,7 +43,9 @@ pub trait DeleteHelper<DB, R, Ctx> {
     type Handler: HandleDelete<DB, R, Ctx>;
 }
 
+
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct DeleteableWrapper<D>(D);
 
 impl<I, R, DB, Ctx, T> DeleteHelper<DB, R, Ctx> for I

@@ -50,7 +50,7 @@ use diesel::deserialize::{self, FromSql};
 use diesel::query_builder::BoxedSelectStatement;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::serialize::{self, ToSql};
-use diesel::sql_types::{Integer, SmallInt};
+use diesel::sql_types::{Bool, Integer, Nullable, SmallInt, Text};
 use diesel::{Connection, Identifiable};
 use juniper::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
@@ -194,7 +194,7 @@ impl QueryModifier<<DBConnection as Connection>::Backend> for TestModifier {
         &self,
         final_query: BoxedSelectStatement<
             'a,
-            (Integer,),
+            (Integer, Nullable<Text>, Nullable<Bool>),
             home_worlds::table,
             <DBConnection as Connection>::Backend,
         >,
@@ -202,7 +202,7 @@ impl QueryModifier<<DBConnection as Connection>::Backend> for TestModifier {
     ) -> Result<
         BoxedSelectStatement<
             'a,
-            (Integer,),
+            (Integer, Nullable<Text>, Nullable<Bool>),
             home_worlds::table,
             <DBConnection as Connection>::Backend,
         >,
@@ -222,15 +222,13 @@ impl BuildQueryModifier<HomeWorld> for TestModifier {
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity,
          WundergraphFilter)]
 #[table_name = "home_worlds"]
-#[wundergraph(query_modifier = "TestModifier", context = "MyContext<Conn>", select(id))]
+#[wundergraph(query_modifier = "TestModifier", context = "MyContext<Conn>")]
 /// A world where a hero was born
 pub struct HomeWorld {
     /// Internal id of a world
     id: i32,
-    #[diesel(default)]
     /// The name of a world
     name: LazyLoad<String>,
-    #[diesel(default)]
     #[wundergraph(is_nullable_reference = "true")]
     /// All heros of a given world
     heros: HasMany<Hero>,
@@ -259,11 +257,9 @@ mod hero {
         /// Which species a hero belongs to
         species: HasOne<i32, Species>,
         /// On which world a hero was born
-        home_world: HasOne<Option<i32>, Option<HomeWorld>>,
-        #[diesel(default)]
+        home_world: Option<HasOne<i32, HomeWorld>>,
         /// Episodes a hero appears in
         appears_in: HasMany<AppearsIn>,
-        #[diesel(default)]
         /// List of friends of the current hero
         friends: HasMany<Friend>,
     }
@@ -280,7 +276,6 @@ pub struct Species {
     id: i32,
     /// The name of a species
     name: String,
-    #[diesel(default)]
     /// A list of heros for a species
     heros: HasMany<Hero>,
 }

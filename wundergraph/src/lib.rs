@@ -1,4 +1,4 @@
-//#![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
+#![deny(missing_debug_implementations, missing_copy_implementations)]
 // Clippy lints
 #![cfg_attr(feature = "clippy", allow(unstable_features))]
 #![cfg_attr(feature = "clippy", feature(plugin))]

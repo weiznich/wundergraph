@@ -359,6 +359,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct PrimaryKeyInfo(String);
 
 impl PrimaryKeyInfo {

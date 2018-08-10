@@ -25,18 +25,15 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
             if f.has_flag("skip") {
                 None
             } else if is_has_one(field_ty) {
-                let reference_ty = if is_option_ty(
-                    inner_ty_arg(field_ty, "HasOne", 0).expect("We checked if this is HasOne"),
-                ) {
+                let reference_ty = if is_option_ty(field_ty) {
                     quote!(self::wundergraph::filter::NullableReferenceFilter)
                 } else {
                     quote!(self::wundergraph::filter::ReferenceFilter)
                 };
                 let remote_table = f.remote_table().map(|t| quote!(#t::table)).unwrap_or_else(
                     |_| {
-                        let remote_type = inner_of_option_ty(
-                            inner_ty_arg(&f.ty, "HasOne", 1).expect("It's HasOne"),
-                        );
+                        let remote_type = inner_ty_arg(inner_of_option_ty(&f.ty), "HasOne", 1)
+                            .expect("It's HasOne");
                         quote!{
                             <#remote_type as diesel::associations::HasTable>::Table
                         }
@@ -59,14 +56,16 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
                     quote!(self::wundergraph::filter::ReferenceFilter)
                 };
                 let remote_table = f.remote_table().map(|t| quote!(#t)).unwrap_or_else(|_| {
-                    let remote_type = inner_ty_arg(&f.ty, "HasMany", 0).expect("It is HasMany");
+                    let remote_type = inner_ty_arg(inner_of_option_ty(&f.ty), "HasMany", 0)
+                        .expect("It is HasMany");
                     quote!(<<#remote_type as diesel::associations::BelongsTo<#item_name>>::ForeignKeyColumn as diesel::Column>::Table)
                 });
                 let foreign_key = f
                     .foreign_key()
                     .map(|k| quote!(#remote_table::#k))
                     .unwrap_or_else(|_| {
-                        let remote_type = inner_ty_arg(&f.ty, "HasMany", 0).expect("It is HasMany");
+                        let remote_type = inner_ty_arg(inner_of_option_ty(&f.ty), "HasMany", 0)
+                            .expect("It is HasMany");
                         quote!(<#remote_type as diesel::associations::BelongsTo<#item_name>>::ForeignKeyColumn)
                     });
                 let remote_filter = f.filter().expect("Filter is missing");

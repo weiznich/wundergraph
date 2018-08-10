@@ -160,6 +160,13 @@ impl Model {
             })
             .unwrap_or_else(Vec::new)
     }
+
+    pub fn select_span(&self) -> Span {
+        self.flags
+            .nested_item("select")
+            .map(|n| n.span())
+            .unwrap_or_else(|_| Span::call_site())
+    }
 }
 
 fn fields_from_item_data(data: &syn::Data) -> Result<Vec<Field>, Diagnostic> {

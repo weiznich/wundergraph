@@ -96,6 +96,7 @@ pub trait HandleInsert<DB, R, Ctx>: Sized {
 }
 
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct InsertableWrapper<I>(I);
 
 impl<I, DB, R, Ctx> InsertHelper<DB, R, Ctx> for I
