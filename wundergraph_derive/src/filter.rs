@@ -25,15 +25,17 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
             if f.has_flag("skip") {
                 None
             } else if is_has_one(field_ty) {
-                let reference_ty = if is_option_ty(field_ty) {
-                    quote!(self::wundergraph::filter::NullableReferenceFilter)
-                } else {
-                    quote!(self::wundergraph::filter::ReferenceFilter)
-                };
+                let reference_ty =
+                    if is_option_ty(inner_ty_arg(field_ty, "HasOne", 1).expect("It's there")) {
+                        quote!(self::wundergraph::filter::NullableReferenceFilter)
+                    } else {
+                        quote!(self::wundergraph::filter::ReferenceFilter)
+                    };
                 let remote_table = f.remote_table().map(|t| quote!(#t::table)).unwrap_or_else(
                     |_| {
-                        let remote_type = inner_ty_arg(inner_of_option_ty(&f.ty), "HasOne", 1)
-                            .expect("It's HasOne");
+                        let remote_type = inner_of_option_ty(
+                            inner_ty_arg(&f.ty, "HasOne", 1).expect("It's HasOne"),
+                        );
                         quote!{
                             <#remote_type as diesel::associations::HasTable>::Table
                         }

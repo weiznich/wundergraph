@@ -255,18 +255,15 @@ fn handle_has_one(
                     .remote_table()
                     .map(|t| quote!(#t::table))
                     .unwrap_or_else(|_| {
-                        let remote_type = inner_of_option_ty(
-                            inner_ty_arg(inner_of_option_ty(&f.ty), "HasOne", 1)
-                                .expect("It's HasOne"),
-                        );
+                        let remote_type = inner_of_option_ty(inner_of_option_ty(
+                            inner_ty_arg(&f.ty, "HasOne", 1).expect("It's HasOne"),
+                        ));
                         quote!{
                             <#remote_type as diesel::associations::HasTable>::Table
                         }
                     });
-                let map_fn = if is_option_ty(&f.ty) {
-                    quote!(filter_map(|i| i#field_access.as_ref().map(|g| {
-                        g.expect_id("Id is there").clone()
-                    })))
+                let map_fn = if is_option_ty(inner_ty_arg(&f.ty, "HasOne", 1).expect("Is HasOne")) {
+                    quote!(filter_map(|i| i#field_access.expect_id("Id is there").clone()))
                 } else {
                     quote!(map(|i| i#field_access.expect_id("Id is there").clone()))
                 };
@@ -277,20 +274,20 @@ fn handle_has_one(
                         .#map_fn
                         .collect::<self::std::collections::HashSet<_>>();
                 };
-                let lookup_and_assign = if is_option_ty(&f.ty) {
+                let lookup_and_assign = if is_option_ty(
+                    inner_ty_arg(&f.ty, "HasOne", 1).expect("It's there"),
+                ) {
                     quote!{
                         if let std::option::Option::Some(id)
-                            = i#field_access.as_ref().map(|g| {
-                                g.expect_id("Id is there").clone()
-                            })
+                            = i#field_access.expect_id("Id is there").clone()
                         {
                             if let std::option::Option::Some(c) = items.get(&id).cloned() {
-                                i#field_access = std::option::Option::Some(
-                                    self::wundergraph::query_helper::HasOne::Item(c)
+                                i#field_access = self::wundergraph::query_helper::HasOne::Item(
+                                    std::option::Option::Some(c)
                                 );
                             }
                         } else {
-                            i#field_access = std::option::Option::None;
+                            i#field_access = self::wundergraph::query_helper::HasOne::Item(std::option::Option::None);
                         }
                     }
                 } else {

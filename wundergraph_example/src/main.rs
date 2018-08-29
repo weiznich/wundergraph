@@ -257,7 +257,7 @@ mod hero {
         /// Which species a hero belongs to
         species: HasOne<i32, Species>,
         /// On which world a hero was born
-        home_world: Option<HasOne<i32, HomeWorld>>,
+        home_world: HasOne<Option<i32>, Option<HomeWorld>>,
         /// Episodes a hero appears in
         appears_in: HasMany<AppearsIn>,
         /// List of friends of the current hero

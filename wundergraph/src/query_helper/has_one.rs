@@ -7,7 +7,7 @@ use helper::FromLookAheadValue;
 use juniper::meta::MetaType;
 use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, InputValue,
-    Registry, Selection, ToInputValue, Value, LookAheadValue
+    LookAheadValue, Registry, Selection, ToInputValue, Value,
 };
 
 use std::hash::Hash;
@@ -27,6 +27,20 @@ where
         match *self {
             HasOne::Id(ref k) => Some(k),
             HasOne::Item(ref i) => Some(i.id()),
+        }
+    }
+}
+
+impl<'a, K, I> Into<Option<&'a K>> for &'a HasOne<Option<K>, Option<I>>
+where
+    &'a I: Identifiable<Id = &'a K>,
+    K: Eq + Hash,
+{
+    fn into(self) -> Option<&'a K> {
+        match *self {
+            HasOne::Id(Some(ref k)) => Some(k),
+            HasOne::Item(Some(ref i)) => Some(i.id()),
+            HasOne::Id(None) | HasOne::Item(None) => None,
         }
     }
 }
