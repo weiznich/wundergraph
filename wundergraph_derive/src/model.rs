@@ -130,8 +130,8 @@ impl Model {
             })
             .unwrap_or_else(|_| {
                 Ok(parse_quote!{
-                    self::wundergraph::diesel::r2d2::PooledConnection<
-                        self::wundergraph::diesel::r2d2::ConnectionManager<
+                    wundergraph::diesel::r2d2::PooledConnection<
+                        wundergraph::diesel::r2d2::ConnectionManager<
                         #connection
                         >
                     >
@@ -144,7 +144,7 @@ impl Model {
             .get_flag::<syn::Path>("query_modifier")
             .unwrap_or_else(|_| {
                 parse_quote!{
-                    self::wundergraph::query_modifier::DefaultModifier<Self::Context, Self>
+                    wundergraph::query_modifier::DefaultModifier<Self::Context, Self>
                 }
             })
     }

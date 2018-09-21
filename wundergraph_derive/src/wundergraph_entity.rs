@@ -14,9 +14,9 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let graphql_type = derive_graphql_object(&model, item)?;
     let loading_handler = derive_loading_handler(&model, item)?;
 
-    let dummy_mod = model.dummy_mod_name("wundergraph_entity");
     Ok(wrap_in_dummy_mod(
-        &dummy_mod,
+        "wundergraph_entity",
+        &model.name,
         &quote!{
             #graphql_type
             #loading_handler
@@ -28,8 +28,8 @@ fn apply_filter(model: &Model) -> Option<TokenStream> {
     if let Some(filter) = model.filter_type() {
         Some(quote!{
            if let std::option::Option::Some(f) = select.argument("filter") {
-               source = <self::wundergraph::filter::Filter<#filter, <Self as diesel::associations::HasTable>::Table> as
-                   self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(f.value())
+               source = <wundergraph::filter::Filter<#filter, <Self as diesel::associations::HasTable>::Table> as
+                   wundergraph::helper::FromLookAheadValue>::from_look_ahead(f.value())
                    .ok_or(WundergraphError::CouldNotBuildFilterArgument)?
                    .apply_filter(source);
            }
@@ -43,7 +43,7 @@ fn apply_limit(model: &Model) -> Option<TokenStream> {
     if model.should_have_limit() {
         Some(quote!{
             if let std::option::Option::Some(l) = select.argument("limit") {
-                source = source.limit(<i32 as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(l.value())
+                source = source.limit(<i32 as wundergraph::helper::FromLookAheadValue>::from_look_ahead(l.value())
                                       .ok_or(WundergraphError::CouldNotBuildFilterArgument)?
                                       as i64);
             }
@@ -57,7 +57,7 @@ fn apply_offset(model: &Model) -> Option<TokenStream> {
     if model.should_have_offset() {
         Some(quote!{
             if let std::option::Option::Some(o) = select.argument("offset") {
-                source = source.offset(<i32 as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
+                source = source.offset(<i32 as wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
                                        .ok_or(WundergraphError::CouldNotBuildFilterArgument)?
                                        as i64);
             }
@@ -80,10 +80,10 @@ fn apply_order(model: &Model) -> Result<Option<TokenStream>, Diagnostic> {
                     let sql_name = f.sql_name();
                     let graphql_name = f.graphql_name();
                     Some(quote!{
-                        (stringify!(#graphql_name), self::wundergraph::order::Order::Desc) => {
+                        (stringify!(#graphql_name), wundergraph::order::Order::Desc) => {
                             source = source.then_order_by(diesel::ExpressionMethods::desc(#table::#sql_name));
                         }
-                        (stringify!(#graphql_name), self::wundergraph::order::Order::Asc) => {
+                        (stringify!(#graphql_name), wundergraph::order::Order::Asc) => {
                             source = source.then_order_by(diesel::ExpressionMethods::asc(#table::#sql_name));
                         }
                     })
@@ -95,7 +95,7 @@ fn apply_order(model: &Model) -> Result<Option<TokenStream>, Diagnostic> {
         } else {
             Ok(Some(quote!{
                 if let std::option::Option::Some(o) = select.argument("order") {
-                    let order: Vec<_> = <Vec<self::wundergraph::order::OrderBy> as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
+                    let order: Vec<_> = <Vec<wundergraph::order::OrderBy> as wundergraph::helper::FromLookAheadValue>::from_look_ahead(o.value())
                         .ok_or(WundergraphError::CouldNotBuildFilterArgument)?;
                     for o in order {
                         match (&o.column as &str, o.direction) {
@@ -144,7 +144,7 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
 
                 let inner = quote!{
                     if let std::option::Option::Some(_select) =
-                        <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
+                        <_ as wundergraph::juniper::LookAheadMethods>::select_child(
                             select,
                             stringify!(#field_name),
                         ) {
@@ -166,7 +166,7 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
                                     .load(conn)?
                                     .into_iter()
                                     .collect::<
-                                    ::std::collections::HashMap<
+                                    std::collections::HashMap<
                                     <<&Self as diesel::Identifiable>::Id as wundergraph::helper::primary_keys::UnRef>::UnRefed,
                                 wundergraph::query_helper::LazyLoad<#inner_ty>>>()
                             };
@@ -199,7 +199,7 @@ fn handle_has_many(model: &Model, field_count: usize, backend: &TokenStream) -> 
                 let inner = quote! {
                     let query = <#parent_ty as LoadingHandler<#backend>>::default_query().into_boxed();
                     let p = {
-                        let ids = ret.iter().map(diesel::Identifiable::id).collect::<self::std::collections::HashSet<_>>();
+                        let ids = ret.iter().map(diesel::Identifiable::id).collect::<std::collections::HashSet<_>>();
                         let eq = diesel::expression_methods::ExpressionMethods::eq_any(
                             <#parent_ty as diesel::associations::BelongsTo<Self>>::foreign_key_column(),
                             ids.iter()
@@ -215,13 +215,13 @@ fn handle_has_many(model: &Model, field_count: usize, backend: &TokenStream) -> 
                     };
                     let p = <_ as diesel::GroupedBy<_>>::grouped_by(p, &ret);
                     for (c, p) in ret.iter_mut().zip(p.into_iter()) {
-                        c#field_access = self::wundergraph::query_helper::HasMany::Items(p);
+                        c#field_access = wundergraph::query_helper::HasMany::Items(p);
                     }
                 };
                 if field_count > 1 {
                     Some(quote!{
                         if let std::option::Option::Some(select) =
-                            <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
+                            <_ as wundergraph::juniper::LookAheadMethods>::select_child(
                                 select,
                                 stringify!(#field_name),
                             ) {
@@ -272,7 +272,7 @@ fn handle_has_one(
                     let ids = ret
                         .iter()
                         .#map_fn
-                        .collect::<self::std::collections::HashSet<_>>();
+                        .collect::<std::collections::HashSet<_>>();
                 };
                 let lookup_and_assign = if is_option_ty(
                     inner_ty_arg(&f.ty, "HasOne", 1).expect("It's there"),
@@ -282,12 +282,12 @@ fn handle_has_one(
                             = i#field_access.expect_id("Id is there").clone()
                         {
                             if let std::option::Option::Some(c) = items.get(&id).cloned() {
-                                i#field_access = self::wundergraph::query_helper::HasOne::Item(
+                                i#field_access = wundergraph::query_helper::HasOne::Item(
                                     std::option::Option::Some(c)
                                 );
                             }
                         } else {
-                            i#field_access = self::wundergraph::query_helper::HasOne::Item(std::option::Option::None);
+                            i#field_access = wundergraph::query_helper::HasOne::Item(std::option::Option::None);
                         }
                     }
                 } else {
@@ -296,7 +296,7 @@ fn handle_has_one(
                         if let std::option::Option::Some(c)
                             = items.get(&id).cloned()
                         {
-                            i#field_access = self::wundergraph::query_helper::HasOne::Item(c);
+                            i#field_access = wundergraph::query_helper::HasOne::Item(c);
                         }
                     }
                 };
@@ -313,14 +313,14 @@ fn handle_has_one(
                             .into_boxed()
                     )?.into_iter()
                         .map(|c| (*<_ as diesel::Identifiable>::id(&c), c))
-                        .collect::<self::std::collections::HashMap<_, _>>();
+                        .collect::<std::collections::HashMap<_, _>>();
                     for i in &mut ret {
                         #lookup_and_assign
                     }
                 };
                 if field_count > 1 {
                     Some(Ok(quote!{
-                        if let std::option::Option::Some(select) = <_ as self::wundergraph::juniper::LookAheadMethods>::select_child(
+                        if let std::option::Option::Some(select) = <_ as wundergraph::juniper::LookAheadMethods>::select_child(
                             select,
                             stringify!(#field_name)
                         ) {
@@ -376,7 +376,7 @@ fn impl_loading_handler(
             type Context = #context;
 
             fn load_items<'a>(
-                select: &self::wundergraph::juniper::LookAheadSelection,
+                select: &wundergraph::juniper::LookAheadSelection,
                 ctx: &Self::Context,
                 mut source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, #backend>,
             ) -> Result<Vec<Self>, failure::Error>
@@ -540,11 +540,11 @@ fn derive_loading_handler(
     };
 
     Ok(quote!{
-        use self::wundergraph::error::WundergraphError;
-        use self::wundergraph::LoadingHandler;
-        use self::wundergraph::diesel::{RunQueryDsl, QueryDsl, self};
-        use self::wundergraph::failure;
-        use self::wundergraph::diesel::query_builder::BoxedSelectStatement;
+        use wundergraph::error::WundergraphError;
+        use wundergraph::LoadingHandler;
+        use wundergraph::diesel::{RunQueryDsl, QueryDsl, self};
+        use wundergraph::failure;
+        use wundergraph::diesel::query_builder::BoxedSelectStatement;
 
         #pg
         #sqlite
@@ -573,8 +573,8 @@ fn derive_graphql_object(
         let ty = &field.ty;
         let field_access = field.rust_name().access();
         Ok(quote!{
-            use self::wundergraph::juniper::{GraphQLType, Registry, Arguments, Executor, ExecutionResult, Selection, Value};
-            use self::wundergraph::juniper::meta::MetaType;
+            use wundergraph::juniper::{GraphQLType, Registry, Arguments, Executor, ExecutionResult, Selection, Value};
+            use wundergraph::juniper::meta::MetaType;
 
             impl #impl_generics GraphQLType for #item_name #ty_generics
                 #where_clause
@@ -664,7 +664,7 @@ fn derive_graphql_object(
                             );
                             Some(Ok(quote!{
                                 let filter = registry.arg_with_default::<Option<
-                                    self::wundergraph::filter::Filter<
+                                    wundergraph::filter::Filter<
                                     #filter,  #table>>>(
                                         "filter",
                                         &None,
@@ -707,10 +707,10 @@ fn derive_graphql_object(
         let doc = model.docs.as_ref().map(|d| quote!{.description(#d)});
 
         Ok(quote! {
-            use self::wundergraph::juniper::{GraphQLType, Registry, Arguments,
+            use wundergraph::juniper::{GraphQLType, Registry, Arguments,
                                              Executor, ExecutionResult, FieldError, Value, Selection, Object};
-            use self::wundergraph::juniper::meta::MetaType;
-            use self::wundergraph::juniper_helper::resolve_selection_set_into;
+            use wundergraph::juniper::meta::MetaType;
+            use wundergraph::juniper_helper::resolve_selection_set_into;
 
             impl #impl_generics GraphQLType for #item_name #ty_generics
                 #where_clause

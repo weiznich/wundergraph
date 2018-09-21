@@ -16,15 +16,15 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let to_inner_input_value = build_to_inner_input_value(&model)?;
     let register_fields = build_register_fields(&model)?;
 
-    let dummy_mod = model.dummy_mod_name("inner_filter");
     Ok(wrap_in_dummy_mod(
-        &dummy_mod,
+        "inner_filter",
+        &item_name,
         &quote! {
-            use self::wundergraph::juniper::{self, InputValue, LookAheadValue, Registry};
-            use self::wundergraph::juniper::meta::Argument;
-            use self::wundergraph::indexmap::IndexMap;
-            use self::wundergraph::filter::inner_filter::InnerFilter;
-            use self::wundergraph::helper::NameBuilder;
+            use wundergraph::juniper::{self, InputValue, LookAheadValue, Registry};
+            use wundergraph::juniper::meta::Argument;
+            use wundergraph::indexmap::IndexMap;
+            use wundergraph::filter::inner_filter::InnerFilter;
+            use wundergraph::helper::NameBuilder;
 
             impl #impl_generics InnerFilter for #item_name #ty_generics
                 #where_clause
@@ -97,7 +97,7 @@ fn build_from_look_ahead(model: &Model) -> Result<TokenStream, Diagnostic> {
         quote!{
             let #field_name = obj.iter()
                 .find(|o| o.0 == stringify!(#graphq_name))
-                .and_then(|o| <#ty as self::wundergraph::helper::FromLookAheadValue>::from_look_ahead(&o.1))
+                .and_then(|o| <#ty as wundergraph::helper::FromLookAheadValue>::from_look_ahead(&o.1))
                 #map_box;
         }
     });

@@ -37,15 +37,16 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         None
     };
 
-    let dummy_mod = model.dummy_mod_name("build_filter");
     Ok(wrap_in_dummy_mod(
-        &dummy_mod,
+        "build_filter",
+        &model.name,
         &quote! {
-            use self::wundergraph::filter::build_filter::BuildFilter;
-            use self::wundergraph::filter::collector::AndCollector;
-            use self::wundergraph::diesel_ext::BoxableFilter;
-            use self::wundergraph::diesel::sql_types::Bool;
-            use self::wundergraph::filter::transformator::Transformator;
+            use wundergraph::filter::build_filter::BuildFilter;
+            use wundergraph::filter::collector::AndCollector;
+            use wundergraph::diesel_ext::BoxableFilter;
+            use wundergraph::diesel::sql_types::Bool;
+            use wundergraph::filter::transformator::Transformator;
+            use wundergraph::diesel;
 
             #pg
             #sqlite
@@ -87,6 +88,6 @@ fn impl_build_filter(
 fn build_field_filter(field: &Field) -> Result<TokenStream, Diagnostic> {
     let field_access = field.rust_name().access();
     Ok(
-        quote!(<_ as self::wundergraph::filter::collector::FilterCollector<_, _>>::append_filter(&mut and, self #field_access, t);),
+        quote!(<_ as wundergraph::filter::collector::FilterCollector<_, _>>::append_filter(&mut and, self #field_access, t);),
     )
 }

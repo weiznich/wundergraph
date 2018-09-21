@@ -1,35 +1,25 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use syn::*;
 
-pub fn wrap_in_dummy_mod(const_name: &Ident, item: &TokenStream) -> TokenStream {
-    wrap_in_dummy_mod_with_reeport(const_name, item, &[])
-}
-
-pub fn wrap_in_dummy_mod_with_reeport(
-    const_name: &Ident,
+pub fn wrap_in_dummy_mod(
+    name_place_holder: &str,
+    ident: &Ident,
     item: &TokenStream,
-    reexport: &[TokenStream],
 ) -> TokenStream {
-    let reexport = reexport.iter().map(|r| {
-        quote!{
-            #[doc(inline)]
-            pub use self::#const_name::#r;
-        }
-    });
     let call_site = root_span(Span::call_site());
-    let use_everything = quote_spanned!(call_site=> __wundergraph_use_everything!());
-    quote! {
-        #[allow(non_snake_case)]
-        mod #const_name {
-            // https://github.com/rust-lang/rust/issues/47314
+    let const_name = Ident::new(
+        &format!("_impl_{}_for_{}", name_place_holder, ident.to_string()).to_uppercase(),
+        call_site,
+    );
+    quote!{
+        #[doc(hidden)]
+        const #const_name: () = {
             extern crate std;
-
             mod wundergraph {
-                #use_everything;
+                __wundergraph_use_everything!();
             }
             #item
-        }
-        #(#reexport)*
+        };
     }
 }
 

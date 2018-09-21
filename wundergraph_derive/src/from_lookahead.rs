@@ -20,15 +20,13 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
 
-    let dummy_mod = format!(
-        "_impl_from_lookahead_for_{}",
-        item.ident.to_string().to_lowercase()
-    );
+
     Ok(wrap_in_dummy_mod(
-        &syn::Ident::new(&dummy_mod, Span::call_site()),
+        "from_look_ahead",
+        &item.ident,
         &quote! {
-            use self::wundergraph::helper::FromLookAheadValue;
-            use self::wundergraph::juniper::LookAheadValue;
+            use wundergraph::helper::FromLookAheadValue;
+            use wundergraph::juniper::LookAheadValue;
 
             impl #impl_generics FromLookAheadValue for #item_name #ty_generics
                 #where_clause
