@@ -17,6 +17,7 @@ use juniper::{FromInputValue, InputValue, LookAheadValue, Registry};
 use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
+use scalar::WundergraphScalarValue;
 
 use super::IsNull;
 
@@ -87,7 +88,9 @@ where
     type Context = ();
 
     const FIELD_COUNT: usize = 1 + V::AdditionalFilter::FIELD_COUNT;
-    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(
+        obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
+    ) -> Option<Self> {
         let is_null = obj.get("is_null").map(|v| bool::from_input_value(v));
         let is_null = match is_null {
             Some(Some(b)) => Some(IsNull::new(b)),
@@ -104,7 +107,7 @@ where
         })
     }
 
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
         let is_null = obj
             .iter()
             .find(|o| o.0 == "is_null")
@@ -117,12 +120,12 @@ where
         }
     }
 
-    fn to_inner_input_value(&self, _v: &mut IndexMap<&str, InputValue>) {}
+    fn to_inner_input_value(&self, _v: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {}
 
     fn register_fields<'r>(
         _info: &NameBuilder<Self>,
-        registry: &mut Registry<'r>,
-    ) -> Vec<Argument<'r>> {
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> Vec<Argument<'r, WundergraphScalarValue>> {
         let is_null = registry.arg_with_default::<Option<bool>>("is_null", &None, &());
         let additional = V::AdditionalFilter::register_fields(&Default::default(), registry);
         let mut ret = vec![is_null];

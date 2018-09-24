@@ -18,6 +18,7 @@ use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry,
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 use indexmap::IndexMap;
+use scalar::WundergraphScalarValue;
 
 mod eq;
 mod eq_any;
@@ -56,9 +57,9 @@ where
 
 impl<V, C> InnerFilter for FilterOption<V, C>
 where
-    V: GraphQLType<TypeInfo = ()>
-        + FromInputValue
-        + ToInputValue
+    V: GraphQLType<WundergraphScalarValue, TypeInfo = ()>
+        + FromInputValue<WundergraphScalarValue>
+        + ToInputValue<WundergraphScalarValue>
         + FromLookAheadValue
         + FilterValue<C>
         + 'static,
@@ -69,7 +70,9 @@ where
 
     const FIELD_COUNT: usize = 3 + V::AdditionalFilter::FIELD_COUNT;
 
-    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(
+        obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
+    ) -> Option<Self> {
         let eq = obj
             .get("eq")
             .map(|v| Option::from_input_value(*v))
@@ -106,7 +109,7 @@ where
         })
     }
 
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
         let eq = obj
             .iter()
             .find(|o| o.0 == "eq")
@@ -135,7 +138,7 @@ where
         }
     }
 
-    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue>) {
+    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
         map.insert("eq", self.eq.to_input_value());
         map.insert("not_eq", self.neq.to_input_value());
         map.insert("eq_any", self.eq_any.to_input_value());
@@ -144,8 +147,8 @@ where
 
     fn register_fields<'r>(
         _info: &NameBuilder<Self>,
-        registry: &mut Registry<'r>,
-    ) -> Vec<Argument<'r>> {
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> Vec<Argument<'r, WundergraphScalarValue>> {
         let eq = registry.arg_with_default::<Option<V>>("eq", &None, &Default::default());
         let neq = registry.arg_with_default::<Option<V>>("not_eq", &None, &Default::default());
         let eq_any =
@@ -157,12 +160,12 @@ where
     }
 }
 
-impl<T, C> FromInputValue for FilterOption<T, C>
+impl<T, C> FromInputValue<WundergraphScalarValue> for FilterOption<T, C>
 where
     T: FilterValue<C>,
     Self: InnerFilter,
 {
-    fn from_input_value(v: &InputValue) -> Option<Self> {
+    fn from_input_value(v: &InputValue<WundergraphScalarValue>) -> Option<Self> {
         if let Some(obj) = v.to_object_value() {
             <Self as InnerFilter>::from_inner_input_value(obj)
         } else {
@@ -171,22 +174,22 @@ where
     }
 }
 
-impl<T, C> ToInputValue for FilterOption<T, C>
+impl<T, C> ToInputValue<WundergraphScalarValue> for FilterOption<T, C>
 where
     T: FilterValue<C>,
     Self: InnerFilter,
 {
-    fn to_input_value(&self) -> InputValue {
+    fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
         let mut map = IndexMap::with_capacity(3);
         self.to_inner_input_value(&mut map);
         InputValue::object(map)
     }
 }
 
-impl<T, C> GraphQLType for FilterOption<T, C>
+impl<T, C> GraphQLType<WundergraphScalarValue> for FilterOption<T, C>
 where
     T: FilterValue<C>,
-    T: GraphQLType,
+    T: GraphQLType<WundergraphScalarValue>,
     Self: InnerFilter<Context = T::Context> + Nameable,
 {
     type Context = T::Context;
@@ -196,7 +199,13 @@ where
         Some(info.name())
     }
 
-    fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
+    fn meta<'r>(
+        info: &Self::TypeInfo,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> MetaType<'r, WundergraphScalarValue>
+    where
+        WundergraphScalarValue: 'r,
+    {
         let fields = Self::register_fields(info, registry);
         registry
             .build_input_object_type::<Self>(info, &fields)
@@ -219,7 +228,7 @@ where
     C: Column,
     Self: InnerFilter,
 {
-    fn from_look_ahead(a: &LookAheadValue) -> Option<Self> {
+    fn from_look_ahead(a: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *a {
             Some(Self::from_inner_look_ahead(obj))
         } else {

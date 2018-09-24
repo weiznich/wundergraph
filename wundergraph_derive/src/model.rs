@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, Span};
+use proc_macro2::Span;
 use syn;
 
 use diagnostic_shim::*;
@@ -28,14 +28,6 @@ impl Model {
             table_name,
             docs,
         })
-    }
-
-    pub fn dummy_mod_name(&self, trait_name: &str) -> syn::Ident {
-        let name = self.name.to_string().to_lowercase();
-        Ident::new(
-            &format!("_impl_{}_for_{}", trait_name, name),
-            Span::call_site(),
-        )
     }
 
     pub fn fields(&self) -> &[Field] {
@@ -157,8 +149,7 @@ impl Model {
                 s.nested()
                     .ok()
                     .map(|m| m.into_iter().filter_map(|m| m.word().ok()).collect())
-            })
-            .unwrap_or_else(Vec::new)
+            }).unwrap_or_else(Vec::new)
     }
 
     pub fn select_span(&self) -> Span {

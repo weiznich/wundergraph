@@ -22,6 +22,7 @@ use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry,
 use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
+use scalar::WundergraphScalarValue;
 
 use super::IsNull;
 
@@ -116,16 +117,19 @@ where
     }
 }
 
-impl<C, I, C2> FromInputValue for NullableReferenceFilter<C, I, C2>
+impl<C, I, C2> FromInputValue<WundergraphScalarValue> for NullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
-    fn from_input_value(v: &InputValue) -> Option<Self> {
+    fn from_input_value(v: &InputValue<WundergraphScalarValue>) -> Option<Self> {
         if let Some(obj) = v.to_object_value() {
             let is_null = obj
                 .get("is_null")
                 .map(|v| Option::from_input_value(*v))
-                .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
+                .unwrap_or_else(|| {
+                    let v: &InputValue<WundergraphScalarValue> = &InputValue::Null;
+                    Option::from_input_value(&v)
+                });
             let is_null = match is_null {
                 Some(Some(v)) => Some(IsNull::new(v)),
                 Some(None) => None,
@@ -142,11 +146,11 @@ where
     }
 }
 
-impl<C, I, C2> ToInputValue for NullableReferenceFilter<C, I, C2>
+impl<C, I, C2> ToInputValue<WundergraphScalarValue> for NullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
-    fn to_input_value(&self) -> InputValue {
+    fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
         let mut map = IndexMap::with_capacity(I::FIELD_COUNT + 1);
         self.inner.to_inner_input_value(&mut map);
         map.insert("is_null", self.is_null.as_ref().to_input_value());
@@ -158,7 +162,7 @@ impl<C, I, C2> FromLookAheadValue for NullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
-    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
             let is_null = obj
                 .iter()
@@ -177,7 +181,7 @@ where
     }
 }
 
-impl<C, I, C2> GraphQLType for NullableReferenceFilter<C, I, C2>
+impl<C, I, C2> GraphQLType<WundergraphScalarValue> for NullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -188,7 +192,13 @@ where
         Some(info.name())
     }
 
-    fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
+    fn meta<'r>(
+        info: &Self::TypeInfo,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> MetaType<'r, WundergraphScalarValue>
+    where
+        WundergraphScalarValue: 'r,
+    {
         let mut fields = I::register_fields(&Default::default(), registry);
         let is_null = registry.arg_with_default::<Option<bool>>("is_null", &None, &());
         fields.push(is_null);
@@ -206,11 +216,16 @@ where
 
     const FIELD_COUNT: usize = I::FIELD_COUNT + 1;
 
-    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(
+        obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
+    ) -> Option<Self> {
         let is_null = obj
             .get("is_null")
             .map(|v| Option::from_input_value(*v))
-            .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
+            .unwrap_or_else(|| {
+                let v: &InputValue<WundergraphScalarValue> = &InputValue::Null;
+                Option::from_input_value(v)
+            });
         let is_null = match is_null {
             Some(Some(v)) => Some(IsNull::new(v)),
             Some(None) => None,
@@ -226,7 +241,7 @@ where
             p: Default::default(),
         })
     }
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
         let inner = I::from_inner_look_ahead(obj);
         let is_null = obj
             .iter()
@@ -239,14 +254,14 @@ where
             p: Default::default(),
         }
     }
-    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue>) {
+    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
         self.inner.to_inner_input_value(map);
         map.insert("is_null", self.is_null.as_ref().to_input_value());
     }
     fn register_fields<'r>(
         _info: &NameBuilder<Self>,
-        registry: &mut Registry<'r>,
-    ) -> Vec<Argument<'r>> {
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> Vec<Argument<'r, WundergraphScalarValue>> {
         let mut inner_fields = I::register_fields(&Default::default(), registry);
         let is_null = registry.arg_with_default::<Option<bool>>("is_null", &None, &());
         inner_fields.push(is_null);

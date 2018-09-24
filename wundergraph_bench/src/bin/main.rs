@@ -1,31 +1,43 @@
-#![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
+//#![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
 // Clippy lints
 #![cfg_attr(feature = "clippy", allow(unstable_features))]
 #![cfg_attr(feature = "clippy", feature(plugin))]
-#![cfg_attr(feature = "clippy", plugin(clippy(conf_file = "../../clippy.toml")))]
+#![cfg_attr(
+    feature = "clippy",
+    plugin(clippy(conf_file = "../../clippy.toml"))
+)]
 #![cfg_attr(
     feature = "clippy",
     allow(
-        option_map_unwrap_or_else, option_map_unwrap_or, match_same_arms, type_complexity,
+        option_map_unwrap_or_else,
+        option_map_unwrap_or,
+        match_same_arms,
+        type_complexity,
         useless_attribute
     )
 )]
 #![cfg_attr(
     feature = "clippy",
     warn(
-        option_unwrap_used, result_unwrap_used, wrong_pub_self_convention, mut_mut,
-        non_ascii_literal, similar_names, unicode_not_nfc, enum_glob_use, if_not_else,
-        items_after_statements, used_underscore_binding
+        option_unwrap_used,
+        result_unwrap_used,
+        wrong_pub_self_convention,
+        mut_mut,
+        non_ascii_literal,
+        similar_names,
+        unicode_not_nfc,
+        enum_glob_use,
+        if_not_else,
+        items_after_statements,
+        used_underscore_binding
     )
 )]
 
-#[macro_use]
+extern crate structopt;
 extern crate diesel;
-#[macro_use]
 extern crate juniper;
 extern crate actix;
 extern crate actix_web;
-#[macro_use]
 extern crate wundergraph;
 extern crate failure;
 #[macro_use]
@@ -35,31 +47,40 @@ extern crate env_logger;
 extern crate futures;
 extern crate num_cpus;
 extern crate serde_json;
+extern crate wundergraph_bench;
+
+use std::sync::Arc;
 
 use actix::{Actor, Addr, Handler, Message, SyncArbiter, SyncContext};
 use actix_web::{
     http, server, App, AsyncResponder, FutureResponse, HttpRequest, HttpResponse, Json, State,
 };
+
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
+
 use failure::Error;
 use futures::Future;
+
 use juniper::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
-use std::env;
-use std::sync::Arc;
 
-mod api;
+use structopt::StructOpt;
 
-type Schema = juniper::RootNode<
-    'static,
-    self::api::Query<Pool<ConnectionManager<PgConnection>>>,
-    self::api::Mutation<Pool<ConnectionManager<PgConnection>>>,
->;
+use wundergraph::scalar::WundergraphScalarValue;
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "wundergraph_bench")]
+struct Opt {
+    #[structopt(short = "u", long = "db-url")]
+    database_url: String,
+    #[structopt(short = "s", long = "socket", default_value = "127.0.0.1:8000")]
+    socket: String
+}
 
 // actix integration stuff
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GraphQLData(GraphQLRequest);
+pub struct GraphQLData(GraphQLRequest<WundergraphScalarValue>);
 
 impl Message for GraphQLData {
     type Result = Result<String, Error>;
@@ -67,13 +88,13 @@ impl Message for GraphQLData {
 
 #[allow(missing_debug_implementations)]
 pub struct GraphQLExecutor {
-    schema: Arc<Schema>,
+    schema: Arc<wundergraph_bench::Schema>,
     pool: Arc<Pool<ConnectionManager<PgConnection>>>,
 }
 
 impl GraphQLExecutor {
     fn new(
-        schema: Arc<Schema>,
+        schema: Arc<wundergraph_bench::Schema>,
         pool: Arc<Pool<ConnectionManager<PgConnection>>>,
     ) -> GraphQLExecutor {
         GraphQLExecutor { schema, pool }
@@ -90,7 +111,7 @@ impl Handler<GraphQLData> for GraphQLExecutor {
     fn handle(&mut self, msg: GraphQLData, _: &mut Self::Context) -> Self::Result {
         let ctx = self.pool.get()?;
         //        let ctx = MyContext::new(self.pool.get()?);
-        let res = msg.0.execute(&self.schema, &ctx);
+        let res = msg.0.execute(&*self.schema, &ctx);
         let res_text = serde_json::to_string(&res)?;
         Ok(res_text)
     }
@@ -118,24 +139,22 @@ fn graphql((st, data): (State<AppState>, Json<GraphQLData>)) -> FutureResponse<H
                 .content_type("application/json")
                 .body(user)),
             Err(_) => Ok(HttpResponse::InternalServerError().into()),
-        })
-        .responder()
+        }).responder()
 }
 
+
+
 fn main() {
-    //   env::set_var("RUST_LOG", "actix_web=info");
-    //   env_logger::init();
-    let manager = ConnectionManager::<PgConnection>::new(
-        env::var("DATABASE_URL").expect("Database url not set"),
-    );
+    let opt = Opt::from_args();
+    let manager = ConnectionManager::<PgConnection>::new(opt.database_url);
     let pool = Pool::builder()
         .max_size((num_cpus::get() * 2 * 4) as u32)
         .build(manager)
         .expect("Failed to init pool");
 
-    let query = self::api::Query::<Pool<ConnectionManager<PgConnection>>>::default();
-    let mutation = self::api::Mutation::<Pool<ConnectionManager<PgConnection>>>::default();
-    let schema = Schema::new(query, mutation);
+    let query = wundergraph_bench::api::Query::<Pool<ConnectionManager<PgConnection>>>::default();
+    let mutation = wundergraph_bench::api::Mutation::<Pool<ConnectionManager<PgConnection>>>::default();
+    let schema = wundergraph_bench::Schema::new(query, mutation);
 
     let sys = actix::System::new("wundergraph-bench");
 
@@ -144,21 +163,27 @@ fn main() {
     let addr = SyncArbiter::start(num_cpus::get() + 1, move || {
         GraphQLExecutor::new(schema.clone(), pool.clone())
     });
-    let url = env::var("URL").unwrap_or_else(|_| String::from("127.0.0.1:8000"));
+    let url = opt.socket;
 
     // Start http server
     server::new(move || {
-        App::with_state(AppState{executor: addr.clone()})
-            // enable logger
-   //         .middleware(middleware::Logger::default())
-            .resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
-            .resource("/graphql", |r| r.method(http::Method::GET).with(graphql))
-            .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
-            .default_resource(|r| r.get().f(|_| HttpResponse::Found().header("location", "/graphiql").finish()))
+        App::with_state(AppState {
+            executor: addr.clone(),
+        })
+        .resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
+        .resource("/graphql", |r| r.method(http::Method::GET).with(graphql))
+        .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
+        .default_resource(|r| {
+            r.get().f(|_| {
+                HttpResponse::Found()
+                    .header("location", "/graphiql")
+                    .finish()
+            })
+        })
     }).workers(num_cpus::get() * 2)
-        .bind(&url)
-        .expect("Failed to start server")
-        .start();
+    .bind(&url)
+    .expect("Failed to start server")
+    .start();
 
     println!("Started http server: http://{}", url);
     let _ = sys.run();

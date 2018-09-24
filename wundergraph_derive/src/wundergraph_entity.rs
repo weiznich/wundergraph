@@ -18,6 +18,8 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         "wundergraph_entity",
         &model.name,
         &quote!{
+            use wundergraph::scalar::WundergraphScalarValue;
+
             #graphql_type
             #loading_handler
         },
@@ -144,7 +146,7 @@ fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>,
 
                 let inner = quote!{
                     if let std::option::Option::Some(_select) =
-                        <_ as wundergraph::juniper::LookAheadMethods>::select_child(
+                        <_ as wundergraph::juniper::LookAheadMethods<_>>::select_child(
                             select,
                             stringify!(#field_name),
                         ) {
@@ -221,7 +223,7 @@ fn handle_has_many(model: &Model, field_count: usize, backend: &TokenStream) -> 
                 if field_count > 1 {
                     Some(quote!{
                         if let std::option::Option::Some(select) =
-                            <_ as wundergraph::juniper::LookAheadMethods>::select_child(
+                            <_ as wundergraph::juniper::LookAheadMethods<_>>::select_child(
                                 select,
                                 stringify!(#field_name),
                             ) {
@@ -320,7 +322,7 @@ fn handle_has_one(
                 };
                 if field_count > 1 {
                     Some(Ok(quote!{
-                        if let std::option::Option::Some(select) = <_ as wundergraph::juniper::LookAheadMethods>::select_child(
+                        if let std::option::Option::Some(select) = <_ as wundergraph::juniper::LookAheadMethods<_>>::select_child(
                             select,
                             stringify!(#field_name)
                         ) {
@@ -376,7 +378,7 @@ fn impl_loading_handler(
             type Context = #context;
 
             fn load_items<'a>(
-                select: &wundergraph::juniper::LookAheadSelection,
+                select: &wundergraph::juniper::LookAheadSelection<WundergraphScalarValue>,
                 ctx: &Self::Context,
                 mut source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, #backend>,
             ) -> Result<Vec<Self>, failure::Error>
@@ -576,61 +578,74 @@ fn derive_graphql_object(
             use wundergraph::juniper::{GraphQLType, Registry, Arguments, Executor, ExecutionResult, Selection, Value};
             use wundergraph::juniper::meta::MetaType;
 
-            impl #impl_generics GraphQLType for #item_name #ty_generics
+            impl #impl_generics GraphQLType<WundergraphScalarValue> for #item_name #ty_generics
                 #where_clause
             {
                 type Context = ();
                 type TypeInfo = ();
 
                 fn name(info: &Self::TypeInfo) -> Option<&str> {
-                    <#ty as GraphQLType>::name(info)
+                    <#ty as GraphQLType<WundergraphScalarValue>>::name(info)
                 }
 
-                fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
-                    <#ty as GraphQLType>::meta(info, registry)
+                fn meta<'r>(
+                    info: &Self::TypeInfo,
+                    registry: &mut Registry<'r, WundergraphScalarValue>
+                ) -> MetaType<'r, WundergraphScalarValue>
+                    where WundergraphScalarValue: 'r,
+                {
+                    <#ty as GraphQLType<WundergraphScalarValue>>::meta(info, registry)
                 }
 
                 fn resolve_field(
                     &self,
                     info: &Self::TypeInfo,
                     field_name: &str,
-                    arguments: &Arguments,
-                    executor: &Executor<Self::Context>,
-                ) -> ExecutionResult {
-                    <#ty as GraphQLType>::resolve_field(&self#field_access,
-                                                        info,
-                                                        field_name,
-                                                        arguments,
-                                                        executor)
+                    arguments: &Arguments<WundergraphScalarValue>,
+                    executor: &Executor<Self::Context, WundergraphScalarValue>,
+                ) -> ExecutionResult<WundergraphScalarValue> {
+                    <#ty as GraphQLType<WundergraphScalarValue>>::resolve_field(
+                        &self#field_access,
+                        info,
+                        field_name,
+                        arguments,
+                        executor
+                    )
                 }
 
                 fn resolve_into_type(
                     &self,
                     info: &Self::TypeInfo,
                     type_name: &str,
-                    selection_set: Option<&[Selection]>,
-                    executor: &Executor<Self::Context>,
-                ) -> ExecutionResult {
-                    <#ty as GraphQLType>::resolve_into_type(&self#field_access,
-                                                            info,
-                                                            type_name,
-                                                            selection_set,
-                                                            executor)
+                    selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+                    executor: &Executor<Self::Context, WundergraphScalarValue>,
+                ) -> ExecutionResult<WundergraphScalarValue> {
+                    <#ty as GraphQLType<WundergraphScalarValue>>::resolve_into_type(
+                        &self#field_access,
+                        info,
+                        type_name,
+                        selection_set,
+                        executor
+                    )
                 }
 
                 fn concrete_type_name(&self, context: &Self::Context, info: &Self::TypeInfo) -> String {
-                    <#ty as GraphQLType>::concrete_type_name(&self#field_access,
-                                                             context,
-                                                             info)
+                    <#ty as GraphQLType<WundergraphScalarValue>>::concrete_type_name(
+                        &self#field_access,
+                        context,
+                        info
+                    )
                 }
 
                 fn resolve(
                     &self,
                     info: &Self::TypeInfo,
-                    selection_set: Option<&[Selection]>,
-                    executor: &Executor<Self::Context>,
-                ) -> Value {
-                    <#ty as GraphQLType>::resolve(&self#field_access, info, selection_set, executor)
+                    selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+                    executor: &Executor<Self::Context, WundergraphScalarValue>,
+                ) -> Value<WundergraphScalarValue> {
+                    <#ty as GraphQLType<WundergraphScalarValue>>::resolve(
+                        &self#field_access, info, selection_set, executor
+                    )
                 }
             }
         })
@@ -710,9 +725,8 @@ fn derive_graphql_object(
             use wundergraph::juniper::{GraphQLType, Registry, Arguments,
                                              Executor, ExecutionResult, FieldError, Value, Selection, Object};
             use wundergraph::juniper::meta::MetaType;
-            use wundergraph::juniper_helper::resolve_selection_set_into;
 
-            impl #impl_generics GraphQLType for #item_name #ty_generics
+            impl #impl_generics GraphQLType<WundergraphScalarValue> for #item_name #ty_generics
                 #where_clause
             {
                 type Context = ();
@@ -722,7 +736,12 @@ fn derive_graphql_object(
                     Some(stringify!(#item_name))
                 }
 
-                fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
+                fn meta<'r>(
+                    info: &Self::TypeInfo,
+                    registry: &mut Registry<'r, WundergraphScalarValue>
+                ) -> MetaType<'r, WundergraphScalarValue>
+                    where WundergraphScalarValue: 'r,
+                {
                     #(#register_fields;)*
 
                     let ty = registry.build_object_type::<Self>(
@@ -736,34 +755,16 @@ fn derive_graphql_object(
                     &self,
                     info: &Self::TypeInfo,
                     field_name: &str,
-                    _arguments: &Arguments,
-                    executor: &Executor<Self::Context>,
-                ) -> ExecutionResult {
+                    _arguments: &Arguments<WundergraphScalarValue>,
+                    executor: &Executor<Self::Context, WundergraphScalarValue>,
+                ) -> ExecutionResult<WundergraphScalarValue> {
                     match field_name {
                         #(#resolve_field,)*
 
                         e => Err(FieldError::new(
                             "Unknown field:",
-                            Value::String(e.to_owned()),
+                            Value::scalar(e),
                         )),
-                    }
-                }
-
-                fn resolve(
-                    &self,
-                    info: &Self::TypeInfo,
-                    selection_set: Option<&[Selection]>,
-                    executor: &Executor<Self::Context>,
-                ) -> Value {
-                    if let Some(selection_set) = selection_set {
-                        let mut result = Object::with_capacity(selection_set.len());
-                        if resolve_selection_set_into(self, info, selection_set, executor, &mut result) {
-                            Value::Object(result)
-                        } else {
-                            Value::null()
-                        }
-                    } else {
-                        panic!("resolve() must be implemented by non-object output types");
                     }
                 }
 

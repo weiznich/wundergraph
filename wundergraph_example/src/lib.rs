@@ -1,47 +1,46 @@
-#![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
+//#![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
 // Clippy lints
 #![cfg_attr(feature = "clippy", allow(unstable_features))]
 #![cfg_attr(feature = "clippy", feature(plugin))]
-#![cfg_attr(feature = "clippy", plugin(clippy(conf_file = "../../clippy.toml")))]
+#![cfg_attr(
+    feature = "clippy",
+    plugin(clippy(conf_file = "../../clippy.toml"))
+)]
 #![cfg_attr(
     feature = "clippy",
     allow(
-        option_map_unwrap_or_else, option_map_unwrap_or, match_same_arms, type_complexity,
+        option_map_unwrap_or_else,
+        option_map_unwrap_or,
+        match_same_arms,
+        type_complexity,
         useless_attribute
     )
 )]
 #![cfg_attr(
     feature = "clippy",
     warn(
-        option_unwrap_used, result_unwrap_used, wrong_pub_self_convention, mut_mut,
-        non_ascii_literal, similar_names, unicode_not_nfc, enum_glob_use, if_not_else,
-        items_after_statements, used_underscore_binding
+        option_unwrap_used,
+        result_unwrap_used,
+        wrong_pub_self_convention,
+        mut_mut,
+        non_ascii_literal,
+        similar_names,
+        unicode_not_nfc,
+        enum_glob_use,
+        if_not_else,
+        items_after_statements,
+        used_underscore_binding
     )
 )]
 
 #[macro_use]
 extern crate diesel;
-extern crate diesel_migrations;
 #[macro_use]
 extern crate juniper;
-extern crate actix;
-extern crate actix_web;
 extern crate indexmap;
 #[macro_use]
 extern crate wundergraph;
 extern crate failure;
-#[macro_use]
-extern crate serde;
-extern crate env_logger;
-extern crate futures;
-extern crate serde_json;
-
-use actix::prelude::*;
-use actix_web::{
-    http, middleware, server, App, AsyncResponder, FutureResponse, HttpRequest, HttpResponse, Json,
-    State,
-};
-use futures::future::Future;
 
 use diesel::associations::HasTable;
 use diesel::backend::{Backend, UsesAnsiSavepointSyntax};
@@ -52,23 +51,34 @@ use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::serialize::{self, ToSql};
 use diesel::sql_types::{Bool, Integer, Nullable, SmallInt, Text};
 use diesel::{Connection, Identifiable};
-use juniper::graphiql::graphiql_source;
-use juniper::http::GraphQLRequest;
+
 use juniper::LookAheadSelection;
 
 use failure::Error;
 use std::io::Write;
-use std::sync::Arc;
 
 use wundergraph::query_helper::{HasMany, HasOne, LazyLoad};
 use wundergraph::query_modifier::{BuildQueryModifier, QueryModifier};
+use wundergraph::scalar::WundergraphScalarValue;
 use wundergraph::WundergraphContext;
 
-mod mutations;
+pub mod mutations;
 use self::mutations::*;
 
-#[derive(Debug, Copy, Clone, AsExpression, FromSqlRow, GraphQLEnum, Hash, Eq, PartialEq,
-         Nameable, FilterValue, FromLookAhead)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    AsExpression,
+    FromSqlRow,
+    GraphQLEnum,
+    Hash,
+    Eq,
+    PartialEq,
+    Nameable,
+    FilterValue,
+    FromLookAhead,
+)]
 #[sql_type = "SmallInt"]
 pub enum Episode {
     NEWHOPE = 1,
@@ -140,8 +150,19 @@ table! {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity,
-         WundergraphFilter, Copy, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    Identifiable,
+    Queryable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Copy,
+    Associations,
+)]
 #[primary_key(hero_id, episode)]
 #[belongs_to(Hero)]
 #[table_name = "appears_in"]
@@ -152,8 +173,9 @@ pub struct AppearsIn {
     episode: Episode,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, WundergraphEntity, WundergraphFilter,
-         Associations)]
+#[derive(
+    Clone, Debug, Queryable, Eq, PartialEq, Hash, WundergraphEntity, WundergraphFilter, Associations,
+)]
 #[table_name = "friends"]
 #[belongs_to(Hero)]
 #[wundergraph(context = "MyContext<Conn>")]
@@ -198,7 +220,7 @@ impl QueryModifier<<DBConnection as Connection>::Backend> for TestModifier {
             home_worlds::table,
             <DBConnection as Connection>::Backend,
         >,
-        _selection: &LookAheadSelection,
+        _selection: &LookAheadSelection<WundergraphScalarValue>,
     ) -> Result<
         BoxedSelectStatement<
             'a,
@@ -219,8 +241,9 @@ impl BuildQueryModifier<HomeWorld> for TestModifier {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity,
-         WundergraphFilter)]
+#[derive(
+    Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity, WundergraphFilter,
+)]
 #[table_name = "home_worlds"]
 #[wundergraph(query_modifier = "TestModifier", context = "MyContext<Conn>")]
 /// A world where a hero was born
@@ -237,8 +260,18 @@ pub struct HomeWorld {
 #[allow(deprecated)]
 mod hero {
     use super::*;
-    #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
-             WundergraphFilter, Associations)]
+    #[derive(
+        Clone,
+        Debug,
+        Identifiable,
+        Hash,
+        Eq,
+        PartialEq,
+        Queryable,
+        WundergraphEntity,
+        WundergraphFilter,
+        Associations,
+    )]
     #[table_name = "heros"]
     #[belongs_to(Species, foreign_key = "species")]
     #[belongs_to(HomeWorld, foreign_key = "home_world")]
@@ -266,8 +299,9 @@ mod hero {
 }
 pub use self::hero::{Hero, HeroFilter};
 
-#[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
-         WundergraphFilter)]
+#[derive(
+    Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity, WundergraphFilter,
+)]
 #[table_name = "species"]
 #[wundergraph(context = "MyContext<Conn>")]
 /// A species
@@ -300,7 +334,7 @@ impl<Conn> MyContext<Conn>
 where
     Conn: Connection + 'static,
 {
-    fn new(conn: PooledConnection<ConnectionManager<Conn>>) -> Self {
+    pub fn new(conn: PooledConnection<ConnectionManager<Conn>>) -> Self {
         Self { conn }
     }
 }
@@ -318,117 +352,14 @@ where
 }
 
 #[cfg(feature = "postgres")]
-type DBConnection = ::diesel::PgConnection;
+pub type DBConnection = ::diesel::PgConnection;
 
 #[cfg(feature = "sqlite")]
-type DBConnection = ::diesel::SqliteConnection;
+pub type DBConnection = ::diesel::SqliteConnection;
 
-// actix integration stuff
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GraphQLData(GraphQLRequest);
-
-impl Message for GraphQLData {
-    type Result = Result<String, Error>;
-}
-
-#[allow(missing_debug_implementations)]
-pub struct GraphQLExecutor {
-    schema: Arc<Schema<DBConnection>>,
-    pool: Arc<Pool<ConnectionManager<DBConnection>>>,
-}
-
-impl GraphQLExecutor {
-    fn new(
-        schema: Arc<Schema<DBConnection>>,
-        pool: Arc<Pool<ConnectionManager<DBConnection>>>,
-    ) -> GraphQLExecutor {
-        GraphQLExecutor { schema, pool }
-    }
-}
-
-impl Actor for GraphQLExecutor {
-    type Context = SyncContext<Self>;
-}
-
-impl Handler<GraphQLData> for GraphQLExecutor {
-    type Result = Result<String, Error>;
-
-    fn handle(&mut self, msg: GraphQLData, _: &mut Self::Context) -> Self::Result {
-        let ctx = MyContext::new(self.pool.get()?);
-        let res = msg.0.execute(&self.schema, &ctx);
-        let res_text = serde_json::to_string(&res)?;
-        Ok(res_text)
-    }
-}
-
-struct AppState {
-    executor: Addr<GraphQLExecutor>,
-}
-
-#[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphiql(_req: &HttpRequest<AppState>) -> Result<HttpResponse, Error> {
-    let html = graphiql_source("/graphql");
-    Ok(HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(html))
-}
-
-#[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphql((st, data): (State<AppState>, Json<GraphQLData>)) -> FutureResponse<HttpResponse> {
-    st.executor
-        .send(data.0)
-        .from_err()
-        .and_then(|res| match res {
-            Ok(user) => Ok(HttpResponse::Ok()
-                .content_type("application/json")
-                .body(user)),
-            Err(_) => Ok(HttpResponse::InternalServerError().into()),
-        })
-        .responder()
-}
-
-type Schema<Conn> = juniper::RootNode<
+pub type Schema<Conn> = juniper::RootNode<
     'static,
     Query<Pool<ConnectionManager<Conn>>>,
     Mutation<Pool<ConnectionManager<Conn>>>,
+    WundergraphScalarValue,
 >;
-
-fn main() {
-    ::std::env::set_var("RUST_LOG", "actix_web=info");
-    env_logger::init();
-    let manager = ConnectionManager::<DBConnection>::new(":memory:");
-    let pool = Pool::builder()
-        .max_size(1)
-        .build(manager)
-        .expect("Failed to init pool");
-    ::diesel_migrations::run_pending_migrations(&pool.get().expect("Failed to get db connection"))
-        .expect("Failed to run migrations");
-
-    let query = Query::<Pool<ConnectionManager<DBConnection>>>::default();
-    let mutation = Mutation::<Pool<ConnectionManager<DBConnection>>>::default();
-    let schema = Schema::new(query, mutation);
-
-    let sys = actix::System::new("wundergraph-example");
-
-    let schema = Arc::new(schema);
-    let pool = Arc::new(pool);
-    let addr = SyncArbiter::start(3, move || {
-        GraphQLExecutor::new(schema.clone(), pool.clone())
-    });
-
-    // Start http server
-    server::new(move || {
-        App::with_state(AppState{executor: addr.clone()})
-            // enable logger
-            .middleware(middleware::Logger::default())
-            .resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
-            .resource("/graphql", |r| r.method(http::Method::GET).with(graphql))
-            .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
-            .default_resource(|r| r.get().f(|_| HttpResponse::Found().header("location", "/graphiql").finish()))
-    }).bind("127.0.0.1:8000")
-        .expect("Failed to start server")
-        .start();
-
-    println!("Started http server: http://127.0.0.1:8000");
-    let _ = sys.run();
-}

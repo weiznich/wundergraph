@@ -16,6 +16,7 @@ use diesel_ext::BoxableFilter;
 use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
+use scalar::WundergraphScalarValue;
 
 mod common_filter;
 mod nullable_filter;
@@ -68,11 +69,11 @@ where
     }
 }
 
-impl<F, T> FromInputValue for Filter<F, T>
+impl<F, T> FromInputValue<WundergraphScalarValue> for Filter<F, T>
 where
     F: InnerFilter,
 {
-    fn from_input_value(v: &InputValue) -> Option<Self> {
+    fn from_input_value(v: &InputValue<WundergraphScalarValue>) -> Option<Self> {
         if let Some(obj) = v.to_object_value() {
             let and = obj
                 .get("and")
@@ -106,11 +107,11 @@ where
     }
 }
 
-impl<F, T> ToInputValue for Filter<F, T>
+impl<F, T> ToInputValue<WundergraphScalarValue> for Filter<F, T>
 where
     F: InnerFilter,
 {
-    fn to_input_value(&self) -> InputValue {
+    fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
         let mut map = IndexMap::with_capacity(2 + F::FIELD_COUNT);
         map.insert("and", self.and.to_input_value());
         map.insert("or", self.or.to_input_value());
@@ -119,7 +120,7 @@ where
     }
 }
 
-impl<F, T> GraphQLType for Filter<F, T>
+impl<F, T> GraphQLType<WundergraphScalarValue> for Filter<F, T>
 where
     F: InnerFilter,
 {
@@ -130,7 +131,13 @@ where
         Some(info.name())
     }
 
-    fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
+    fn meta<'r>(
+        info: &Self::TypeInfo,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> MetaType<'r, WundergraphScalarValue>
+    where
+        WundergraphScalarValue: 'r,
+    {
         let and = registry.arg_with_default::<Option<Vec<Filter<F, T>>>>("and", &None, info);
         let or = registry.arg_with_default::<Option<Vec<Filter<F, T>>>>("or", &None, info);
         let mut fields = vec![and, or];
@@ -145,7 +152,7 @@ impl<F, T> FromLookAheadValue for Filter<F, T>
 where
     F: InnerFilter,
 {
-    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
             let and = obj
                 .iter()
@@ -184,15 +191,15 @@ where
         C: Transformator,
     {
         let Filter { and, or, inner, .. } = self;
-        let mut and =
-            and.map(|a| {
+        let mut and = and
+            .map(|a| {
                 a.into_iter().fold(AndCollector::default(), |mut a, f| {
                     a.append_filter(f, t);
                     a
                 })
             }).unwrap_or_default();
-        let or =
-            or.map(|a| {
+        let or = or
+            .map(|a| {
                 a.into_iter().fold(OrCollector::default(), |mut o, f| {
                     o.append_filter(f, t);
                     o

@@ -5,7 +5,6 @@ use diesel::query_builder::QueryFragment;
 use diesel::query_dsl::methods::BoxedDsl;
 use diesel::sql_types::Bool;
 use diesel::{Connection, Insertable, QueryDsl, RunQueryDsl, Table};
-use WundergraphContext;
 
 #[cfg(feature = "postgres")]
 use diesel::dsl::Filter;
@@ -42,17 +41,20 @@ use diesel::sqlite::Sqlite;
 use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value,
 };
+
+use scalar::WundergraphScalarValue;
 use LoadingHandler;
+use WundergraphContext;
 
 pub fn handle_batch_insert<DB, I, R, Ctx>(
-    executor: &Executor<Ctx>,
-    arguments: &Arguments,
+    executor: &Executor<Ctx, WundergraphScalarValue>,
+    arguments: &Arguments<WundergraphScalarValue>,
     field_name: &'static str,
-) -> ExecutionResult
+) -> ExecutionResult<WundergraphScalarValue>
 where
     DB: Backend,
     Ctx: WundergraphContext<DB>,
-    I: InsertHelper<DB, R, Ctx> + FromInputValue,
+    I: InsertHelper<DB, R, Ctx> + FromInputValue<WundergraphScalarValue>,
     I::Handler: HandleInsert<DB, R, Ctx, Insert = I>,
 {
     if let Some(n) = arguments.get::<Vec<I>>(field_name) {
@@ -64,14 +66,14 @@ where
 }
 
 pub fn handle_insert<DB, I, R, Ctx>(
-    executor: &Executor<Ctx>,
-    arguments: &Arguments,
+    executor: &Executor<Ctx, WundergraphScalarValue>,
+    arguments: &Arguments<WundergraphScalarValue>,
     field_name: &'static str,
-) -> ExecutionResult
+) -> ExecutionResult<WundergraphScalarValue>
 where
     DB: Backend,
     Ctx: WundergraphContext<DB>,
-    I: InsertHelper<DB, R, Ctx> + FromInputValue,
+    I: InsertHelper<DB, R, Ctx> + FromInputValue<WundergraphScalarValue>,
     I::Handler: HandleInsert<DB, R, Ctx, Insert = I>,
 {
     if let Some(n) = arguments.get::<I>(field_name) {
@@ -88,11 +90,14 @@ pub trait InsertHelper<DB, R, Ctx> {
 
 pub trait HandleInsert<DB, R, Ctx>: Sized {
     type Insert;
-    fn handle_insert(executor: &Executor<Ctx>, insertable: Self::Insert) -> ExecutionResult;
+    fn handle_insert(
+        executor: &Executor<Ctx, WundergraphScalarValue>,
+        insertable: Self::Insert,
+    ) -> ExecutionResult<WundergraphScalarValue>;
     fn handle_batch_insert(
-        executor: &Executor<Ctx>,
+        executor: &Executor<Ctx, WundergraphScalarValue>,
         insertable: Vec<Self::Insert>,
-    ) -> ExecutionResult;
+    ) -> ExecutionResult<WundergraphScalarValue>;
 }
 
 #[doc(hidden)]
@@ -116,7 +121,7 @@ where
     T: Table + HasTable<Table = T> + 'static,
     Ctx: WundergraphContext<Pg>,
     R: LoadingHandler<Pg, Table = T, Context = Ctx>
-        + GraphQLType<TypeInfo = (), Context = ()>
+        + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>
         + 'static,
     Pg: HasSqlType<<T::PrimaryKey as Expression>::SqlType>,
     Id: Queryable<<T::PrimaryKey as Expression>::SqlType, Pg>,
@@ -138,10 +143,13 @@ where
 {
     type Insert = I;
 
-    fn handle_insert(executor: &Executor<Ctx>, insertable: Self::Insert) -> ExecutionResult {
+    fn handle_insert(
+        executor: &Executor<Ctx, WundergraphScalarValue>,
+        insertable: Self::Insert,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
         let conn = ctx.get_connection();
-        conn.transaction(|| -> ExecutionResult {
+        conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             let inserted = insertable
                 .insert_into(T::table())
                 .returning(T::table().primary_key());
@@ -160,11 +168,14 @@ where
         })
     }
 
-    fn handle_batch_insert(executor: &Executor<Ctx>, batch: Vec<Self::Insert>) -> ExecutionResult {
+    fn handle_batch_insert(
+        executor: &Executor<Ctx, WundergraphScalarValue>,
+        batch: Vec<Self::Insert>,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         use diesel::BoolExpressionMethods;
         let ctx = executor.context();
         let conn = ctx.get_connection();
-        conn.transaction(|| -> ExecutionResult {
+        conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             let inserted = batch
                 .insert_into(T::table())
                 .returning(T::table().primary_key());
@@ -197,7 +208,8 @@ where
     Vec<I>: Insertable<T>,
     T: Table + HasTable<Table = T> + 'static,
     Ctx: WundergraphContext<Sqlite>,
-    R: LoadingHandler<Sqlite, Table = T, Context = Ctx> + GraphQLType<TypeInfo = (), Context = ()>,
+    R: LoadingHandler<Sqlite, Table = T, Context = Ctx>
+        + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<Sqlite>,
     InsertStatement<T, I::Values>: ExecuteDsl<Ctx::Connection>,
     R::Query: QueryDsl
@@ -209,10 +221,13 @@ where
 {
     type Insert = I;
 
-    fn handle_insert(executor: &Executor<Ctx>, insertable: Self::Insert) -> ExecutionResult {
+    fn handle_insert(
+        executor: &Executor<Ctx, WundergraphScalarValue>,
+        insertable: Self::Insert,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
         let conn = ctx.get_connection();
-        conn.transaction(|| -> ExecutionResult {
+        conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             insertable.insert_into(T::table()).execute(conn)?;
             let q = OrderDsl::order(R::default_query().into_boxed(), sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, 1);
@@ -221,10 +236,13 @@ where
         })
     }
 
-    fn handle_batch_insert(executor: &Executor<Ctx>, batch: Vec<Self::Insert>) -> ExecutionResult {
+    fn handle_batch_insert(
+        executor: &Executor<Ctx, WundergraphScalarValue>,
+        batch: Vec<Self::Insert>,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
         let conn = ctx.get_connection();
-        conn.transaction(|| -> ExecutionResult {
+        conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             let n: usize = batch
                 .into_iter()
                 .map(|i| i.insert_into(T::table()).execute(conn))

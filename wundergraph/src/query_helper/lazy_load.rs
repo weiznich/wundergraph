@@ -9,6 +9,8 @@ use juniper::{
     LookAheadValue, Registry, Selection, ToInputValue, Value,
 };
 
+use scalar::WundergraphScalarValue;
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum LazyLoad<T> {
     NotLoaded,
@@ -55,9 +57,9 @@ where
     type AdditionalFilter = <T as FilterValue<C>>::AdditionalFilter;
 }
 
-impl<T> GraphQLType for LazyLoad<T>
+impl<T> GraphQLType<WundergraphScalarValue> for LazyLoad<T>
 where
-    T: GraphQLType,
+    T: GraphQLType<WundergraphScalarValue>,
 {
     type Context = T::Context;
     type TypeInfo = T::TypeInfo;
@@ -66,7 +68,13 @@ where
         T::name(info)
     }
 
-    fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
+    fn meta<'r>(
+        info: &Self::TypeInfo,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> MetaType<'r, WundergraphScalarValue>
+    where
+        WundergraphScalarValue: 'r,
+    {
         Vec::<T>::meta(info, registry)
     }
 
@@ -74,9 +82,9 @@ where
         &self,
         info: &Self::TypeInfo,
         field_name: &str,
-        arguments: &Arguments,
-        executor: &Executor<Self::Context>,
-    ) -> ExecutionResult {
+        arguments: &Arguments<WundergraphScalarValue>,
+        executor: &Executor<Self::Context, WundergraphScalarValue>,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         match *self {
             LazyLoad::NotLoaded => Err(FieldError::new("LazyLoad item not loaded", Value::Null)),
             LazyLoad::Item(ref i) => i.resolve_field(info, field_name, arguments, executor),
@@ -87,9 +95,9 @@ where
         &self,
         info: &Self::TypeInfo,
         type_name: &str,
-        selection_set: Option<&[Selection]>,
-        executor: &Executor<Self::Context>,
-    ) -> ExecutionResult {
+        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+        executor: &Executor<Self::Context, WundergraphScalarValue>,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         match *self {
             LazyLoad::NotLoaded => Err(FieldError::new("LazyLoad item not loaded", Value::Null)),
             LazyLoad::Item(ref i) => i.resolve_into_type(info, type_name, selection_set, executor),
@@ -106,9 +114,9 @@ where
     fn resolve(
         &self,
         info: &Self::TypeInfo,
-        selection_set: Option<&[Selection]>,
-        executor: &Executor<Self::Context>,
-    ) -> Value {
+        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+        executor: &Executor<Self::Context, WundergraphScalarValue>,
+    ) -> Value<WundergraphScalarValue> {
         match *self {
             LazyLoad::NotLoaded => unreachable!(),
             LazyLoad::Item(ref i) => i.resolve(info, selection_set, executor),
@@ -116,20 +124,20 @@ where
     }
 }
 
-impl<T> FromInputValue for LazyLoad<T>
+impl<T> FromInputValue<WundergraphScalarValue> for LazyLoad<T>
 where
-    T: FromInputValue,
+    T: FromInputValue<WundergraphScalarValue>,
 {
-    fn from_input_value(v: &InputValue) -> Option<Self> {
+    fn from_input_value(v: &InputValue<WundergraphScalarValue>) -> Option<Self> {
         T::from_input_value(v).map(LazyLoad::Item)
     }
 }
 
-impl<T> ToInputValue for LazyLoad<T>
+impl<T> ToInputValue<WundergraphScalarValue> for LazyLoad<T>
 where
-    T: ToInputValue,
+    T: ToInputValue<WundergraphScalarValue>,
 {
-    fn to_input_value(&self) -> InputValue {
+    fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
         match *self {
             LazyLoad::NotLoaded => unreachable!(),
             LazyLoad::Item(ref i) => i.to_input_value(),
@@ -141,7 +149,7 @@ impl<T> FromLookAheadValue for LazyLoad<T>
 where
     T: FromLookAheadValue,
 {
-    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         T::from_look_ahead(v).map(LazyLoad::Item)
     }
 }

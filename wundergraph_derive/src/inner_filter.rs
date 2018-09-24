@@ -25,6 +25,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
             use wundergraph::indexmap::IndexMap;
             use wundergraph::filter::inner_filter::InnerFilter;
             use wundergraph::helper::NameBuilder;
+            use wundergraph::scalar::WundergraphScalarValue;
 
             impl #impl_generics InnerFilter for #item_name #ty_generics
                 #where_clause
@@ -33,22 +34,28 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 
                 const FIELD_COUNT: usize = #field_count;
 
-                fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
+                fn from_inner_input_value(
+                    obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>
+                ) -> Option<Self> {
                     #from_inner_input_value
                 }
 
-                fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
+                fn from_inner_look_ahead(
+                    obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]
+                ) -> Self {
                     #from_inner_look_ahead
                 }
 
-                fn to_inner_input_value(&self, v: &mut IndexMap<&str, InputValue>) {
+                fn to_inner_input_value(
+                    &self, v: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>
+                ) {
                     #to_inner_input_value
                 }
 
                 fn register_fields<'r>(
                     _info: &NameBuilder<Self>,
-                    registry: &mut Registry<'r>,
-                ) -> Vec<Argument<'r>> {
+                    registry: &mut Registry<'r, WundergraphScalarValue>,
+                ) -> Vec<Argument<'r, WundergraphScalarValue>> {
                     #register_fields
                 }
             }
@@ -67,8 +74,11 @@ fn build_from_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic
         };
         quote!(
             let #field_name = obj.get(stringify!(#graphql_name))
-                .map(|v| <Option<_> as juniper::FromInputValue>::from_input_value(*v))
-                .unwrap_or_else(|| <Option<_> as juniper::FromInputValue>::from_input_value(&InputValue::Null));
+                .map(|v| <Option<_> as juniper::FromInputValue<_>>::from_input_value(*v))
+                .unwrap_or_else(|| {
+                    let v: &InputValue<WundergraphScalarValue> = &InputValue::Null;
+                    <Option<_> as juniper::FromInputValue<_>>::from_input_value(v)
+                });
             let #field_name = match #field_name {
                 Some(v) => v#map_box,
                 None => return None,
@@ -114,7 +124,7 @@ fn build_to_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic> 
         let name = &f.rust_name().access();
 
         quote!{
-            v.insert(stringify!(#name), juniper::ToInputValue::to_input_value(&self#name));
+            v.insert(stringify!(#name), juniper::ToInputValue::<_>::to_input_value(&self#name));
         }
     });
     Ok(quote!{

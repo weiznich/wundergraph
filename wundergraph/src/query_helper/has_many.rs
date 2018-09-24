@@ -5,6 +5,7 @@ use juniper::meta::MetaType;
 use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, GraphQLType, Registry, Selection, Value,
 };
+use scalar::WundergraphScalarValue;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum HasMany<T> {
@@ -41,9 +42,9 @@ where
     }
 }
 
-impl<T> GraphQLType for HasMany<T>
+impl<T> GraphQLType<WundergraphScalarValue> for HasMany<T>
 where
-    T: GraphQLType,
+    T: GraphQLType<WundergraphScalarValue>,
 {
     type Context = T::Context;
     type TypeInfo = T::TypeInfo;
@@ -52,7 +53,13 @@ where
         Vec::<T>::name(info)
     }
 
-    fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
+    fn meta<'r>(
+        info: &Self::TypeInfo,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> MetaType<'r, WundergraphScalarValue>
+    where
+        WundergraphScalarValue: 'r,
+    {
         Vec::<T>::meta(info, registry)
     }
 
@@ -60,9 +67,9 @@ where
         &self,
         info: &Self::TypeInfo,
         field_name: &str,
-        arguments: &Arguments,
-        executor: &Executor<Self::Context>,
-    ) -> ExecutionResult {
+        arguments: &Arguments<WundergraphScalarValue>,
+        executor: &Executor<Self::Context, WundergraphScalarValue>,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         match *self {
             HasMany::NotLoaded => Err(FieldError::new("HasMany relation not loaded", Value::Null)),
             HasMany::Items(ref i) => i.resolve_field(info, field_name, arguments, executor),
@@ -73,9 +80,9 @@ where
         &self,
         info: &Self::TypeInfo,
         type_name: &str,
-        selection_set: Option<&[Selection]>,
-        executor: &Executor<Self::Context>,
-    ) -> ExecutionResult {
+        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+        executor: &Executor<Self::Context, WundergraphScalarValue>,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         match *self {
             HasMany::NotLoaded => Err(FieldError::new("HasMany relation not loaded", Value::Null)),
             HasMany::Items(ref i) => i.resolve_into_type(info, type_name, selection_set, executor),
@@ -92,9 +99,9 @@ where
     fn resolve(
         &self,
         info: &Self::TypeInfo,
-        selection_set: Option<&[Selection]>,
-        executor: &Executor<Self::Context>,
-    ) -> Value {
+        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+        executor: &Executor<Self::Context, WundergraphScalarValue>,
+    ) -> Value<WundergraphScalarValue> {
         match *self {
             HasMany::NotLoaded => unreachable!(),
             HasMany::Items(ref i) => i.resolve(info, selection_set, executor),

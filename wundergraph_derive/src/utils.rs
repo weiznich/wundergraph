@@ -13,6 +13,7 @@ pub fn wrap_in_dummy_mod(
     );
     quote!{
         #[doc(hidden)]
+        #[allow(non_snake_case)]
         const #const_name: () = {
             extern crate std;
             mod wundergraph {

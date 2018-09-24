@@ -19,6 +19,7 @@ use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
 use indexmap::IndexMap;
+use scalar::WundergraphScalarValue;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
 
@@ -94,11 +95,11 @@ where
     }
 }
 
-impl<C, I, C2> FromInputValue for ReferenceFilter<C, I, C2>
+impl<C, I, C2> FromInputValue<WundergraphScalarValue> for ReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
-    fn from_input_value(v: &InputValue) -> Option<Self> {
+    fn from_input_value(v: &InputValue<WundergraphScalarValue>) -> Option<Self> {
         if let Some(obj) = v.to_object_value() {
             I::from_inner_input_value(obj).map(|inner| Self {
                 inner: Box::new(inner),
@@ -110,11 +111,11 @@ where
     }
 }
 
-impl<C, I, C2> ToInputValue for ReferenceFilter<C, I, C2>
+impl<C, I, C2> ToInputValue<WundergraphScalarValue> for ReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
-    fn to_input_value(&self) -> InputValue {
+    fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
         let mut map = IndexMap::with_capacity(I::FIELD_COUNT);
         self.inner.to_inner_input_value(&mut map);
         InputValue::object(map)
@@ -125,7 +126,7 @@ impl<C, I, C2> FromLookAheadValue for ReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
-    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
             let inner = I::from_inner_look_ahead(obj);
             Some(Self {
@@ -138,7 +139,7 @@ where
     }
 }
 
-impl<C, I, C2> GraphQLType for ReferenceFilter<C, I, C2>
+impl<C, I, C2> GraphQLType<WundergraphScalarValue> for ReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
@@ -149,7 +150,13 @@ where
         Some(info.name())
     }
 
-    fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
+    fn meta<'r>(
+        info: &Self::TypeInfo,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> MetaType<'r, WundergraphScalarValue>
+    where
+        WundergraphScalarValue: 'r,
+    {
         let fields = I::register_fields(&Default::default(), registry);
         registry
             .build_input_object_type::<Self>(info, &fields)
@@ -165,7 +172,9 @@ where
 
     const FIELD_COUNT: usize = I::FIELD_COUNT;
 
-    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(
+        obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
+    ) -> Option<Self> {
         let inner = I::from_inner_input_value(obj);
         let inner = match inner {
             Some(inner) => Box::new(inner),
@@ -176,20 +185,20 @@ where
             p: Default::default(),
         })
     }
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
         let inner = I::from_inner_look_ahead(obj);
         Self {
             inner: Box::new(inner),
             p: Default::default(),
         }
     }
-    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue>) {
+    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
         self.inner.to_inner_input_value(map);
     }
     fn register_fields<'r>(
         _info: &NameBuilder<Self>,
-        registry: &mut Registry<'r>,
-    ) -> Vec<Argument<'r>> {
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> Vec<Argument<'r, WundergraphScalarValue>> {
         I::register_fields(&Default::default(), registry)
     }
 }

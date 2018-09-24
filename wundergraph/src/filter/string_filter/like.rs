@@ -1,5 +1,6 @@
 use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
+use scalar::WundergraphScalarValue;
 
 use diesel::backend::Backend;
 use diesel::expression::{operators, AsExpression, NonAggregate};
@@ -52,8 +53,8 @@ where
     }
 }
 
-impl<C> ToInputValue for Like<C> {
-    fn to_input_value(&self) -> InputValue {
+impl<C> ToInputValue<WundergraphScalarValue> for Like<C> {
+    fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
         self.0.to_input_value()
     }
 }

@@ -12,6 +12,8 @@ use juniper::{
 
 use std::hash::Hash;
 
+use scalar::WundergraphScalarValue;
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum HasOne<R, T> {
     Id(R),
@@ -45,11 +47,11 @@ where
     }
 }
 
-impl<R, T> FromInputValue for HasOne<R, T>
+impl<R, T> FromInputValue<WundergraphScalarValue> for HasOne<R, T>
 where
-    R: FromInputValue,
+    R: FromInputValue<WundergraphScalarValue>,
 {
-    fn from_input_value(v: &InputValue) -> Option<Self> {
+    fn from_input_value(v: &InputValue<WundergraphScalarValue>) -> Option<Self> {
         R::from_input_value(v).map(HasOne::Id)
     }
 }
@@ -58,7 +60,7 @@ impl<R, T> FromLookAheadValue for HasOne<R, T>
 where
     R: FromLookAheadValue,
 {
-    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         R::from_look_ahead(v).map(HasOne::Id)
     }
 }
@@ -129,9 +131,9 @@ where
     }
 }
 
-impl<R, T> GraphQLType for HasOne<R, T>
+impl<R, T> GraphQLType<WundergraphScalarValue> for HasOne<R, T>
 where
-    T: GraphQLType,
+    T: GraphQLType<WundergraphScalarValue>,
 {
     type Context = T::Context;
     type TypeInfo = T::TypeInfo;
@@ -140,7 +142,13 @@ where
         T::name(info)
     }
 
-    fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r> {
+    fn meta<'r>(
+        info: &Self::TypeInfo,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> MetaType<'r, WundergraphScalarValue>
+    where
+        WundergraphScalarValue: 'r,
+    {
         T::meta(info, registry)
     }
 
@@ -148,9 +156,9 @@ where
         &self,
         info: &Self::TypeInfo,
         field_name: &str,
-        arguments: &Arguments,
-        executor: &Executor<Self::Context>,
-    ) -> ExecutionResult {
+        arguments: &Arguments<WundergraphScalarValue>,
+        executor: &Executor<Self::Context, WundergraphScalarValue>,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         match *self {
             HasOne::Id(_) => Err(FieldError::new("HasOne relation not loaded", Value::Null)),
             HasOne::Item(ref i) => i.resolve_field(info, field_name, arguments, executor),
@@ -161,9 +169,9 @@ where
         &self,
         info: &Self::TypeInfo,
         type_name: &str,
-        selection_set: Option<&[Selection]>,
-        executor: &Executor<Self::Context>,
-    ) -> ExecutionResult {
+        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+        executor: &Executor<Self::Context, WundergraphScalarValue>,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         match *self {
             HasOne::Id(_) => Err(FieldError::new("HasOne relation not loaded", Value::Null)),
             HasOne::Item(ref i) => i.resolve_into_type(info, type_name, selection_set, executor),
@@ -180,9 +188,9 @@ where
     fn resolve(
         &self,
         info: &Self::TypeInfo,
-        selection_set: Option<&[Selection]>,
-        executor: &Executor<Self::Context>,
-    ) -> Value {
+        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+        executor: &Executor<Self::Context, WundergraphScalarValue>,
+    ) -> Value<WundergraphScalarValue> {
         match *self {
             HasOne::Id(_) => unreachable!(),
             HasOne::Item(ref i) => i.resolve(info, selection_set, executor),

@@ -4,6 +4,7 @@ use diesel::backend::Backend;
 use diesel::query_builder::BoxedSelectStatement;
 use failure::Error;
 use juniper::LookAheadSelection;
+use scalar::WundergraphScalarValue;
 
 pub trait BuildQueryModifier<T>: Sized {
     type Context;
@@ -20,7 +21,7 @@ pub trait QueryModifier<DB: Backend> {
             <Self::Entity as HasTable>::Table,
             DB,
         >,
-        selection: &LookAheadSelection,
+        selection: &LookAheadSelection<WundergraphScalarValue>,
     ) -> Result<
         BoxedSelectStatement<
             'a,
@@ -57,7 +58,7 @@ where
             <Self::Entity as HasTable>::Table,
             DB,
         >,
-        _selection: &LookAheadSelection,
+        _selection: &LookAheadSelection<WundergraphScalarValue>,
     ) -> Result<
         BoxedSelectStatement<
             'a,

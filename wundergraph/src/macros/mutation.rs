@@ -209,7 +209,8 @@ macro_rules! __wundergraph_expand_mutation_graphql_type {
             ),)*
         }
     ) => {
-        impl $crate::juniper::GraphQLType for $mutation_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<$conn>>>
+        impl $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
+            for $mutation_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<$conn>>>
         {
             type Context = $context;
             type TypeInfo = ();
@@ -221,8 +222,10 @@ macro_rules! __wundergraph_expand_mutation_graphql_type {
             #[allow(non_snake_case)]
             fn meta<'r>(
                 info: &Self::TypeInfo,
-                registry: &mut $crate::juniper::Registry<'r>
-            ) -> $crate::juniper::meta::MetaType<'r> {
+                registry: &mut $crate::juniper::Registry<'r, $crate::scalar::WundergraphScalarValue>
+            ) -> $crate::juniper::meta::MetaType<'r, $crate::scalar::WundergraphScalarValue>
+                where $crate::scalar::WundergraphScalarValue: 'r
+            {
                 let mut fields = Vec::new();
                 $(
                     $(
@@ -261,9 +264,9 @@ macro_rules! __wundergraph_expand_mutation_graphql_type {
                 &self,
                 _info: &Self::TypeInfo,
                 field_name: &str,
-                arguments: &$crate::juniper::Arguments,
-                executor: &$crate::juniper::Executor<Self::Context>,
-            ) -> $crate::juniper::ExecutionResult {
+                arguments: &$crate::juniper::Arguments<$crate::scalar::WundergraphScalarValue>,
+                executor: &$crate::juniper::Executor<Self::Context, $crate::scalar::WundergraphScalarValue>,
+            ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue> {
                 match field_name {
                     $(
                         $(
@@ -318,7 +321,7 @@ macro_rules! __wundergraph_expand_mutation_graphql_type {
                         )*
                         e => Err($crate::juniper::FieldError::new(
                             "Unknown field:",
-                            $crate::juniper::Value::String(e.to_owned()),
+                            $crate::juniper::Value::scalar(e),
                         )),
                     }
             }

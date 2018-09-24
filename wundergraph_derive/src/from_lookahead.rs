@@ -20,18 +20,18 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
 
-
     Ok(wrap_in_dummy_mod(
         "from_look_ahead",
         &item.ident,
         &quote! {
             use wundergraph::helper::FromLookAheadValue;
             use wundergraph::juniper::LookAheadValue;
+            use wundergraph::scalar::WundergraphScalarValue;
 
             impl #impl_generics FromLookAheadValue for #item_name #ty_generics
                 #where_clause
             {
-                fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+                fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
                     if let LookAheadValue::Enum(ref e) = *v {
                         match *e {
                             #(#field_list,)*

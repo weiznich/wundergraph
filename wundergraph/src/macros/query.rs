@@ -219,7 +219,8 @@ macro_rules! __wundergraph_expand_graphql_type_for_query {
          ),)*
      }
     )=> {
-        impl $crate::juniper::GraphQLType for $query_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<$conn>>>
+        impl $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
+            for $query_name<$crate::diesel::r2d2::Pool<$crate::diesel::r2d2::ConnectionManager<$conn>>>
         {
             type Context = $context;
             type TypeInfo = ();
@@ -231,8 +232,10 @@ macro_rules! __wundergraph_expand_graphql_type_for_query {
             #[allow(non_snake_case)]
             fn meta<'r>(
                 info: &Self::TypeInfo,
-                registry: &mut $crate::juniper::Registry<'r>
-            ) -> $crate::juniper::meta::MetaType<'r> {
+                registry: &mut $crate::juniper::Registry<'r, $crate::scalar::WundergraphScalarValue>
+            ) -> $crate::juniper::meta::MetaType<'r, $crate::scalar::WundergraphScalarValue>
+                where $crate::scalar::WundergraphScalarValue: 'r
+            {
                 let fields = &[
                     $(
                         {
@@ -273,17 +276,16 @@ macro_rules! __wundergraph_expand_graphql_type_for_query {
 
                     )*
                 ];
-                let query = registry.build_object_type::<Self>(info, fields);
-                $crate::juniper::meta::MetaType::Object(query)
+                registry.build_object_type::<Self>(info, fields).into_meta()
             }
 
             fn resolve_field(
                 &self,
                 _info: &Self::TypeInfo,
                 field_name: &str,
-                _arguments: &$crate::juniper::Arguments,
-                executor: &$crate::juniper::Executor<Self::Context>,
-            ) -> $crate::juniper::ExecutionResult {
+                _arguments: &$crate::juniper::Arguments<$crate::scalar::WundergraphScalarValue>,
+                executor: &$crate::juniper::Executor<Self::Context, $crate::scalar::WundergraphScalarValue>,
+            ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue> {
                 match field_name {
                     $(
                         concat!(stringify!($graphql_struct), "s") => self.handle_filter::<$graphql_struct, Self::Context>(
@@ -297,7 +299,7 @@ macro_rules! __wundergraph_expand_graphql_type_for_query {
                     )*
                         e => Err($crate::juniper::FieldError::new(
                             "Unknown field:",
-                            $crate::juniper::Value::String(e.to_owned()),
+                            $crate::juniper::Value::scalar(e),
                         )),
                 }
             }
@@ -311,15 +313,15 @@ macro_rules! __wundergraph_expand_graphql_type_for_query {
         {
             fn handle_filter<T, Ctx>(
                 &self,
-                e: &$crate::juniper::Executor<Ctx>,
-                s: $crate::juniper::LookAheadSelection,
-            ) -> $crate::juniper::ExecutionResult
+                e: &$crate::juniper::Executor<Ctx, $crate::scalar::WundergraphScalarValue>,
+                s: $crate::juniper::LookAheadSelection<$crate::scalar::WundergraphScalarValue>,
+            ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue>
             where
                 T: $crate::LoadingHandler<<$conn as $crate::diesel::Connection>::Backend, Context = Ctx>
-                + $crate::juniper::GraphQLType<TypeInfo = ()>,
+                + $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue, TypeInfo = ()>,
                 T::Table: $crate::diesel::associations::HasTable<Table = T::Table>,
                 Ctx: $crate::WundergraphContext<<$conn as $crate::diesel::Connection>::Backend>,
-            <T as $crate::juniper::GraphQLType>::Context: $crate::juniper::FromContext<Ctx>,
+            <T as $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>>::Context: $crate::juniper::FromContext<Ctx>,
             {
                 use $crate::diesel::QueryDsl;
 
@@ -331,15 +333,15 @@ macro_rules! __wundergraph_expand_graphql_type_for_query {
 
             fn handle_by_key<T, Ctx>(
                 &self,
-                e: &$crate::juniper::Executor<Ctx>,
-                s: $crate::juniper::LookAheadSelection,
-            ) -> $crate::juniper::ExecutionResult
+                e: &$crate::juniper::Executor<Ctx, $crate::scalar::WundergraphScalarValue>,
+                s: $crate::juniper::LookAheadSelection<$crate::scalar::WundergraphScalarValue>,
+            ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue>
             where
                 T: $crate::LoadingHandler<<$conn as $crate::diesel::Connection>::Backend, Context = Ctx> + 'static
-                + $crate::juniper::GraphQLType<TypeInfo = ()>,
+                + $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue, TypeInfo = ()>,
                 T::Table: $crate::diesel::associations::HasTable<Table = T::Table>,
                 Ctx: $crate::WundergraphContext<<$conn as $crate::diesel::Connection>::Backend>,
-            <T as $crate::juniper::GraphQLType>::Context: $crate::juniper::FromContext<Ctx>,
+            <T as $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>>::Context: $crate::juniper::FromContext<Ctx>,
             &'static T: $crate::diesel::Identifiable,
             <&'static T as $crate::diesel::Identifiable>::Id: $crate::helper::primary_keys::UnRef<'static>,
                 $crate::helper::primary_keys::PrimaryKeyArgument<

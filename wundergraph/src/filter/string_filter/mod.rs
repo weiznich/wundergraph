@@ -13,6 +13,7 @@ use juniper::{FromInputValue, InputValue, LookAheadValue, Registry, ToInputValue
 use indexmap::IndexMap;
 
 use helper::{FromLookAheadValue, NameBuilder, Nameable};
+use scalar::WundergraphScalarValue;
 
 mod like;
 use self::like::Like;
@@ -57,11 +58,16 @@ impl<C> InnerFilter for StringFilter<C> {
 
     const FIELD_COUNT: usize = 1;
 
-    fn from_inner_input_value(obj: IndexMap<&str, &InputValue>) -> Option<Self> {
+    fn from_inner_input_value(
+        obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
+    ) -> Option<Self> {
         let like = obj
             .get("like")
             .map(|v| Option::from_input_value(*v))
-            .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
+            .unwrap_or_else(|| {
+                let v: &InputValue<WundergraphScalarValue> = &InputValue::Null;
+                Option::from_input_value(v)
+            });
         let like = match like {
             Some(like) => Like::new(like),
             None => return None,
@@ -69,7 +75,7 @@ impl<C> InnerFilter for StringFilter<C> {
         Some(Self { like })
     }
 
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
         let like = obj
             .iter()
             .find(|o| o.0 == "like")
@@ -79,14 +85,14 @@ impl<C> InnerFilter for StringFilter<C> {
         }
     }
 
-    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue>) {
-        map.insert("is_null", self.like.to_input_value());
+    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
+        map.insert("like", self.like.to_input_value());
     }
 
     fn register_fields<'r>(
         _info: &NameBuilder<Self>,
-        registry: &mut Registry<'r>,
-    ) -> Vec<Argument<'r>> {
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> Vec<Argument<'r, WundergraphScalarValue>> {
         let like = registry.arg_with_default::<Option<String>>("like", &None, &Default::default());
         vec![like]
     }

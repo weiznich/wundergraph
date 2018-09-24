@@ -1,5 +1,6 @@
 use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
+use scalar::WundergraphScalarValue;
 
 use diesel::backend::Backend;
 use diesel::expression::array_comparison::{In, Many};
@@ -54,11 +55,11 @@ where
     }
 }
 
-impl<T, C> ToInputValue for EqAny<T, C>
+impl<T, C> ToInputValue<WundergraphScalarValue> for EqAny<T, C>
 where
-    T: ToInputValue,
+    T: ToInputValue<WundergraphScalarValue>,
 {
-    fn to_input_value(&self) -> InputValue {
+    fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
         self.0.to_input_value()
     }
 }

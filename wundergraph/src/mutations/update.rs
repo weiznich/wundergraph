@@ -5,22 +5,24 @@ use diesel::query_builder::BoxedSelectStatement;
 use diesel::query_builder::{AsChangeset, IntoUpdateTarget, QueryFragment};
 use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl};
 use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
-use WundergraphContext;
 
 use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value,
 };
+
+use scalar::WundergraphScalarValue;
 use LoadingHandler;
+use WundergraphContext;
 
 pub fn handle_update<DB, U, R, Ctx>(
-    executor: &Executor<Ctx>,
-    arguments: &Arguments,
+    executor: &Executor<Ctx, WundergraphScalarValue>,
+    arguments: &Arguments<WundergraphScalarValue>,
     field_name: &'static str,
-) -> ExecutionResult
+) -> ExecutionResult<WundergraphScalarValue>
 where
     DB: Backend,
     Ctx: WundergraphContext<DB>,
-    U: UpdateHelper<DB, R, Ctx> + FromInputValue,
+    U: UpdateHelper<DB, R, Ctx> + FromInputValue<WundergraphScalarValue>,
     U::Handler: HandleUpdate<DB, R, Ctx, Update = U>,
 {
     if let Some(n) = arguments.get::<U>(field_name) {
@@ -33,7 +35,10 @@ where
 
 pub trait HandleUpdate<DB, R, Ctx>: Sized {
     type Update;
-    fn handle_update(executor: &Executor<Ctx>, update: &Self::Update) -> ExecutionResult;
+    fn handle_update(
+        executor: &Executor<Ctx, WundergraphScalarValue>,
+        update: &Self::Update,
+    ) -> ExecutionResult<WundergraphScalarValue>;
 }
 
 pub trait UpdateHelper<DB, R, Ctx> {
@@ -54,7 +59,8 @@ where
     T: Table + HasTable<Table = T> + FindDsl<<&'static U as Identifiable>::Id>,
     Ctx: WundergraphContext<DB>,
     Find<T, <&'static U as Identifiable>::Id>: IntoUpdateTarget<Table = T>,
-    R: LoadingHandler<DB, Table = T, Context = Ctx> + GraphQLType<TypeInfo = (), Context = ()>,
+    R: LoadingHandler<DB, Table = T, Context = Ctx>
+        + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
     R::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output>,
     Filter<R::Query, <T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output>: LimitDsl,
     Limit<Filter<R::Query, <T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output>>:
@@ -75,7 +81,8 @@ where
     T: Table + HasTable<Table = T> + FindDsl<<&'static U as Identifiable>::Id>,
     Ctx: WundergraphContext<DB>,
     Find<T, <&'static U as Identifiable>::Id>: IntoUpdateTarget<Table = T>,
-    R: LoadingHandler<DB, Table = T, Context = Ctx> + GraphQLType<TypeInfo = (), Context = ()>,
+    R: LoadingHandler<DB, Table = T, Context = Ctx>
+        + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<DB>,
     <Find<T, <&'static U as Identifiable>::Id> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>,
     <&'static U as AsChangeset>::Changeset: QueryFragment<DB>,
@@ -88,10 +95,13 @@ where
 {
     type Update = U;
 
-    fn handle_update(executor: &Executor<Ctx>, change_set: &Self::Update) -> ExecutionResult {
+    fn handle_update(
+        executor: &Executor<Ctx, WundergraphScalarValue>,
+        change_set: &Self::Update,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
         let conn = ctx.get_connection();
-        conn.transaction(|| -> ExecutionResult {
+        conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             // this is safe becuse we do not leak change_set out of this function
             // this is required because otherwise rustc fails to project the temporary
             // lifetime

@@ -493,6 +493,7 @@ impl<'a> Display for GraphqlInsertable<'a> {
             return Ok(());
         }
         writeln!(f, "#[derive(Insertable, GraphQLInputObject, Clone, Debug)]")?;
+        writeln!(f, "#[graphql(scalar = \"WundergraphScalarValue\"]");
         writeln!(f, "#[table_name = \"{}\"]", self.table.name)?;
         write!(f, "struct New{} {{", fix_table_name(&self.table.name.name))?;
         {
@@ -525,6 +526,7 @@ impl<'a> Display for GraphqlChangeSet<'a> {
             f,
             "#[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]"
         )?;
+        writeln!(f, "#[graphql(scalar = \"WundergraphScalarValue\"]");
         writeln!(f, "#[table_name = \"{}\"]", self.table.name)?;
         write_primary_key_section(f, self.table)?;
         write!(

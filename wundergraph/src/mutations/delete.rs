@@ -7,22 +7,24 @@ use diesel::query_builder::{IntoUpdateTarget, QueryFragment, QueryId};
 use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, LimitDsl};
 use diesel::Identifiable;
 use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
-use WundergraphContext;
 
 use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value,
 };
+
+use scalar::WundergraphScalarValue;
 use LoadingHandler;
+use WundergraphContext;
 
 pub fn handle_delete<DB, D, R, Ctx>(
-    executor: &Executor<Ctx>,
-    arguments: &Arguments,
+    executor: &Executor<Ctx, WundergraphScalarValue>,
+    arguments: &Arguments<WundergraphScalarValue>,
     field_name: &'static str,
-) -> ExecutionResult
+) -> ExecutionResult<WundergraphScalarValue>
 where
     DB: Backend,
     Ctx: WundergraphContext<DB>,
-    D: DeleteHelper<DB, R, Ctx> + FromInputValue,
+    D: DeleteHelper<DB, R, Ctx> + FromInputValue<WundergraphScalarValue>,
     D::Handler: HandleDelete<DB, R, Ctx, Delete = D>,
 {
     if let Some(n) = arguments.get::<D>(field_name) {
@@ -36,13 +38,15 @@ where
 pub trait HandleDelete<DB, R, Ctx>: Sized {
     type Delete;
 
-    fn handle_delete(executor: &Executor<Ctx>, to_delete: &Self::Delete) -> ExecutionResult;
+    fn handle_delete(
+        executor: &Executor<Ctx, WundergraphScalarValue>,
+        to_delete: &Self::Delete,
+    ) -> ExecutionResult<WundergraphScalarValue>;
 }
 
 pub trait DeleteHelper<DB, R, Ctx> {
     type Handler: HandleDelete<DB, R, Ctx>;
 }
-
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -62,7 +66,8 @@ where
     Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>: LimitDsl,
     Limit<Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>>:
         QueryDsl + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, R::SqlType, T, DB>>,
-    R: LoadingHandler<DB, Table = T, Context = Ctx> + GraphQLType<TypeInfo = (), Context = ()>,
+    R: LoadingHandler<DB, Table = T, Context = Ctx>
+        + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
 {
     type Handler = DeleteableWrapper<I>;
 }
@@ -86,7 +91,7 @@ where
     Limit<Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>>: QueryDsl
         + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, R::SqlType, T, DB>>,
     R: LoadingHandler<DB, Table = T, Context = Ctx>
-        + GraphQLType<TypeInfo = (), Context = ()>,
+    + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<DB>,
     DB::QueryBuilder: Default,
     <Filter<T::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>
@@ -95,10 +100,10 @@ where
 {
     type Delete = I;
 
-    fn handle_delete(executor: &Executor<Ctx>, to_delete: &Self::Delete) -> ExecutionResult {
+    fn handle_delete(executor: &Executor<Ctx, WundergraphScalarValue>, to_delete: &Self::Delete) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
         let conn = ctx.get_connection();
-        conn.transaction(|| -> ExecutionResult {
+        conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             // this is safe becuse we do not leek self out of this function
             let static_to_delete: &'static I = unsafe{ &*(to_delete as *const I) };
             let filter =  T::table().primary_key().eq_all(static_to_delete.id());

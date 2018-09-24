@@ -1,5 +1,6 @@
 use helper::FromLookAheadValue;
 use juniper::LookAheadValue;
+use scalar::WundergraphScalarValue;
 
 #[derive(Debug, GraphQLEnum, Copy, Clone, PartialEq)]
 pub enum Order {
@@ -8,7 +9,7 @@ pub enum Order {
 }
 
 impl FromLookAheadValue for Order {
-    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Enum(e) = *v {
             match e {
                 "ASC" => Some(Order::Asc),
@@ -28,7 +29,7 @@ pub struct OrderBy {
 }
 
 impl FromLookAheadValue for OrderBy {
-    fn from_look_ahead(v: &LookAheadValue) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
             let column = obj
                 .iter()

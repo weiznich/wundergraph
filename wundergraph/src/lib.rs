@@ -24,6 +24,7 @@ pub extern crate juniper;
 pub extern crate indexmap;
 #[macro_use]
 pub extern crate failure;
+extern crate serde;
 #[cfg_attr(feature = "clippy", allow(useless_attribute))]
 #[allow(unused_imports)]
 #[macro_use]
@@ -41,12 +42,14 @@ pub mod mutations;
 pub mod order;
 pub mod query_helper;
 pub mod query_modifier;
+pub mod scalar;
 #[macro_use]
 mod macros;
 
 use self::helper::primary_keys::{PrimaryKeyArgument, UnRef};
 use self::helper::FromLookAheadValue;
 use self::query_modifier::{BuildQueryModifier, QueryModifier};
+use self::scalar::WundergraphScalarValue;
 
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
@@ -96,13 +99,13 @@ where
         >;
 
     fn load_items<'a>(
-        select: &LookAheadSelection,
+        select: &LookAheadSelection<WundergraphScalarValue>,
         ctx: &Self::Context,
         source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, DB>,
     ) -> Result<Vec<Self>, Error>;
 
     fn load_item<'a>(
-        select: &LookAheadSelection,
+        select: &LookAheadSelection<WundergraphScalarValue>,
         ctx: &Self::Context,
         source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, DB>,
     ) -> Result<Option<Self>, Error>

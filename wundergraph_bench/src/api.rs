@@ -1,6 +1,7 @@
 #![cfg_attr(feature = "clippy", allow(similar_names))]
 use chrono::NaiveDateTime;
 use wundergraph::query_helper::{HasMany, HasOne};
+use wundergraph::scalar::WundergraphScalarValue;
 
 table! {
     actors (id) {
@@ -244,7 +245,7 @@ struct Customer {
     phone: Option<String>,
     fax: Option<String>,
     email: String,
-    support_rep_id: Option<HasOne<i32, Employee>>,
+    support_rep_id: HasOne<Option<i32>, Option<Employee>>,
     invoices: HasMany<Invoice>,
 }
 
@@ -386,9 +387,9 @@ struct PlaylistTrack {
 struct Track {
     id: i32,
     name: String,
-    album_id: Option<HasOne<i32, Album>>,
+    album_id: HasOne<Option<i32>, Option<Album>>,
     media_type_id: HasOne<i32, MediaType>,
-    genre_id: Option<HasOne<i32, Genre>>,
+    genre_id: HasOne<Option<i32>, Option<Genre>>,
     composer: Option<String>,
     milliseconds: i32,
     bytes: Option<i32>,
@@ -564,6 +565,7 @@ struct NewFilmActor {
 }
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug, Copy)]
+#[graphql(scalar = "WundergraphScalarValue")]
 #[table_name = "film_actor"]
 #[primary_key(actor_id, film_id)]
 struct FilmActorChangeset {
@@ -573,6 +575,7 @@ struct FilmActorChangeset {
 }
 
 #[derive(Insertable, GraphQLInputObject, Clone, Debug)]
+#[graphql(scalar = "WundergraphScalarValue")]
 #[table_name = "films"]
 struct NewFilm {
     title: String,
@@ -592,6 +595,7 @@ struct NewFilm {
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "films"]
 #[primary_key(id)]
+#[graphql(scalar = "WundergraphScalarValue")]
 struct FilmChangeset {
     id: i32,
     title: String,
