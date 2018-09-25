@@ -10,15 +10,14 @@ diesel = { version = "=1.3.3", features = ["r2d2"]}
 juniper = "=0.10.0"
 indexmap = "1"
 wundergraph_derive = { path = "../wundergraph_derive" }
-clippy = { version = "0.0.207", optional = true }
 uuid = { version = "0.6", optional = true }
 chrono = { version = "0.4", optional = true }
 failure = "0.1"
+log = "0.4"
 
 [features]
 default = ["sqlite", "postgres", "extras"]
 debug = ["wundergraph_derive/debug"]
-lint = ["clippy"]
 sqlite = ["diesel/sqlite", "wundergraph_derive/sqlite"]
 postgres = ["diesel/postgres", "wundergraph_derive/postgres"]
 extras = ["chrono", "uuid"]

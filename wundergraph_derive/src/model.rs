@@ -35,11 +35,14 @@ impl Model {
     }
 
     pub fn table_type(&self) -> Result<syn::Ident, Diagnostic> {
-        self.table_name.clone().map(Ok).unwrap_or_else(|| {
-            self.flags
-                .nested_item("table_name")
-                .and_then(|t| t.ident_value())
-        })
+        self.table_name.clone().map_or_else(
+            || {
+                self.flags
+                    .nested_item("table_name")
+                    .and_then(|t| t.ident_value())
+            },
+            Ok,
+        )
     }
 
     pub fn should_have_limit(&self) -> bool {
@@ -148,7 +151,7 @@ impl Model {
             .and_then(|s| {
                 s.nested()
                     .ok()
-                    .map(|m| m.into_iter().filter_map(|m| m.word().ok()).collect())
+                    .map(|m| m.filter_map(|m| m.word().ok()).collect())
             }).unwrap_or_else(Vec::new)
     }
 

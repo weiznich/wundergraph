@@ -49,14 +49,14 @@ pub struct Diagnostic {
 #[cfg(not(feature = "nightly"))]
 impl Diagnostic {
     fn error<T: Into<String>>(msg: T) -> Self {
-        Diagnostic {
+        Self {
             message: msg.into(),
             level: Level::Error,
         }
     }
 
     fn warning<T: Into<String>>(msg: T) -> Self {
-        Diagnostic {
+        Self {
             message: msg.into(),
             level: Level::Warning,
         }

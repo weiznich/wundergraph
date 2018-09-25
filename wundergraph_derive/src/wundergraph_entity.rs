@@ -119,7 +119,7 @@ fn apply_order(model: &Model) -> Result<Option<TokenStream>, Diagnostic> {
 
 fn handle_lazy_load(model: &Model, db: &TokenStream) -> Result<Vec<TokenStream>, Diagnostic> {
     let debug_query = if cfg!(feature = "debug") {
-        Some(quote!(println!("{}", diesel::debug_query::<#db, _>(&query));))
+        Some(quote!(__wundergraph_debug_log_wrapper!("{}", diesel::debug_query::<#db, _>(&query));))
     } else {
         None
     };
@@ -339,7 +339,7 @@ fn handle_has_one(
         .collect()
 }
 
-#[cfg_attr(feature = "clippy", allow(too_many_arguments))]
+#[cfg_attr(feature = "cargo-clippy", allow(too_many_arguments))]
 fn impl_loading_handler(
     item: &syn::DeriveInput,
     backend: &TokenStream,
@@ -445,9 +445,8 @@ where
             } else {
                 Err(span.error("Found a unmatched number of select fields. More fields required"))
             }
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    if let Some(_) = select.next() {
+        }).collect::<Result<Vec<_>, _>>()?;
+    if select.next().is_some() {
         Err(span.error("Found to many select fields"))
     } else {
         let (expr, ty): (Vec<_>, Vec<_>) = res.into_iter().unzip();
@@ -683,7 +682,7 @@ fn derive_graphql_object(
                                     #filter,  #table>>>(
                                         "filter",
                                         &None,
-                                        &Default::default(),
+                                        &wundergraph::helper::NameBuilder::default(),
                                     );
                                 #field
                                 let #field_name = #field_name.argument(filter)

@@ -36,7 +36,7 @@ where
     V::AdditionalFilter: Clone,
 {
     fn clone(&self) -> Self {
-        NullableFilter {
+        Self {
             is_null: self.is_null.clone(),
             additional: self.additional.clone(),
         }
@@ -127,7 +127,7 @@ where
         registry: &mut Registry<'r, WundergraphScalarValue>,
     ) -> Vec<Argument<'r, WundergraphScalarValue>> {
         let is_null = registry.arg_with_default::<Option<bool>>("is_null", &None, &());
-        let additional = V::AdditionalFilter::register_fields(&Default::default(), registry);
+        let additional = V::AdditionalFilter::register_fields(&NameBuilder::default(), registry);
         let mut ret = vec![is_null];
         ret.extend(additional);
         ret

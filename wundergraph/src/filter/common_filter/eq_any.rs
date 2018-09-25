@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
 use scalar::WundergraphScalarValue;
@@ -14,11 +16,11 @@ use diesel_ext::BoxableFilter;
 use juniper::{InputValue, ToInputValue};
 
 #[derive(Debug)]
-pub struct EqAny<T, C>(Option<Vec<T>>, ::std::marker::PhantomData<C>);
+pub struct EqAny<T, C>(Option<Vec<T>>, PhantomData<C>);
 
 impl<T, C> EqAny<T, C> {
     pub(super) fn new(v: Option<Vec<T>>) -> Self {
-        EqAny(v, Default::default())
+        EqAny(v, PhantomData)
     }
 }
 
@@ -27,7 +29,7 @@ where
     T: Clone,
 {
     fn clone(&self) -> Self {
-        EqAny(self.0.clone(), Default::default())
+        EqAny(self.0.clone(), PhantomData)
     }
 }
 

@@ -109,7 +109,7 @@ impl Queryable<pragma_table_info::SqlType, Sqlite> for FullTableInfo {
     type Row = (i32, String, String, bool, Option<String>, bool);
 
     fn build(row: Self::Row) -> Self {
-        FullTableInfo {
+        Self {
             _cid: row.0,
             name: row.1,
             _type_name: row.2,
@@ -135,7 +135,7 @@ impl Queryable<pragma_foreign_key_list::SqlType, Sqlite> for ForeignKeyListRow {
     type Row = (i32, i32, String, String, String, String, String, String);
 
     fn build(row: Self::Row) -> Self {
-        ForeignKeyListRow {
+        Self {
             _id: row.0,
             _seq: row.1,
             parent_table: row.2,

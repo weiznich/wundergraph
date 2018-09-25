@@ -67,7 +67,7 @@ impl ColumnInformation {
         T: Into<String>,
         U: Into<String>,
     {
-        ColumnInformation {
+        Self {
             column_name: column_name.into(),
             type_name: type_name.into(),
             nullable,
@@ -85,7 +85,7 @@ where
     type Row = (String, String, String, Option<String>);
 
     fn build(row: Self::Row) -> Self {
-        ColumnInformation::new(row.0, row.1, row.2 == "YES", row.3.is_some())
+        Self::new(row.0, row.1, row.2 == "YES", row.3.is_some())
     }
 }
 
@@ -97,7 +97,7 @@ where
     type Row = (i32, String, String, bool, Option<String>, bool);
 
     fn build(row: Self::Row) -> Self {
-        ColumnInformation::new(row.1, row.2, !row.3, row.4.is_some())
+        Self::new(row.1, row.2, !row.3, row.4.is_some())
     }
 }
 

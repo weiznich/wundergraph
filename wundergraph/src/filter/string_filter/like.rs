@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
 use scalar::WundergraphScalarValue;
@@ -17,13 +19,13 @@ pub struct Like<C>(Option<String>, ::std::marker::PhantomData<C>);
 
 impl<C> Like<C> {
     pub(super) fn new(v: Option<String>) -> Self {
-        Like(v, Default::default())
+        Like(v, PhantomData)
     }
 }
 
 impl<C> Clone for Like<C> where {
     fn clone(&self) -> Self {
-        Like(self.0.clone(), Default::default())
+        Like(self.0.clone(), PhantomData)
     }
 }
 

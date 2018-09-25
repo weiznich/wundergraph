@@ -52,6 +52,7 @@ pub trait DeleteHelper<DB, R, Ctx> {
 #[derive(Debug)]
 pub struct DeleteableWrapper<D>(D);
 
+#[cfg_attr(feature = "cargo-clippy", allow(use_self))]
 impl<I, R, DB, Ctx, T> DeleteHelper<DB, R, Ctx> for I
 where
     I: 'static,
@@ -100,6 +101,7 @@ where
 {
     type Delete = I;
 
+    #[cfg_attr(feature = "clippy", allow(print_stdout))]
     fn handle_delete(executor: &Executor<Ctx, WundergraphScalarValue>, to_delete: &Self::Delete) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
         let conn = ctx.get_connection();
@@ -111,10 +113,9 @@ where
             // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(to_delete, 1).into_boxed();
             let items = R::load_items(&executor.look_ahead(), ctx, q)?;
-            let to_delete = FilterDsl::filter(T::table(), filter);
-            let d = ::diesel::delete(to_delete);
+            let d = ::diesel::delete(FilterDsl::filter(T::table(), filter));
             if cfg!(feature = "debug") {
-                println!("{}", ::diesel::debug_query(&d));
+                debug!("{}", ::diesel::debug_query(&d));
             }
             assert_eq!(1, d.execute(conn)?);
             executor.resolve_with_ctx(&(), &items.into_iter().next())

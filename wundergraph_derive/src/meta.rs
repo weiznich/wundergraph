@@ -19,10 +19,13 @@ impl MetaItem {
             .filter_map(|attr| {
                 attr.interpret_meta()
                     .map(|m| FixSpan(attr.pound_token.0[0]).fold_meta(m))
-            })
-            .filter(|m| m.name() == name)
-            .map(|meta| Self { meta })
-            .collect()
+            }).filter_map(|meta| {
+                if meta.name() == name {
+                    Some(Self { meta })
+                } else {
+                    None
+                }
+            }).collect()
     }
 
     pub fn get_deprecated(attrs: &[syn::Attribute]) -> Option<String> {
@@ -51,8 +54,7 @@ impl MetaItem {
                 } else {
                     None
                 }
-            })
-            .fold(None, |acc, s| {
+            }).fold(None, |acc, s| {
                 if let Some(acc) = acc {
                     Some(format!("{}\n{}", acc, s))
                 } else {
@@ -69,8 +71,8 @@ impl MetaItem {
         Self {
             meta: syn::Meta::List(syn::MetaList {
                 ident: Ident::new(name, Span::call_site()),
-                paren_token: Default::default(),
-                nested: Default::default(),
+                paren_token: syn::token::Paren::default(),
+                nested: syn::punctuated::Punctuated::default(),
             }),
         }
     }
@@ -111,8 +113,7 @@ impl MetaItem {
                     .warning(format!(
                         "The form `{0}(value)` is deprecated. Use `{0} = \"value\"` instead",
                         self.name(),
-                    ))
-                    .emit();
+                    )).emit();
                 Ok(x.clone())
             }
             _ => Ok(syn::Ident::new(
@@ -123,18 +124,15 @@ impl MetaItem {
     }
 
     pub fn word(&self) -> Result<syn::Ident, Diagnostic> {
-        use syn::Meta::*;
-
-        match self.meta {
-            Word(ref x) => Ok(x.clone()),
-            _ => {
-                let meta = &self.meta;
-                Err(self.span().error(format!(
-                    "Expected `{}` found `{}`",
-                    self.name(),
-                    quote!(#meta)
-                )))
-            }
+        if let syn::Meta::Word(ref x) = self.meta {
+            Ok(x.clone())
+        } else {
+            let meta = &self.meta;
+            Err(self.span().error(format!(
+                "Expected `{}` found `{}`",
+                self.name(),
+                quote!(#meta)
+            )))
         }
     }
 

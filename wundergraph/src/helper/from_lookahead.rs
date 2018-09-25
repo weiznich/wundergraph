@@ -35,7 +35,6 @@ impl FromLookAheadValue for i64 {
     }
 }
 
-
 impl FromLookAheadValue for bool {
     fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::Boolean(ref b)) = *v {
@@ -76,15 +75,14 @@ impl FromLookAheadValue for f64 {
     }
 }
 
-
 impl FromLookAheadValue for ID {
     fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         match *v {
             LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) => {
-                Some(ID::from(i.to_string()))
+                Some(Self::from(i.to_string()))
             }
             LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) => {
-                Some(ID::from(s.to_string()))
+                Some(Self::from(s.to_string()))
             }
             _ => None,
         }
@@ -104,6 +102,7 @@ where
     }
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(use_self))]
 impl<T> FromLookAheadValue for Option<T>
 where
     T: FromLookAheadValue,
@@ -147,7 +146,7 @@ impl FromLookAheadValue for self::chrono::DateTime<self::chrono::Utc> {
 impl FromLookAheadValue for self::chrono::DateTime<self::chrono::FixedOffset> {
     fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
-            self::chrono::DateTime::parse_from_rfc3339(s).ok()
+            Self::parse_from_rfc3339(s).ok()
         } else {
             None
         }

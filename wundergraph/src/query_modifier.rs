@@ -1,9 +1,14 @@
-use super::LoadingHandler;
+use std::marker::PhantomData;
+
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
 use diesel::query_builder::BoxedSelectStatement;
+
 use failure::Error;
+
 use juniper::LookAheadSelection;
+
+use super::LoadingHandler;
 use scalar::WundergraphScalarValue;
 
 pub trait BuildQueryModifier<T>: Sized {
@@ -34,12 +39,12 @@ pub trait QueryModifier<DB: Backend> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct DefaultModifier<C, T>(::std::marker::PhantomData<(T, C)>);
+pub struct DefaultModifier<C, T>(PhantomData<(T, C)>);
 
 impl<T, C> BuildQueryModifier<T> for DefaultModifier<C, T> {
     type Context = C;
     fn from_ctx(_ctx: &Self::Context) -> Result<Self, Error> {
-        Ok(DefaultModifier(Default::default()))
+        Ok(DefaultModifier(PhantomData))
     }
 }
 

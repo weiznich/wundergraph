@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use filter::build_filter::BuildFilter;
 use filter::collector::{AndCollector, FilterCollector};
 use filter::inner_filter::InnerFilter;
@@ -30,7 +32,7 @@ use super::IsNull;
 pub struct NullableReferenceFilter<C, I, C2> {
     is_null: Option<IsNull<C>>,
     inner: Box<I>,
-    p: ::std::marker::PhantomData<C2>,
+    p: PhantomData<C2>,
 }
 
 impl<C, I, C2> Clone for NullableReferenceFilter<C, I, C2>
@@ -41,7 +43,7 @@ where
         Self {
             is_null: self.is_null.clone(),
             inner: self.inner.clone(),
-            p: Default::default(),
+            p: PhantomData,
         }
     }
 }
@@ -125,20 +127,17 @@ where
         if let Some(obj) = v.to_object_value() {
             let is_null = obj
                 .get("is_null")
-                .map(|v| Option::from_input_value(*v))
-                .unwrap_or_else(|| {
-                    let v: &InputValue<WundergraphScalarValue> = &InputValue::Null;
-                    Option::from_input_value(&v)
-                });
-            let is_null = match is_null {
-                Some(Some(v)) => Some(IsNull::new(v)),
-                Some(None) => None,
-                None => return None,
-            };
+                .map_or_else(
+                    || {
+                        let v: &InputValue<WundergraphScalarValue> = &InputValue::Null;
+                        Option::from_input_value(v)
+                    },
+                    |v| Option::from_input_value(*v),
+                )?.map(IsNull::new);
             I::from_inner_input_value(obj).map(|inner| Self {
                 inner: Box::new(inner),
                 is_null,
-                p: Default::default(),
+                p: PhantomData,
             })
         } else {
             None
@@ -173,7 +172,7 @@ where
             Some(Self {
                 inner: Box::new(inner),
                 is_null,
-                p: Default::default(),
+                p: PhantomData,
             })
         } else {
             None
@@ -199,7 +198,7 @@ where
     where
         WundergraphScalarValue: 'r,
     {
-        let mut fields = I::register_fields(&Default::default(), registry);
+        let mut fields = I::register_fields(&NameBuilder::default(), registry);
         let is_null = registry.arg_with_default::<Option<bool>>("is_null", &None, &());
         fields.push(is_null);
         registry
@@ -221,16 +220,13 @@ where
     ) -> Option<Self> {
         let is_null = obj
             .get("is_null")
-            .map(|v| Option::from_input_value(*v))
-            .unwrap_or_else(|| {
-                let v: &InputValue<WundergraphScalarValue> = &InputValue::Null;
-                Option::from_input_value(v)
-            });
-        let is_null = match is_null {
-            Some(Some(v)) => Some(IsNull::new(v)),
-            Some(None) => None,
-            None => return None,
-        };
+            .map_or_else(
+                || {
+                    let v: &InputValue<WundergraphScalarValue> = &InputValue::Null;
+                    Option::from_input_value(v)
+                },
+                |v| Option::from_input_value(*v),
+            )?.map(IsNull::new);
         let inner = match I::from_inner_input_value(obj) {
             Some(inner) => Box::new(inner),
             None => return None,
@@ -238,7 +234,7 @@ where
         Some(Self {
             is_null,
             inner,
-            p: Default::default(),
+            p: PhantomData,
         })
     }
     fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
@@ -251,7 +247,7 @@ where
         Self {
             inner: Box::new(inner),
             is_null,
-            p: Default::default(),
+            p: PhantomData,
         }
     }
     fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
@@ -262,7 +258,7 @@ where
         _info: &NameBuilder<Self>,
         registry: &mut Registry<'r, WundergraphScalarValue>,
     ) -> Vec<Argument<'r, WundergraphScalarValue>> {
-        let mut inner_fields = I::register_fields(&Default::default(), registry);
+        let mut inner_fields = I::register_fields(&NameBuilder::default(), registry);
         let is_null = registry.arg_with_default::<Option<bool>>("is_null", &None, &());
         inner_fields.push(is_null);
         inner_fields

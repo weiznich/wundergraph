@@ -1,14 +1,16 @@
+use std::marker::PhantomData;
+
 use juniper::ID;
 
 #[derive(Debug)]
-pub struct NameBuilder<T>(String, ::std::marker::PhantomData<T>);
+pub struct NameBuilder<T>(String, PhantomData<T>);
 
 impl<T> Default for NameBuilder<T>
 where
     T: Nameable,
 {
     fn default() -> Self {
-        NameBuilder(T::name(), Default::default())
+        NameBuilder(T::name(), PhantomData)
     }
 }
 
@@ -24,7 +26,7 @@ pub trait Nameable {
 
 impl Nameable for String {
     fn name() -> String {
-        String::from("String")
+        Self::from("String")
     }
 }
 

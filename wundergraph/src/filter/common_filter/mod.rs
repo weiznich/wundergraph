@@ -46,7 +46,7 @@ where
     T::AdditionalFilter: Clone,
 {
     fn clone(&self) -> Self {
-        FilterOption {
+        Self {
             eq: self.eq.clone(),
             neq: self.neq.clone(),
             eq_any: self.eq_any.clone(),
@@ -73,34 +73,19 @@ where
     fn from_inner_input_value(
         obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
     ) -> Option<Self> {
-        let eq = obj
-            .get("eq")
-            .map(|v| Option::from_input_value(*v))
-            .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
-        let eq = match eq {
-            Some(eq) => Eq::new(eq),
-            None => return None,
-        };
-        let neq = obj
-            .get("not_eq")
-            .map(|v| Option::from_input_value(*v))
-            .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
-        let neq = match neq {
-            Some(neq) => NotEq::new(neq),
-            None => return None,
-        };
-        let eq_any = obj
-            .get("eq_any")
-            .map(|v| Option::from_input_value(*v))
-            .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
-        let eq_any = match eq_any {
-            Some(eq_any) => EqAny::new(eq_any),
-            None => return None,
-        };
-        let additional = match V::AdditionalFilter::from_inner_input_value(obj) {
-            Some(a) => a,
-            None => return None,
-        };
+        let eq = Eq::new(obj.get("eq").map_or_else(
+            || Option::from_input_value(&InputValue::Null),
+            |v| Option::from_input_value(*v),
+        )?);
+        let neq = NotEq::new(obj.get("not_eq").map_or_else(
+            || Option::from_input_value(&InputValue::Null),
+            |v| Option::from_input_value(*v),
+        )?);
+        let eq_any = EqAny::new(obj.get("eq_any").map_or_else(
+            || Option::from_input_value(&InputValue::Null),
+            |v| Option::from_input_value(*v),
+        )?);
+        let additional = V::AdditionalFilter::from_inner_input_value(obj)?;
         Some(Self {
             eq,
             neq,
@@ -154,7 +139,7 @@ where
         let eq_any =
             registry.arg_with_default::<Option<Vec<V>>>("eq_any", &None, &Default::default());
         let mut ret = vec![eq, neq, eq_any];
-        let additional = V::AdditionalFilter::register_fields(&Default::default(), registry);
+        let additional = V::AdditionalFilter::register_fields(&NameBuilder::default(), registry);
         ret.extend(additional);
         ret
     }

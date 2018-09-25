@@ -250,7 +250,7 @@ macro_rules! __wundergraph_expand_graphql_type_for_query {
                                     $filter_name,
                                 <$graphql_struct as $crate::diesel::associations::HasTable>::Table>>
                                     >
-                                    ("filter", &None, &Default::default());
+                                    ("filter", &None, &$crate::helper::NameBuilder::default());
                                 field = field.argument(filter);
                             )*
                                 __wundergraph_expand_limit!(registry, field, info, $(, $limit)*);
@@ -382,7 +382,7 @@ macro_rules! wundergraph_query_object {
 
         impl<P> Default for $query_name<P> {
             fn default() -> Self {
-                $query_name(Default::default())
+                $query_name(::std::marker::PhantomData)
             }
         }
         __wundergraph_expand_pg_loading_handler!{

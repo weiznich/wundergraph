@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use filter::build_filter::BuildFilter;
 use filter::transformator::{FilterType, Transformator};
 use scalar::WundergraphScalarValue;
@@ -12,17 +14,17 @@ use diesel_ext::BoxableFilter;
 use juniper::{InputValue, ToInputValue};
 
 #[derive(Debug)]
-pub struct IsNull<C>(bool, ::std::marker::PhantomData<C>);
+pub struct IsNull<C>(bool, PhantomData<C>);
 
 impl<C> IsNull<C> {
     pub(crate) fn new(v: bool) -> Self {
-        IsNull(v, Default::default())
+        IsNull(v, PhantomData)
     }
 }
 
 impl<C> Clone for IsNull<C> {
     fn clone(&self) -> Self {
-        IsNull(self.0, Default::default())
+        IsNull(self.0, PhantomData)
     }
 }
 

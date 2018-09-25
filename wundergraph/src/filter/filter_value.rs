@@ -13,51 +13,59 @@ pub trait FilterValue<C> {
 }
 
 impl<C> FilterValue<C> for i16 {
-    type RawValue = i16;
+    type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 impl<C> FilterValue<C> for i32 {
-    type RawValue = i32;
+    type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 impl<C> FilterValue<C> for i64 {
-    type RawValue = i64;
+    type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 impl<C> FilterValue<C> for String {
-    type RawValue = String;
+    type RawValue = Self;
     type AdditionalFilter = StringFilter<C>;
 }
 
 impl<C> FilterValue<C> for bool {
-    type RawValue = bool;
+    type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 impl<C> FilterValue<C> for f32 {
-    type RawValue = f32;
+    type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 impl<C> FilterValue<C> for f64 {
-    type RawValue = f64;
+    type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 impl<C, V> FilterValue<C> for Vec<V>
 where
-    V: FromLookAheadValue + FromInputValue<WundergraphScalarValue> + ToInputValue<WundergraphScalarValue> + FilterValue<C> + Clone,
+    V: FromLookAheadValue
+       + FromInputValue<WundergraphScalarValue>
+       + ToInputValue<WundergraphScalarValue>
+       + FilterValue<C>
+       + Clone,
 {
-    type RawValue = Vec<V>;
+    type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 impl<V, C> FilterValue<C> for Option<V>
 where
-    V: Clone + FromInputValue<WundergraphScalarValue> + FromLookAheadValue + ToInputValue<WundergraphScalarValue> + FilterValue<C>,
+    V: Clone
+    + FromInputValue<WundergraphScalarValue>
+    + FromLookAheadValue
+    + ToInputValue<WundergraphScalarValue>
+    + FilterValue<C>,
 {
     type RawValue = V;
     type AdditionalFilter = NullableFilter<V, C>;
@@ -76,7 +84,9 @@ impl<C> FilterValue<C> for self::chrono::NaiveDateTime {
 impl<O, C> FilterValue<C> for self::chrono::DateTime<O>
 where
     O: self::chrono::TimeZone,
-    Self: ToInputValue<WundergraphScalarValue> + FromInputValue<WundergraphScalarValue> + FromLookAheadValue,
+    Self: ToInputValue<WundergraphScalarValue>
+    + FromInputValue<WundergraphScalarValue>
+    + FromLookAheadValue,
 {
     type RawValue = Self;
     type AdditionalFilter = ();

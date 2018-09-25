@@ -4,4 +4,6 @@ pub enum WundergraphError {
     CouldNotBuildFilterArgument,
     #[fail(display = "Requested unkown field {}", name)]
     UnknownDatabaseField { name: String },
+    #[fail(display = "Could not build primary key filter from arguments")]
+    NoPrimaryKeyArgumentFound,
 }

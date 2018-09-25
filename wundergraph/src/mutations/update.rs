@@ -49,6 +49,7 @@ pub trait UpdateHelper<DB, R, Ctx> {
 #[derive(Debug)]
 pub struct AsChangeSetWrapper<U>(U);
 
+#[cfg_attr(feature = "cargo-clippy", allow(use_self))]
 impl<U, DB, R, Ctx, T> UpdateHelper<DB, R, Ctx> for U
 where
     U: 'static,
@@ -108,7 +109,7 @@ where
             let change_set: &'static U = unsafe { &*(change_set as *const U) };
             let u = ::diesel::update(change_set).set(change_set);
             if cfg!(feature = "debug") {
-                println!("{}", ::diesel::debug_query(&u));
+                debug!("{}", ::diesel::debug_query(&u));
             }
             u.execute(conn)?;
             let f = FilterDsl::filter(

@@ -1,3 +1,6 @@
+
+use std::marker::PhantomData;
+
 use juniper::meta::MetaType;
 use juniper::FromInputValue;
 use juniper::GraphQLType;
@@ -43,7 +46,7 @@ pub struct Filter<F, T> {
     and: Option<Vec<Filter<F, T>>>,
     or: Option<Vec<Filter<F, T>>>,
     inner: F,
-    p: ::std::marker::PhantomData<(T)>,
+    p: PhantomData<(T)>,
 }
 
 impl<F, T> Nameable for Filter<F, T>
@@ -60,11 +63,11 @@ where
     F: Clone,
 {
     fn clone(&self) -> Self {
-        Filter {
+        Self {
             and: self.and.clone(),
             or: self.or.clone(),
             inner: self.inner.clone(),
-            p: Default::default(),
+            p: PhantomData,
         }
     }
 }
@@ -75,31 +78,20 @@ where
 {
     fn from_input_value(v: &InputValue<WundergraphScalarValue>) -> Option<Self> {
         if let Some(obj) = v.to_object_value() {
-            let and = obj
-                .get("and")
-                .map(|v| Option::from_input_value(*v))
-                .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
-            let and = match and {
-                Some(and) => and,
-                None => return None,
-            };
-            let or = obj
-                .get("or")
-                .map(|v| Option::from_input_value(*v))
-                .unwrap_or_else(|| Option::from_input_value(&InputValue::Null));
-            let or = match or {
-                Some(or) => or,
-                None => return None,
-            };
-            let inner = match F::from_inner_input_value(obj) {
-                Some(inner) => inner,
-                None => return None,
-            };
+            let and = obj.get("and").map_or_else(
+                || Option::from_input_value(&InputValue::Null),
+                |v| Option::from_input_value(*v),
+            )?;
+            let or = obj.get("or").map_or_else(
+                || Option::from_input_value(&InputValue::Null),
+                |v| Option::from_input_value(*v),
+            )?;
+            let inner = F::from_inner_input_value(obj)?;
             Some(Self {
                 and,
                 or,
                 inner,
-                p: Default::default(),
+                p: PhantomData,
             })
         } else {
             None
@@ -138,10 +130,10 @@ where
     where
         WundergraphScalarValue: 'r,
     {
-        let and = registry.arg_with_default::<Option<Vec<Filter<F, T>>>>("and", &None, info);
-        let or = registry.arg_with_default::<Option<Vec<Filter<F, T>>>>("or", &None, info);
+        let and = registry.arg_with_default::<Option<Vec<Self>>>("and", &None, info);
+        let or = registry.arg_with_default::<Option<Vec<Self>>>("or", &None, info);
         let mut fields = vec![and, or];
-        fields.extend(F::register_fields(&Default::default(), registry));
+        fields.extend(F::register_fields(&NameBuilder::default(), registry));
         registry
             .build_input_object_type::<Self>(info, &fields)
             .into_meta()
@@ -170,7 +162,7 @@ where
                 and,
                 or,
                 inner,
-                p: Default::default(),
+                p: PhantomData,
             })
         } else {
             None
@@ -190,7 +182,7 @@ where
     where
         C: Transformator,
     {
-        let Filter { and, or, inner, .. } = self;
+        let Self { and, or, inner, .. } = self;
         let mut and = and
             .map(|a| {
                 a.into_iter().fold(AndCollector::default(), |mut a, f| {

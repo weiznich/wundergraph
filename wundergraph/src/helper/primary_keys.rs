@@ -66,7 +66,7 @@ where
         registry: &mut Registry<'r, WundergraphScalarValue>,
         info: &I,
     ) -> Vec<Argument<'r, WundergraphScalarValue>> {
-        vec![registry.arg::<V1>(A::NAME, info)]
+        vec![registry.arg::<V1>(Self::NAME, info)]
     }
 
     fn from_input_value(value: &InputValue<WundergraphScalarValue>) -> Option<V1> {
@@ -76,7 +76,7 @@ where
     fn from_look_ahead(value: &LookAheadValue<WundergraphScalarValue>) -> Option<V1> {
         if let LookAheadValue::Object(ref o) = *value {
             o.iter()
-                .find(|&(ref n, _)| *n == A::NAME)
+                .find(|&(n, _)| *n == Self::NAME)
                 .and_then(|(_, v)| V1::from_look_ahead(v))
         } else {
             None
@@ -85,7 +85,7 @@ where
 
     fn to_input_value(values: &V1) -> InputValue<WundergraphScalarValue> {
         let mut map = IndexMap::with_capacity(1);
-        map.insert(A::NAME, values.to_input_value());
+        map.insert(Self::NAME, values.to_input_value());
         InputValue::object(map)
     }
 }

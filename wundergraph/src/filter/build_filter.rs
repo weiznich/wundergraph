@@ -30,6 +30,7 @@ where
     }
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(use_self))]
 impl<T, DB> BuildFilter<DB> for Option<T>
 where
     T: BuildFilter<DB>,

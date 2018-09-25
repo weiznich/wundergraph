@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use filter::build_filter::BuildFilter;
 use filter::collector::{AndCollector, FilterCollector};
 use filter::inner_filter::InnerFilter;
@@ -26,7 +28,7 @@ use helper::{FromLookAheadValue, NameBuilder, Nameable};
 #[derive(Debug)]
 pub struct ReferenceFilter<C, I, C2> {
     inner: Box<I>,
-    p: ::std::marker::PhantomData<(C, I, C2)>,
+    p: PhantomData<(C, I, C2)>,
 }
 
 impl<C, I, C2> Clone for ReferenceFilter<C, I, C2>
@@ -36,7 +38,7 @@ where
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
-            p: Default::default(),
+            p: PhantomData,
         }
     }
 }
@@ -103,7 +105,7 @@ where
         if let Some(obj) = v.to_object_value() {
             I::from_inner_input_value(obj).map(|inner| Self {
                 inner: Box::new(inner),
-                p: Default::default(),
+                p: PhantomData,
             })
         } else {
             None
@@ -131,7 +133,7 @@ where
             let inner = I::from_inner_look_ahead(obj);
             Some(Self {
                 inner: Box::new(inner),
-                p: Default::default(),
+                p: PhantomData,
             })
         } else {
             None
@@ -157,7 +159,7 @@ where
     where
         WundergraphScalarValue: 'r,
     {
-        let fields = I::register_fields(&Default::default(), registry);
+        let fields = I::register_fields(&NameBuilder::default(), registry);
         registry
             .build_input_object_type::<Self>(info, &fields)
             .into_meta()
@@ -182,14 +184,14 @@ where
         };
         Some(Self {
             inner,
-            p: Default::default(),
+            p: PhantomData,
         })
     }
     fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
         let inner = I::from_inner_look_ahead(obj);
         Self {
             inner: Box::new(inner),
-            p: Default::default(),
+            p: PhantomData,
         }
     }
     fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
@@ -199,6 +201,6 @@ where
         _info: &NameBuilder<Self>,
         registry: &mut Registry<'r, WundergraphScalarValue>,
     ) -> Vec<Argument<'r, WundergraphScalarValue>> {
-        I::register_fields(&Default::default(), registry)
+        I::register_fields(&NameBuilder::default(), registry)
     }
 }

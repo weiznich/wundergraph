@@ -14,7 +14,7 @@ pub struct TableName {
 
 impl TableName {
     pub fn from_name<T: Into<String>>(name: T) -> Self {
-        TableName {
+        Self {
             name: name.into(),
             schema: None,
         }
@@ -25,7 +25,7 @@ impl TableName {
         T: Into<String>,
         U: Into<String>,
     {
-        TableName {
+        Self {
             name: name.into(),
             schema: Some(schema.into()),
         }
@@ -47,7 +47,7 @@ where
     type Row = (String, String);
 
     fn build((name, schema): Self::Row) -> Self {
-        TableName::new(name, schema)
+        Self::new(name, schema)
     }
 }
 
@@ -70,8 +70,8 @@ impl FromStr for TableName {
     fn from_str(table_name: &str) -> Result<Self, Self::Err> {
         let mut parts = table_name.split('.');
         match (parts.next(), parts.next()) {
-            (Some(schema), Some(name)) => Ok(TableName::new(name, schema)),
-            _ => Ok(TableName::from_name(table_name)),
+            (Some(schema), Some(name)) => Ok(Self::new(name, schema)),
+            _ => Ok(Self::from_name(table_name)),
         }
     }
 }

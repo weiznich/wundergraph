@@ -61,17 +61,13 @@ impl<C> InnerFilter for StringFilter<C> {
     fn from_inner_input_value(
         obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
     ) -> Option<Self> {
-        let like = obj
-            .get("like")
-            .map(|v| Option::from_input_value(*v))
-            .unwrap_or_else(|| {
+        let like = Like::new(obj.get("like").map_or_else(
+            || {
                 let v: &InputValue<WundergraphScalarValue> = &InputValue::Null;
                 Option::from_input_value(v)
-            });
-        let like = match like {
-            Some(like) => Like::new(like),
-            None => return None,
-        };
+            },
+            |v| Option::from_input_value(*v),
+        )?);
         Some(Self { like })
     }
 

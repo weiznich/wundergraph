@@ -18,7 +18,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 
     Ok(wrap_in_dummy_mod(
         "inner_filter",
-        &item_name,
+        item_name,
         &quote! {
             use wundergraph::juniper::{self, InputValue, LookAheadValue, Registry};
             use wundergraph::juniper::meta::Argument;
@@ -140,7 +140,7 @@ fn build_register_fields(model: &Model) -> Result<TokenStream, Diagnostic> {
             let #field_name = registry.arg_with_default::<Option<#ty>>(
                 stringify!(#field_name),
                 &None,
-                &Default::default()
+                &wundergraph::helper::NameBuilder::default()
             );
         }
     });

@@ -104,6 +104,7 @@ pub trait HandleInsert<DB, R, Ctx>: Sized {
 #[derive(Debug)]
 pub struct InsertableWrapper<I>(I);
 
+#[cfg_attr(feature = "cargo-clippy", allow(use_self))]
 impl<I, DB, R, Ctx> InsertHelper<DB, R, Ctx> for I
 where
     I: Insertable<R::Table>,
@@ -154,7 +155,7 @@ where
                 .insert_into(T::table())
                 .returning(T::table().primary_key());
             if cfg!(feature = "debug") {
-                println!("{}", ::diesel::debug_query(&inserted));
+                debug!("{}", ::diesel::debug_query(&inserted));
             }
             let inserted: Id = inserted.get_result(conn)?;
 
@@ -180,7 +181,7 @@ where
                 .insert_into(T::table())
                 .returning(T::table().primary_key());
             if cfg!(feature = "debug") {
-                println!("{}", ::diesel::debug_query(&inserted));
+                debug!("{}", ::diesel::debug_query(&inserted));
             }
             let inserted: Vec<Id> = inserted.get_results(conn)?;
 

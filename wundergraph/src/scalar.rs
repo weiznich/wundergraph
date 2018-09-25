@@ -22,7 +22,7 @@ impl<'a> From<&'a str> for WundergraphScalarValue {
 }
 
 #[doc(hidden)]
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct WundergraphScalarVisitor;
 
 impl<'de> de::Visitor<'de> for WundergraphScalarVisitor {
@@ -64,7 +64,7 @@ impl<'de> de::Visitor<'de> for WundergraphScalarVisitor {
         if value <= i32::max_value() as u32 {
             self.visit_i32(value as i32)
         } else {
-            self.visit_u64(value as u64)
+            self.visit_u64(u64::from(value))
         }
     }
 

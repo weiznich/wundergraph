@@ -1,24 +1,31 @@
-//#![deny(warnings, missing_debug_implementations, missing_copy_implementations)]
+#![deny(missing_debug_implementations, missing_copy_implementations)]
+#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
+#![cfg_attr(feature = "cargo-clippy", warn(clippy))]
 // Clippy lints
-#![cfg_attr(feature = "clippy", allow(unstable_features))]
-#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
 #![cfg_attr(
-    feature = "clippy",
-    plugin(clippy(conf_file = "../../clippy.toml"))
-)]
-#![cfg_attr(
-    feature = "clippy",
-    allow(
+    feature = "cargo-clippy",
+    warn(
+        wrong_pub_self_convention,
+        used_underscore_binding,
+        use_self,
+        use_debug,
+        unseparated_literal_suffix,
+        unnecessary_unwrap,
+        unimplemented,
+        single_match_else,
+        shadow_unrelated,
         option_map_unwrap_or_else,
         option_map_unwrap_or,
-        match_same_arms,
-        type_complexity,
-        useless_attribute
-    )
-)]
-#![cfg_attr(
-    feature = "clippy",
-    warn(
+        needless_continue,
+        mutex_integer,
+        needless_borrow,
+        items_after_statements,
+        filter_map,
+        expl_impl_clone_on_copy,
+        else_if_without_else,
+        doc_markdown,
+        default_trait_access,
         option_unwrap_used,
         result_unwrap_used,
         wrong_pub_self_convention,
@@ -33,13 +40,13 @@
     )
 )]
 
-extern crate structopt;
-extern crate diesel;
-extern crate juniper;
 extern crate actix;
 extern crate actix_web;
-extern crate wundergraph;
+extern crate diesel;
 extern crate failure;
+extern crate juniper;
+extern crate structopt;
+extern crate wundergraph;
 #[macro_use]
 extern crate serde;
 extern crate chrono;
@@ -74,8 +81,12 @@ use wundergraph::scalar::WundergraphScalarValue;
 struct Opt {
     #[structopt(short = "u", long = "db-url")]
     database_url: String,
-    #[structopt(short = "s", long = "socket", default_value = "127.0.0.1:8000")]
-    socket: String
+    #[structopt(
+        short = "s",
+        long = "socket",
+        default_value = "127.0.0.1:8000"
+    )]
+    socket: String,
 }
 
 // actix integration stuff
@@ -96,8 +107,8 @@ impl GraphQLExecutor {
     fn new(
         schema: Arc<wundergraph_bench::Schema>,
         pool: Arc<Pool<ConnectionManager<PgConnection>>>,
-    ) -> GraphQLExecutor {
-        GraphQLExecutor { schema, pool }
+    ) -> Self {
+        Self { schema, pool }
     }
 }
 
@@ -142,8 +153,6 @@ fn graphql((st, data): (State<AppState>, Json<GraphQLData>)) -> FutureResponse<H
         }).responder()
 }
 
-
-
 fn main() {
     let opt = Opt::from_args();
     let manager = ConnectionManager::<PgConnection>::new(opt.database_url);
@@ -153,7 +162,8 @@ fn main() {
         .expect("Failed to init pool");
 
     let query = wundergraph_bench::api::Query::<Pool<ConnectionManager<PgConnection>>>::default();
-    let mutation = wundergraph_bench::api::Mutation::<Pool<ConnectionManager<PgConnection>>>::default();
+    let mutation =
+        wundergraph_bench::api::Mutation::<Pool<ConnectionManager<PgConnection>>>::default();
     let schema = wundergraph_bench::Schema::new(query, mutation);
 
     let sys = actix::System::new("wundergraph-bench");
@@ -169,8 +179,7 @@ fn main() {
     server::new(move || {
         App::with_state(AppState {
             executor: addr.clone(),
-        })
-        .resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
+        }).resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
         .resource("/graphql", |r| r.method(http::Method::GET).with(graphql))
         .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
         .default_resource(|r| {

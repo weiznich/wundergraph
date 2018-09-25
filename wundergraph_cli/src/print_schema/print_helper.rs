@@ -144,17 +144,13 @@ where
         while !s.is_empty() {
             let on_newline = self.on_newline;
 
-            let split = match s.find('\n') {
-                Some(pos) => {
-                    self.on_newline = true;
-                    pos + 1
-                }
-                None => {
-                    self.on_newline = false;
-                    s.len()
-                }
+            let split = if let Some(pos) = s.find('\n') {
+                self.on_newline = true;
+                pos + 1
+            } else {
+                self.on_newline = false;
+                s.len()
             };
-
             let to_write = &s[..split];
             if on_newline && to_write != "\n" {
                 self.fmt.write_str("    ")?;
@@ -234,8 +230,7 @@ fn uppercase_table_name(name: &str) -> String {
             } else {
                 Some(c.to_string())
             }
-        })
-        .fold(String::new(), |acc, s| acc + &s)
+        }).fold(String::new(), |acc, s| acc + &s)
 }
 
 fn fix_table_name(name: &str) -> String {
@@ -367,6 +362,7 @@ impl<'a> Display for GraphqlColumn<'a> {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "cargo-clippy", allow(needless_borrow))]
 struct GraphqlType<'a> {
     sql_type: &'a ColumnType,
     allow_option: bool,
@@ -377,7 +373,8 @@ impl<'a> Display for GraphqlType<'a> {
         match *self.sql_type {
             ColumnType {
                 is_nullable: true, ..
-            } if self.allow_option =>
+            }
+                if self.allow_option =>
             {
                 let mut t = self.clone();
                 t.allow_option = false;

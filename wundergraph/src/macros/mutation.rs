@@ -345,7 +345,7 @@ macro_rules! wundergraph_mutation_object {
 
         impl<P> Default for $mutation_name<P> {
             fn default() -> Self {
-                $mutation_name(Default::default())
+                $mutation_name(::std::marker::PhantomData)
             }
         }
         __wundergraph_expand_pg_mutation!{
