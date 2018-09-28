@@ -1,10 +1,9 @@
 use juniper::parser::{ParseError, ScalarToken, Token};
-use juniper::{InputValue, ParseScalarResult, Value};
+use juniper::{InputValue, ParseScalarResult, ScalarValue, Value};
 use serde::de;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, ScalarValue)]
-#[juniper(visitor = "WundergraphScalarVisitor")]
 pub enum WundergraphScalarValue {
     SmallInt(i16),
     Int(i32),
@@ -13,6 +12,41 @@ pub enum WundergraphScalarValue {
     Double(f64),
     String(String),
     Boolean(bool),
+}
+
+impl ScalarValue for WundergraphScalarValue {
+    type Visitor = WundergraphScalarVisitor;
+
+    fn as_int(&self) -> Option<i32> {
+        match *self {
+            WundergraphScalarValue::SmallInt(ref i) => Some(*i as i32),
+            WundergraphScalarValue::Int(ref i) => Some(*i as i32),
+            _ => None,
+        }
+    }
+
+    fn as_string(&self) -> Option<String> {
+        match *self {
+            WundergraphScalarValue::String(ref s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+    fn as_float(&self) -> Option<f64> {
+        match *self {
+            WundergraphScalarValue::SmallInt(ref i) => Some(*i as f64),
+            WundergraphScalarValue::Int(ref i) => Some(*i as f64),
+            WundergraphScalarValue::BigInt(ref i) => Some(*i as f64),
+            WundergraphScalarValue::Float(ref f) => Some(*f as f64),
+            WundergraphScalarValue::Double(ref f) => Some(*f as f64),
+            _ => None,
+        }
+    }
+    fn as_boolean(&self) -> Option<bool> {
+        match *self {
+            WundergraphScalarValue::Boolean(ref b) => Some(*b),
+            _ => None,
+        }
+    }
 }
 
 impl<'a> From<&'a str> for WundergraphScalarValue {
@@ -47,14 +81,22 @@ impl<'de> de::Visitor<'de> for WundergraphScalarVisitor {
     where
         E: de::Error,
     {
-        Ok(WundergraphScalarValue::Int(value))
+        if value <= i16::max_value() as i32 {
+            self.visit_i16(value as i16)
+        } else {
+            Ok(WundergraphScalarValue::Int(value))
+        }
     }
 
     fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        Ok(WundergraphScalarValue::BigInt(value))
+        if value <= i32::max_value() as i64 {
+            self.visit_i32(value as i32)
+        } else {
+            Ok(WundergraphScalarValue::BigInt(value))
+        }
     }
 
     fn visit_u32<E>(self, value: u32) -> Result<Self::Value, E>
@@ -111,6 +153,8 @@ graphql_scalar!(i64 as "BigInt" where Scalar = WundergraphScalarValue {
 
     from_input_value(v: &InputValue) -> Option<i64> {
         match *v {
+            InputValue::Scalar(WundergraphScalarValue::SmallInt(i)) => Some(i64::from(i)),
+            InputValue::Scalar(WundergraphScalarValue::Int(i)) => Some(i64::from(i)),
             InputValue::Scalar(WundergraphScalarValue::BigInt(i)) => Some(i),
             _ => None,
         }
@@ -157,6 +201,7 @@ graphql_scalar!(f32 as "SmallFloat" where Scalar = WundergraphScalarValue {
 
     from_input_value(v: &InputValue) -> Option<f32> {
         match *v {
+            InputValue::Scalar(WundergraphScalarValue::SmallInt(i)) => Some(f32::from(i)),
             InputValue::Scalar(WundergraphScalarValue::Float(i)) => Some(i),
             _ => None,
         }
