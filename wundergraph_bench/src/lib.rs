@@ -47,21 +47,20 @@ extern crate diesel;
 extern crate juniper;
 #[macro_use]
 extern crate wundergraph;
+extern crate chrono;
 extern crate failure;
 extern crate serde;
-extern crate chrono;
 extern crate serde_json;
 
-use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 
 use wundergraph::scalar::WundergraphScalarValue;
 
 pub mod api;
 
-pub type Schema = juniper::RootNode<
+pub type Schema<Connection> = juniper::RootNode<
     'static,
-    self::api::Query<Pool<ConnectionManager<PgConnection>>>,
-    self::api::Mutation<Pool<ConnectionManager<PgConnection>>>,
+    self::api::Query<Pool<ConnectionManager<Connection>>>,
+    self::api::Mutation<Pool<ConnectionManager<Connection>>>,
     WundergraphScalarValue,
 >;

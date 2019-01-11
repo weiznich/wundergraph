@@ -183,8 +183,18 @@ allow_tables_to_appear_in_same_query!(
     tracks,
 );
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "actors"]
 #[primary_key(id)]
 struct Actor {
@@ -194,8 +204,18 @@ struct Actor {
     last_update: NaiveDateTime,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "albums"]
 #[primary_key(id)]
 #[belongs_to(Artist, foreign_key = "artist_id")]
@@ -207,8 +227,18 @@ struct Album {
     tracks: HasMany<Track>,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "artists"]
 #[primary_key(id)]
 struct Artist {
@@ -217,8 +247,18 @@ struct Artist {
     albums: HasMany<Album>,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "categories"]
 #[primary_key(id)]
 struct Categorie {
@@ -227,8 +267,18 @@ struct Categorie {
     last_update: NaiveDateTime,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "customers"]
 #[primary_key(id)]
 #[belongs_to(Employee, foreign_key = "support_rep_id")]
@@ -249,8 +299,18 @@ struct Customer {
     invoices: HasMany<Invoice>,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "employees"]
 #[primary_key(id)]
 struct Employee {
@@ -273,8 +333,19 @@ struct Employee {
     customers: HasMany<Customer>,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations, Copy)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+    Copy,
+)]
 #[table_name = "film_actor"]
 #[primary_key(actor_id, film_id)]
 struct FilmActor {
@@ -283,8 +354,18 @@ struct FilmActor {
     last_update: NaiveDateTime,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "films"]
 #[primary_key(id)]
 struct Film {
@@ -303,8 +384,18 @@ struct Film {
     //fulltext: Tsvector,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "genres"]
 #[primary_key(id)]
 struct Genre {
@@ -314,8 +405,18 @@ struct Genre {
     tracks: HasMany<Track>,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "invoice_lines"]
 #[primary_key(id)]
 #[belongs_to(Invoice, foreign_key = "invoice_id")]
@@ -328,8 +429,18 @@ struct InvoiceLine {
     quantity: i32,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "invoices"]
 #[primary_key(id)]
 #[belongs_to(Customer, foreign_key = "customer_id")]
@@ -346,8 +457,18 @@ struct Invoice {
     invoice_lines: HasMany<InvoiceLine>,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "media_types"]
 #[primary_key(id)]
 struct MediaType {
@@ -356,8 +477,18 @@ struct MediaType {
     tracks: HasMany<Track>,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "playlists"]
 #[primary_key(id)]
 struct Playlist {
@@ -366,8 +497,18 @@ struct Playlist {
     playlist_track: HasMany<PlaylistTrack>,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "playlist_track"]
 #[primary_key(playlist_id, track_id)]
 #[belongs_to(Playlist, foreign_key = "playlist_id")]
@@ -377,8 +518,18 @@ struct PlaylistTrack {
     track_id: HasOne<i32, Track>,
 }
 
-#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(
+    Clone,
+    Debug,
+    Queryable,
+    Eq,
+    PartialEq,
+    Hash,
+    Identifiable,
+    WundergraphEntity,
+    WundergraphFilter,
+    Associations,
+)]
 #[table_name = "tracks"]
 #[primary_key(id)]
 #[belongs_to(Album, foreign_key = "album_id")]

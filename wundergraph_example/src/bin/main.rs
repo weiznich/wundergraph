@@ -159,8 +159,8 @@ fn main() {
         .max_size(1)
         .build(manager)
         .expect("Failed to init pool");
-    ::diesel_migrations::run_pending_migrations(&pool.get().expect("Failed to get db connection"))
-        .expect("Failed to run migrations");
+    //    ::diesel_migrations::run_pending_migrations(&pool.get().expect("Failed to get db connection"))
+    //        .expect("Failed to run migrations");
 
     let query = Query::<Pool<ConnectionManager<DBConnection>>>::default();
     let mutation = Mutation::<Pool<ConnectionManager<DBConnection>>>::default();

@@ -1,7 +1,11 @@
 use juniper::{LookAheadValue, ID};
 use scalar::WundergraphScalarValue;
 
+/// A helper trait marking how to convert a `LookAheadValue` into a specific type
 pub trait FromLookAheadValue: Sized {
+    /// Try to convert a `LookAheadValue` into a specific type
+    ///
+    /// For a successful conversion `Some(value)` is returned, otherwise `None`
     fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self>;
 }
 
@@ -99,6 +103,15 @@ where
         } else {
             None
         }
+    }
+}
+
+impl<T> FromLookAheadValue for Box<T>
+where
+    T: FromLookAheadValue,
+{
+    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+        T::from_look_ahead(v).map(Box::new)
     }
 }
 

@@ -39,14 +39,6 @@ where
 
 impl<ST> NonAggregate for Null<ST> {}
 
-impl<ST, QS> AppearsOnTable<QS> for Null<ST>
-where
-    Self: Expression,
-{
-}
+impl<ST, QS> AppearsOnTable<QS> for Null<ST> where Self: Expression {}
 
-impl<T, ST> SelectableExpression<T> for Null<ST>
-where
-    Self: Expression,
-{
-}
+impl<T, ST> SelectableExpression<T> for Null<ST> where Self: Expression {}

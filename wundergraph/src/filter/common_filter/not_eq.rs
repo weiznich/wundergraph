@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use filter::build_filter::BuildFilter;
-use filter::transformator::{FilterType, Transformator};
 use scalar::WundergraphScalarValue;
 
 use diesel::backend::Backend;
@@ -44,15 +43,9 @@ where
 {
     type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
-    fn into_filter<F>(self, t: F) -> Option<Self::Ret>
-    where
-        F: Transformator,
-    {
+    fn into_filter(self) -> Option<Self::Ret> {
         let NotEq(filter, _) = self;
-        t.transform(
-            filter.map(|v| Box::new(C::default().ne(v)) as Box<_>),
-            FilterType::Exclusive,
-        )
+        filter.map(|v| Box::new(C::default().ne(v)) as Box<_>)
     }
 }
 

@@ -2,7 +2,6 @@ use filter::build_filter::BuildFilter;
 use filter::collector::{AndCollector, FilterCollector};
 use filter::filter_value::FilterValue;
 use filter::inner_filter::InnerFilter;
-use filter::transformator::Transformator;
 
 use diesel::backend::Backend;
 use diesel::expression::array_comparison::{In, Many};
@@ -28,6 +27,15 @@ use self::eq::Eq;
 use self::eq_any::EqAny;
 use self::not_eq::NotEq;
 
+/// This struct summarize all possible filter operations for a given graphql
+/// field
+///
+/// There are two generic parameter
+/// * T is a generic type that represents the (rust) type of the field the
+///   should be applied to
+/// * C is the column type from diesel that matches the field in the database
+///
+/// Both types must be compatible
 #[derive(Debug)]
 pub struct FilterOption<T, C>
 where
@@ -244,15 +252,12 @@ where
 {
     type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
-    fn into_filter<F>(self, t: F) -> Option<Self::Ret>
-    where
-        F: Transformator,
-    {
+    fn into_filter(self) -> Option<Self::Ret> {
         let mut combinator = AndCollector::default();
-        combinator.append_filter(self.eq, t);
-        combinator.append_filter(self.neq, t);
-        combinator.append_filter(self.eq_any, t);
-        combinator.append_filter(self.additional, t);
-        combinator.into_filter(t)
+        combinator.append_filter(self.eq);
+        combinator.append_filter(self.neq);
+        combinator.append_filter(self.eq_any);
+        combinator.append_filter(self.additional);
+        combinator.into_filter()
     }
 }

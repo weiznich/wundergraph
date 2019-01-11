@@ -2,6 +2,8 @@ use std::marker::PhantomData;
 
 use juniper::ID;
 
+/// A helper type allowing to construct dynamical named types
+/// using the juniper api
 #[derive(Debug)]
 pub struct NameBuilder<T>(String, PhantomData<T>);
 
@@ -15,12 +17,22 @@ where
 }
 
 impl<T> NameBuilder<T> {
+    /// Create a new `NameBuilder` with a given naem.
     pub fn name(&self) -> &str {
         &self.0
     }
 }
 
+/// Mark a given type as nameable in a graphql context
 pub trait Nameable {
+    /// The name of the given type
+    ///
+    /// The returned name must be a valid graphq name.
+    /// 1. The name must be unique for this type
+    /// 2. The name should only contain alphanumerical
+    /// characters and `_`
+    // TODO: check this rules
+    // TODO: Try to return `Cow<str>`?
     fn name() -> String;
 }
 

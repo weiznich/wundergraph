@@ -2,7 +2,6 @@ use filter::build_filter::BuildFilter;
 use filter::collector::{AndCollector, FilterCollector};
 use filter::filter_value::FilterValue;
 use filter::inner_filter::InnerFilter;
-use filter::transformator::Transformator;
 
 use diesel::backend::Backend;
 use diesel::expression::{AsExpression, NonAggregate};
@@ -60,14 +59,11 @@ where
 {
     type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
-    fn into_filter<F>(self, t: F) -> Option<Self::Ret>
-    where
-        F: Transformator,
-    {
+    fn into_filter(self) -> Option<Self::Ret> {
         let mut combinator = AndCollector::default();
-        combinator.append_filter(self.is_null, t);
-        combinator.append_filter(self.additional, t);
-        combinator.into_filter(t)
+        combinator.append_filter(self.is_null);
+        combinator.append_filter(self.additional);
+        combinator.into_filter()
     }
 }
 

@@ -45,7 +45,6 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
             use wundergraph::filter::collector::AndCollector;
             use wundergraph::diesel_ext::BoxableFilter;
             use wundergraph::diesel::sql_types::Bool;
-            use wundergraph::filter::transformator::Transformator;
             use wundergraph::diesel;
 
             #pg
@@ -70,16 +69,14 @@ fn impl_build_filter(
         {
             type Ret = Box<BoxableFilter<#table::table, #backend, SqlType = Bool>>;
 
-            fn into_filter<__T>(self, t: __T) -> Option<Self::Ret>
-            where
-                __T: Transformator
+            fn into_filter(self) -> Option<Self::Ret>
             {
 
                 let mut and = AndCollector::<_, #backend>::default();
 
                 #(#fields)*
 
-                and.into_filter(t)
+                and.into_filter()
             }
         }
     }
@@ -88,6 +85,6 @@ fn impl_build_filter(
 fn build_field_filter(field: &Field) -> Result<TokenStream, Diagnostic> {
     let field_access = field.rust_name().access();
     Ok(
-        quote!(<_ as wundergraph::filter::collector::FilterCollector<_, _>>::append_filter(&mut and, self #field_access, t);),
+        quote!(<_ as wundergraph::filter::collector::FilterCollector<_, _>>::append_filter(&mut and, self #field_access);),
     )
 }

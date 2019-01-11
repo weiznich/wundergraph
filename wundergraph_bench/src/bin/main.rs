@@ -99,13 +99,13 @@ impl Message for GraphQLData {
 
 #[allow(missing_debug_implementations)]
 pub struct GraphQLExecutor {
-    schema: Arc<wundergraph_bench::Schema>,
+    schema: Arc<wundergraph_bench::Schema<PgConnection>>,
     pool: Arc<Pool<ConnectionManager<PgConnection>>>,
 }
 
 impl GraphQLExecutor {
     fn new(
-        schema: Arc<wundergraph_bench::Schema>,
+        schema: Arc<wundergraph_bench::Schema<PgConnection>>,
         pool: Arc<Pool<ConnectionManager<PgConnection>>>,
     ) -> Self {
         Self { schema, pool }

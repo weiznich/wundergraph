@@ -8,10 +8,10 @@ members = [
 ]
 
 [replace]
-"diesel:1.3.3" = { git = "https://github.com/diesel-rs/diesel", rev = "db66040" }
-"diesel_migrations:1.3.0" = { git = "https://github.com/diesel-rs/diesel", rev = "db66040" }
-"migrations_internals:1.3.0" = { git = "https://github.com/diesel-rs/diesel", rev = "db66040" }
-"migrations_macros:1.3.0" = { git = "https://github.com/diesel-rs/diesel", rev = "db66040"}
-"diesel_derives:1.3.0" = { git = "https://github.com/diesel-rs/diesel", rev = "db66040" }
-"juniper:0.10.0" = { git = "https://github.com/weiznich/juniper", rev = "11021ea305d6" }
-"juniper_codegen:0.10.0" = { git = "https://github.com/weiznich/juniper/", rev = "11021ea305d6" }
+"diesel:1.3.3" = { git = "https://github.com/diesel-rs/diesel", rev = "0040e93" }
+"diesel_migrations:1.3.0" = { git = "https://github.com/diesel-rs/diesel", rev = "0040e93" }
+"migrations_internals:1.3.0" = { git = "https://github.com/diesel-rs/diesel", rev = "0040e93" }
+"migrations_macros:1.3.0" = { git = "https://github.com/diesel-rs/diesel", rev = "0040e93"}
+"diesel_derives:1.3.0" = { git = "https://github.com/diesel-rs/diesel", rev = "0040e93" }
+"juniper:0.10.0" = { git = "https://github.com/graphql-rust/juniper", rev = "733125c" }
+"juniper_codegen:0.10.0" = { git = "https://github.com/graphql-rust/juniper/", rev = "733125c" }

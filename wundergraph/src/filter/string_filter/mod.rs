@@ -1,6 +1,5 @@
 use filter::build_filter::BuildFilter;
 use filter::inner_filter::InnerFilter;
-use filter::transformator::Transformator;
 
 use diesel::backend::Backend;
 use diesel::sql_types::Bool;
@@ -45,11 +44,8 @@ where
 {
     type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
-    fn into_filter<F>(self, t: F) -> Option<Self::Ret>
-    where
-        F: Transformator,
-    {
-        self.like.into_filter(t)
+    fn into_filter(self) -> Option<Self::Ret> {
+        self.like.into_filter()
     }
 }
 

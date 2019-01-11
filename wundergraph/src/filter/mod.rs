@@ -1,3 +1,5 @@
+//! This module contains data structures to build a generic graphql interface to
+//! filter entities. The main entry point is the [`Filter`](struct.Filter.html) struct
 
 use std::marker::PhantomData;
 
@@ -22,6 +24,7 @@ use helper::{FromLookAheadValue, NameBuilder, Nameable};
 use scalar::WundergraphScalarValue;
 
 mod common_filter;
+mod not;
 mod nullable_filter;
 mod reference_filter;
 mod string_filter;
@@ -30,21 +33,25 @@ pub mod build_filter;
 pub mod collector;
 pub mod filter_value;
 pub mod inner_filter;
-pub mod transformator;
 
 pub use self::common_filter::FilterOption;
+pub use self::not::Not;
 pub use self::nullable_filter::{NullableReferenceFilter, ReverseNullableReferenceFilter};
 pub use self::reference_filter::ReferenceFilter;
 
 use self::build_filter::BuildFilter;
 use self::collector::{AndCollector, FilterCollector, OrCollector};
 use self::inner_filter::InnerFilter;
-use self::transformator::{NoTransformator, Transformator};
 
+/// Main filter struct
+///
+/// This struct is the main entry point to wundergraphs filter api
+/// The exact field specfic filters are given by a subtype (`inner`)
 #[derive(Debug)]
 pub struct Filter<F, T> {
     and: Option<Vec<Filter<F, T>>>,
     or: Option<Vec<Filter<F, T>>>,
+    not: Option<Box<Not<Filter<F, T>>>>,
     inner: F,
     p: PhantomData<(T)>,
 }
@@ -67,6 +74,8 @@ where
             and: self.and.clone(),
             or: self.or.clone(),
             inner: self.inner.clone(),
+            // TODO
+            not: None,
             p: PhantomData,
         }
     }
@@ -86,10 +95,15 @@ where
                 || Option::from_input_value(&InputValue::Null),
                 |v| Option::from_input_value(*v),
             )?;
+            let not = obj.get("not").map_or_else(
+                || Option::from_input_value(&InputValue::Null),
+                |v| Option::from_input_value(*v),
+            )?;
             let inner = F::from_inner_input_value(obj)?;
             Some(Self {
                 and,
                 or,
+                not,
                 inner,
                 p: PhantomData,
             })
@@ -107,6 +121,7 @@ where
         let mut map = IndexMap::with_capacity(2 + F::FIELD_COUNT);
         map.insert("and", self.and.to_input_value());
         map.insert("or", self.or.to_input_value());
+        map.insert("not", self.not.to_input_value());
         self.inner.to_inner_input_value(&mut map);
         InputValue::object(map)
     }
@@ -132,7 +147,8 @@ where
     {
         let and = registry.arg_with_default::<Option<Vec<Self>>>("and", &None, info);
         let or = registry.arg_with_default::<Option<Vec<Self>>>("or", &None, info);
-        let mut fields = vec![and, or];
+        let not = registry.arg_with_default::<Option<Box<Not<Self>>>>("not", &None, info);
+        let mut fields = vec![and, or, not];
         fields.extend(F::register_fields(&NameBuilder::default(), registry));
         registry
             .build_input_object_type::<Self>(info, &fields)
@@ -156,11 +172,17 @@ where
                 .find(|o| o.0 == "or")
                 .and_then(|o| Vec::from_look_ahead(&o.1));
 
+            let not = obj
+                .iter()
+                .find(|o| o.0 == "not")
+                .and_then(|o| Box::from_look_ahead(&o.1));
+
             let inner = F::from_inner_look_ahead(obj);
 
             Some(Self {
                 and,
                 or,
+                not,
                 inner,
                 p: PhantomData,
             })
@@ -173,33 +195,35 @@ where
 impl<F, DB, T> BuildFilter<DB> for Filter<F, T>
 where
     DB: Backend + 'static,
-    F: InnerFilter + BuildFilter<DB, Ret = Box<BoxableFilter<T, DB, SqlType = Bool>>> + 'static,
+    F: InnerFilter + BuildFilter<DB> + 'static,
     T: 'static,
+    F::Ret: AppearsOnTable<T>,
 {
-    type Ret = F::Ret;
+    type Ret = Box<dyn BoxableFilter<T, DB, SqlType = Bool>>;
 
-    fn into_filter<C>(self, t: C) -> Option<Self::Ret>
-    where
-        C: Transformator,
-    {
+    fn into_filter(self) -> Option<Self::Ret>
+where {
         let Self { and, or, inner, .. } = self;
         let mut and = and
             .map(|a| {
                 a.into_iter().fold(AndCollector::default(), |mut a, f| {
-                    a.append_filter(f, t);
+                    a.append_filter(f);
                     a
                 })
-            }).unwrap_or_default();
+            })
+            .unwrap_or_default();
         let or = or
             .map(|a| {
                 a.into_iter().fold(OrCollector::default(), |mut o, f| {
-                    o.append_filter(f, t);
+                    o.append_filter(f);
                     o
                 })
-            }).unwrap_or_default();
-        and.append_filter(or, t);
-        and.append_filter(inner, t);
-        and.into_filter(t)
+            })
+            .unwrap_or_default();
+        and.append_filter(self.not.map(|not| *not));
+        and.append_filter(or);
+        and.append_filter(inner);
+        and.into_filter()
     }
 }
 
@@ -207,6 +231,11 @@ impl<F, T> Filter<F, T>
 where
     F: InnerFilter,
 {
+    /// Apply the filter to a given select statement
+    ///
+    /// This function will extend the where clause with the given filter expression
+    /// In case there is already an existing filter the new filter will by connected
+    /// connected by and
     pub fn apply_filter<'a, ST, DB>(
         self,
         mut q: BoxedSelectStatement<'a, ST, T, DB>,
@@ -217,7 +246,7 @@ where
         Self: BuildFilter<DB>,
         <Self as BuildFilter<DB>>::Ret: AppearsOnTable<T> + QueryFragment<DB> + 'a,
     {
-        if let Some(f) = self.into_filter(NoTransformator) {
+        if let Some(f) = self.into_filter() {
             q = <BoxedSelectStatement<_, _, _> as QueryDsl>::filter(q, f);
         }
         q

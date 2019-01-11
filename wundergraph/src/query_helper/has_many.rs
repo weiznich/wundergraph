@@ -1,3 +1,4 @@
+use diesel::associations::BelongsTo;
 use diesel::backend::Backend;
 use diesel::sql_types::{Bool, Nullable};
 use diesel::Queryable;
@@ -11,6 +12,19 @@ use scalar::WundergraphScalarValue;
 pub enum HasMany<T> {
     NotLoaded,
     Items(Vec<T>),
+}
+
+impl<T, P> BelongsTo<P> for HasMany<T> where T: BelongsTo<P> {
+    type ForeignKey = T::ForeignKey;
+    type ForeignKeyColumn = T::ForeignKeyColumn;
+
+    fn foreign_key(&self) -> Option<&Self::ForeignKey> {
+        unimplemented!()
+    }
+
+    fn foreign_key_column() -> Self::ForeignKeyColumn {
+        T::foreign_key_column()
+    }
 }
 
 impl<T> Default for HasMany<T> {

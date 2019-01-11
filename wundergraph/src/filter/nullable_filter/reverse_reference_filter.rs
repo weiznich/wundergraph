@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use filter::build_filter::BuildFilter;
 use filter::collector::{AndCollector, FilterCollector};
 use filter::inner_filter::InnerFilter;
-use filter::transformator::{OnlyExclusive, OnlySelective, Transformator};
 
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
@@ -73,35 +72,20 @@ where
 {
     type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
-    fn into_filter<F>(self, t: F) -> Option<Self::Ret>
-    where
-        F: Transformator,
-    {
+    fn into_filter(self) -> Option<Self::Ret> {
         let mut and = AndCollector::default();
 
-        let selective_inner = self
+        let inner = self
             .inner
-            .clone()
-            .into_filter(OnlySelective)
+            .into_filter()
             .map(|f| <_ as FilterDsl<I::Ret>>::filter(C2::Table::table(), f))
             .map(|f| <_ as FilterDsl<IsNotNull<C2>>>::filter(f, C2::default().is_not_null()))
             .map(|f| <_ as SelectDsl<C2>>::select(f, C2::default()))
             .map(|f| f.into_boxed())
             .map(|f| Box::new(C::default().nullable().eq_any(f)) as Box<_>);
-        and.append_filter(selective_inner, t);
+        and.append_filter(inner);
 
-        let exclusive_inner = self
-            .inner
-            .clone()
-            .into_filter(OnlyExclusive)
-            .map(|f| <_ as FilterDsl<I::Ret>>::filter(C2::Table::table(), f))
-            .map(|f| <_ as SelectDsl<C2>>::select(f, C2::default()))
-            .map(|f| f.into_boxed())
-            .map(|f| Box::new(C::default().nullable().ne_all(f)) as Box<_>);
-
-        and.append_filter(exclusive_inner, t);
-
-        and.into_filter(t)
+        and.into_filter()
     }
 }
 

@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use filter::build_filter::BuildFilter;
 use filter::collector::{AndCollector, FilterCollector};
 use filter::inner_filter::InnerFilter;
-use filter::transformator::{OnlyExclusive, OnlySelective, Transformator};
 
 use diesel;
 use diesel::associations::HasTable;
@@ -15,7 +14,7 @@ use diesel::query_builder::AsQuery;
 use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
 use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl};
 use diesel::sql_types::{Bool, NotNull, SingleValue};
-use diesel::{AppearsOnTable, BoolExpressionMethods, Column, ExpressionMethods, QueryDsl};
+use diesel::{AppearsOnTable, Column, ExpressionMethods, QueryDsl};
 use diesel_ext::BoxableFilter;
 
 use juniper::meta::{Argument, MetaType};
@@ -81,32 +80,19 @@ AppearsOnTable<C::Table, SqlType = Bool>,
 {
     type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
-    fn into_filter<F>(self, t: F) -> Option<Self::Ret>
-    where
-        F: Transformator,
+    fn into_filter(self) -> Option<Self::Ret>
     {
         let mut and = AndCollector::default();
-        and.append_filter(self.is_null, t);
+        and.append_filter(self.is_null);
 
-        let selective_inner = self.inner
-            .clone()
-            .into_filter(OnlySelective)
+        let inner = self.inner
+            .into_filter()
             .map(|f| <_ as QueryDsl>::filter(C2::Table::table(), f))
             .map(|f| <_ as QueryDsl>::select(f, C2::default()))
             .map(|f| f.into_boxed().nullable())
             .map(|q| Box::new(C::default().eq_any(q)) as Box<_>);
-        and.append_filter(selective_inner, t);
-
-        let exclusive_inner = self.inner
-            .clone()
-            .into_filter(OnlyExclusive)
-            .map(|f| <_ as QueryDsl>::filter(C2::Table::table(), f))
-            .map(|f| <_ as QueryDsl>::select(f, C2::default()))
-            .map(|f| f.into_boxed().nullable())
-            .map(|q| Box::new(C::default().ne_all(q).or(C::default().is_null())) as Box<_>);
-        and.append_filter(exclusive_inner, t);
-
-        and.into_filter(t)
+        and.append_filter(inner);
+        and.into_filter()
     }
 }
 
@@ -133,7 +119,8 @@ where
                         Option::from_input_value(v)
                     },
                     |v| Option::from_input_value(*v),
-                )?.map(IsNull::new);
+                )?
+                .map(IsNull::new);
             I::from_inner_input_value(obj).map(|inner| Self {
                 inner: Box::new(inner),
                 is_null,
@@ -226,7 +213,8 @@ where
                     Option::from_input_value(v)
                 },
                 |v| Option::from_input_value(*v),
-            )?.map(IsNull::new);
+            )?
+            .map(IsNull::new);
         let inner = match I::from_inner_input_value(obj) {
             Some(inner) => Box::new(inner),
             None => return None,

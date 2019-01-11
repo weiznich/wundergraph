@@ -139,8 +139,7 @@ pub fn load_table_data(database_url: &str, name: TableName) -> Result<TableData,
             } else {
                 k.clone()
             }
-        })
-        .collect();
+        }).collect();
 
     let column_data = get_column_information(&connection, &name)?
         .into_iter()
@@ -168,8 +167,7 @@ pub fn load_table_data(database_url: &str, name: TableName) -> Result<TableData,
                 rust_name,
                 has_default: c.has_default,
             })
-        })
-        .collect::<Result<_, Box<Error>>>()?;
+        }).collect::<Result<_, Box<Error>>>()?;
 
     Ok(TableData {
         name,

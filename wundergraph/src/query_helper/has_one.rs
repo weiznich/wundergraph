@@ -1,5 +1,6 @@
 use diesel::associations::Identifiable;
 use diesel::backend::Backend;
+use diesel::deserialize::{self, FromSql};
 use diesel::expression::bound::Bound;
 use diesel::expression::AsExpression;
 use diesel::Queryable;
@@ -75,6 +76,16 @@ where
             HasOne::Id(ref i) => i.to_input_value(),
             HasOne::Item(ref i) => i.to_input_value(),
         }
+    }
+}
+
+impl<R, T, DB, ST> FromSql<ST, DB> for HasOne<R, T>
+where
+    DB: Backend,
+    R: FromSql<ST, DB>,
+{
+    fn from_sql(bytes: Option<&DB::RawValue>) -> deserialize::Result<Self> {
+        <R as FromSql<ST, DB>>::from_sql(bytes).map(HasOne::Id)
     }
 }
 

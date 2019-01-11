@@ -47,7 +47,7 @@ macro_rules! __wundergraph_expand_handle_delete {
     ($conn: ty, $entity_name: ident, $executor: ident, $arguments: ident, delete = false) => {
         Err($crate::juniper::FieldError::new(
             "Unknown field:",
-            $crate::juniper::Value::String(concat!("Delete", stringify!($entity_name)).to_owned()),
+            $crate::juniper::Value::scalar(concat!("Delete", stringify!($entity_name))),
         ))
     };
     ($conn: ty, $entity_name: ident, $executor: ident, $arguments: ident, delete = $delete: ty) => {
