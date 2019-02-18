@@ -15,11 +15,28 @@ pub trait UnRef<'a> {
     fn as_ref(v: &'a Self::UnRefed) -> Self;
 }
 
+pub trait UnRefClone {
+    type UnRefed;
+
+    fn make_owned(self) -> Self::UnRefed;
+}
+
 impl<'a, A> UnRef<'a> for &'a A {
     type UnRefed = A;
 
     fn as_ref(v: &'a Self::UnRefed) -> Self {
         v
+    }
+}
+
+impl<'a, A> UnRefClone for &'a A
+where
+    A: Clone + 'static,
+{
+    type UnRefed = A;
+
+    fn make_owned(self) -> A {
+        self.clone()
     }
 }
 
@@ -35,6 +52,18 @@ macro_rules! unref_impl {
 
                 fn as_ref(v: &'a Self::UnRefed) -> Self {
                     ($(&v.$idx,)+)
+                }
+            }
+
+            impl<'a, $($T,)+> UnRefClone for ($(&'a $T,)+)
+                where $($T: Clone + 'static,)*
+            {
+
+                type UnRefed = ($($T, )+);
+
+                fn make_owned(self) -> Self::UnRefed
+                {
+                    ($((*self.$idx).clone(),)*)
                 }
             }
         )+

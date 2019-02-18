@@ -2,11 +2,7 @@ use diesel::associations::BelongsTo;
 use diesel::backend::Backend;
 use diesel::sql_types::{Bool, Nullable};
 use diesel::Queryable;
-use juniper::meta::MetaType;
-use juniper::{
-    Arguments, ExecutionResult, Executor, FieldError, GraphQLType, Registry, Selection, Value,
-};
-use scalar::WundergraphScalarValue;
+use graphql_type::WundergraphGraphqlMapper;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum HasMany<T> {
@@ -14,7 +10,10 @@ pub enum HasMany<T> {
     Items(Vec<T>),
 }
 
-impl<T, P> BelongsTo<P> for HasMany<T> where T: BelongsTo<P> {
+impl<T, P> BelongsTo<P> for HasMany<T>
+where
+    T: BelongsTo<P>,
+{
     type ForeignKey = T::ForeignKey;
     type ForeignKeyColumn = T::ForeignKeyColumn;
 
@@ -56,69 +55,92 @@ where
     }
 }
 
-impl<T> GraphQLType<WundergraphScalarValue> for HasMany<T>
+impl<T, DB> WundergraphGraphqlMapper<DB> for HasMany<T>
 where
-    T: GraphQLType<WundergraphScalarValue>,
+    T: WundergraphGraphqlMapper<DB>,
 {
-    type Context = T::Context;
-    type TypeInfo = T::TypeInfo;
-
-    fn name(info: &Self::TypeInfo) -> Option<&str> {
-        Vec::<T>::name(info)
-    }
-
-    fn meta<'r>(
-        info: &Self::TypeInfo,
-        registry: &mut Registry<'r, WundergraphScalarValue>,
-    ) -> MetaType<'r, WundergraphScalarValue>
-    where
-        WundergraphScalarValue: 'r,
-    {
-        Vec::<T>::meta(info, registry)
-    }
-
-    fn resolve_field(
-        &self,
-        info: &Self::TypeInfo,
-        field_name: &str,
-        arguments: &Arguments<WundergraphScalarValue>,
-        executor: &Executor<Self::Context, WundergraphScalarValue>,
-    ) -> ExecutionResult<WundergraphScalarValue> {
-        match *self {
-            HasMany::NotLoaded => Err(FieldError::new("HasMany relation not loaded", Value::Null)),
-            HasMany::Items(ref i) => i.resolve_field(info, field_name, arguments, executor),
-        }
-    }
-
-    fn resolve_into_type(
-        &self,
-        info: &Self::TypeInfo,
-        type_name: &str,
-        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
-        executor: &Executor<Self::Context, WundergraphScalarValue>,
-    ) -> ExecutionResult<WundergraphScalarValue> {
-        match *self {
-            HasMany::NotLoaded => Err(FieldError::new("HasMany relation not loaded", Value::Null)),
-            HasMany::Items(ref i) => i.resolve_into_type(info, type_name, selection_set, executor),
-        }
-    }
-
-    fn concrete_type_name(&self, context: &Self::Context, info: &Self::TypeInfo) -> String {
-        match *self {
-            HasMany::NotLoaded => unreachable!(),
-            HasMany::Items(ref i) => i.concrete_type_name(context, info),
-        }
-    }
-
-    fn resolve(
-        &self,
-        info: &Self::TypeInfo,
-        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
-        executor: &Executor<Self::Context, WundergraphScalarValue>,
-    ) -> Value<WundergraphScalarValue> {
-        match *self {
-            HasMany::NotLoaded => unreachable!(),
-            HasMany::Items(ref i) => i.resolve(info, selection_set, executor),
-        }
-    }
+    type GraphQLType = Vec<T::GraphQLType>;
 }
+
+// impl<T> GraphQLType<WundergraphScalarValue> for HasMany<T>
+// where
+//     GraphqlWrapper<T>: GraphQLType<WundergraphScalarValue>,
+// {
+//     type Context = <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::Context;
+//     type TypeInfo = <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::TypeInfo;
+
+//     fn name(info: &Self::TypeInfo) -> Option<&str> {
+//         Vec::<GraphqlWrapper<T>>::name(info)
+//     }
+
+//     fn meta<'r>(
+//         info: &Self::TypeInfo,
+//         registry: &mut Registry<'r, WundergraphScalarValue>,
+//     ) -> MetaType<'r, WundergraphScalarValue>
+//     where
+//         WundergraphScalarValue: 'r,
+//     {
+//         Vec::<GraphqlWrapper<T>>::meta(info, registry)
+//     }
+
+//     fn resolve_field(
+//         &self,
+//         info: &Self::TypeInfo,
+//         field_name: &str,
+//         arguments: &Arguments<WundergraphScalarValue>,
+//         executor: &Executor<Self::Context, WundergraphScalarValue>,
+//     ) -> ExecutionResult<WundergraphScalarValue> {
+//         match *self {
+//             HasMany::NotLoaded => Err(FieldError::new("HasMany relation not loaded", Value::Null)),
+//             HasMany::Items(ref i) => i
+//                 .iter()
+//                 .map(GraphqlWrapper::new)
+//                 .collect::<Vec<_>>()
+//                 .resolve_field(info, field_name, arguments, executor),
+//         }
+//     }
+
+//     fn resolve_into_type(
+//         &self,
+//         info: &Self::TypeInfo,
+//         type_name: &str,
+//         selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+//         executor: &Executor<Self::Context, WundergraphScalarValue>,
+//     ) -> ExecutionResult<WundergraphScalarValue> {
+//         match *self {
+//             HasMany::NotLoaded => Err(FieldError::new("HasMany relation not loaded", Value::Null)),
+//             HasMany::Items(ref i) => i
+//                 .iter()
+//                 .map(GraphqlWrapper::new)
+//                 .collect::<Vec<_>>()
+//                 .resolve_into_type(info, type_name, selection_set, executor),
+//         }
+//     }
+
+//     fn concrete_type_name(&self, context: &Self::Context, info: &Self::TypeInfo) -> String {
+//         match *self {
+//             HasMany::NotLoaded => unreachable!(),
+//             HasMany::Items(ref i) => i
+//                 .iter()
+//                 .map(GraphqlWrapper::new)
+//                 .collect::<Vec<_>>()
+//                 .concrete_type_name(context, info),
+//         }
+//     }
+
+//     fn resolve(
+//         &self,
+//         info: &Self::TypeInfo,
+//         selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+//         executor: &Executor<Self::Context, WundergraphScalarValue>,
+//     ) -> Value<WundergraphScalarValue> {
+//         match *self {
+//             HasMany::NotLoaded => unreachable!(),
+//             HasMany::Items(ref i) => i
+//                 .iter()
+//                 .map(GraphqlWrapper::new)
+//                 .collect::<Vec<_>>()
+//                 .resolve(info, selection_set, executor),
+//         }
+//     }
+// }

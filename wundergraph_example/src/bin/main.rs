@@ -79,11 +79,7 @@ use wundergraph_example::*;
 struct Opt {
     #[structopt(short = "u", long = "db-url")]
     database_url: String,
-    #[structopt(
-        short = "s",
-        long = "socket",
-        default_value = "127.0.0.1:8000"
-    )]
+    #[structopt(short = "s", long = "socket", default_value = "127.0.0.1:8000")]
     socket: String,
 }
 
@@ -147,7 +143,8 @@ fn graphql((st, data): (State<AppState>, Json<GraphQLData>)) -> FutureResponse<H
                 .content_type("application/json")
                 .body(user)),
             Err(_) => Ok(HttpResponse::InternalServerError().into()),
-        }).responder()
+        })
+        .responder()
 }
 
 fn main() {
@@ -163,6 +160,7 @@ fn main() {
     //        .expect("Failed to run migrations");
 
     let query = Query::<Pool<ConnectionManager<DBConnection>>>::default();
+    //    let mutation = juniper::EmptyMutation::new();
     let mutation = Mutation::<Pool<ConnectionManager<DBConnection>>>::default();
     let schema = Schema::new(query, mutation);
 
@@ -193,7 +191,8 @@ fn main() {
                     .finish()
             })
         })
-    }).bind(&url)
+    })
+    .bind(&url)
     .expect("Failed to start server")
     .start();
 

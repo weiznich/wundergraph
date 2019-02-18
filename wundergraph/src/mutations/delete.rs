@@ -1,17 +1,26 @@
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
-use diesel::dsl::{Filter, Limit};
+use diesel::dsl::{Filter, SqlTypeOf};
+use diesel::expression::NonAggregate;
 use diesel::query_builder::AsQuery;
 use diesel::query_builder::BoxedSelectStatement;
 use diesel::query_builder::{IntoUpdateTarget, QueryFragment, QueryId};
 use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, LimitDsl};
+use diesel::sql_types::HasSqlType;
 use diesel::Identifiable;
-use diesel::{Connection, EqAll, QueryDsl, RunQueryDsl, Table};
+use diesel::Queryable;
+use diesel::{AppearsOnTable, Connection, EqAll, RunQueryDsl, Table};
 
 use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value,
 };
 
+use filter::build_filter::BuildFilter;
+use query_helper::order::BuildOrder;
+use query_helper::placeholder::SqlTypeOfPlaceholder;
+use query_helper::placeholder::WundergraphFieldList;
+use query_helper::select::BuildSelect;
+use query_helper::tuple::TupleIndex;
 use scalar::WundergraphScalarValue;
 use LoadingHandler;
 use WundergraphContext;
@@ -63,12 +72,6 @@ where
     T::PrimaryKey: EqAll<<&'static I as Identifiable>::Id>,
     Ctx: WundergraphContext<DB>,
     T::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
-    R::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
-    Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>: LimitDsl,
-    Limit<Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>>:
-        QueryDsl + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, R::SqlType, T, DB>>,
-    R: LoadingHandler<DB, Table = T, Context = Ctx>
-        + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
 {
     type Handler = DeleteableWrapper<I>;
 }
@@ -79,46 +82,66 @@ where
 impl<DB, R, Ctx, T, I> HandleDelete<DB, R, Ctx> for DeleteableWrapper<I>
 where
     I: 'static,
-    DB: Backend,
+    DB: Backend + 'static,
     &'static I: Identifiable<Table = T>,
-    T: Table + HasTable<Table = T> + AsQuery + QueryId,
+    T: Table + HasTable<Table = T> + AsQuery + QueryId + 'static,
     T::PrimaryKey: EqAll<<&'static I as Identifiable>::Id>,
     Ctx: WundergraphContext<DB>,
     T::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
-    R::Query:FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
-    Filter<T::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>: IntoUpdateTarget<Table = T>,
-    Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>:
-         LimitDsl,
-    Limit<Filter<R::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>>: QueryDsl
-        + BoxedDsl<'static, DB, Output = BoxedSelectStatement<'static, R::SqlType, T, DB>>,
-    R: LoadingHandler<DB, Table = T, Context = Ctx>
-    + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
+    Filter<T::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>:
+        IntoUpdateTarget<Table = T>,
+    R::Columns: BuildOrder<T, DB>
+        + BuildSelect<
+            T,
+            DB,
+            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>,
+        >,
+    R::FieldList: WundergraphFieldList<DB, R::PrimaryKeyIndex, T> + TupleIndex<R::PrimaryKeyIndex>,
+    <R::FieldList as WundergraphFieldList<DB, R::PrimaryKeyIndex, T>>::PlaceHolder:
+        Queryable<SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>, DB>,
+    R: LoadingHandler<DB, Table = T>
+        + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<DB>,
     DB::QueryBuilder: Default,
     <Filter<T::Query, <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>
-        + QueryId,
-    <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output: Copy
+       + QueryId,
+    <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output: Copy,
+    for<'a> R::Table: BoxedDsl<
+        'a,
+        DB,
+        Output = BoxedSelectStatement<'a, SqlTypeOf<<R::Table as Table>::AllColumns>, R::Table, DB>,
+    >,
+    <R::Filter as BuildFilter<DB>>::Ret: AppearsOnTable<T>,
+    for<'a> BoxedSelectStatement<'a, SqlTypeOf<<R::Table as Table>::AllColumns>, R::Table, DB>:
+        FilterDsl<<T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output>,
+    <T::PrimaryKey as EqAll<<&'static I as Identifiable>::Id>>::Output:
+    AppearsOnTable<T> + NonAggregate + QueryFragment<DB>,
+    DB: HasSqlType<SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>>
 {
     type Delete = I;
 
     #[cfg_attr(feature = "clippy", allow(print_stdout))]
-    fn handle_delete(executor: &Executor<Ctx, WundergraphScalarValue>, to_delete: &Self::Delete) -> ExecutionResult<WundergraphScalarValue> {
+    fn handle_delete(
+        executor: &Executor<Ctx, WundergraphScalarValue>,
+        to_delete: &Self::Delete,
+    ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             // this is safe becuse we do not leek self out of this function
-            let static_to_delete: &'static I = unsafe{ &*(to_delete as *const I) };
-            let filter =  T::table().primary_key().eq_all(static_to_delete.id());
-            let to_delete = FilterDsl::filter(R::default_query(), filter);
+            let static_to_delete: &'static I = unsafe { &*(to_delete as *const I) };
+            let filter = T::table().primary_key().eq_all(static_to_delete.id());
+            let look_ahead = &executor.look_ahead();
+            let query = R::build_query(&look_ahead)?;
             // We use identifiable so there should only be one element affected by this query
-            let q = LimitDsl::limit(to_delete, 1).into_boxed();
-            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
+            let to_delete = LimitDsl::limit(FilterDsl::filter(query, filter), 1);
+            let r = R::load(&look_ahead, conn, to_delete)?;
             let d = ::diesel::delete(FilterDsl::filter(T::table(), filter));
             if cfg!(feature = "debug") {
                 debug!("{}", ::diesel::debug_query(&d));
             }
             assert_eq!(1, d.execute(conn)?);
-            executor.resolve_with_ctx(&(), &items.into_iter().next())
+            Ok(r.into_iter().next().unwrap_or(Value::Null))
         })
     }
 }

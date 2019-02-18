@@ -3,10 +3,12 @@ use diesel::backend::Backend;
 use diesel::connection::Connection;
 use diesel::deserialize::{self, FromSql};
 use diesel::dsl::SqlTypeOf;
+use diesel::expression::bound::Bound;
 use diesel::expression::nullable::Nullable as NullableExpression;
 use diesel::expression::{AsExpression, NonAggregate};
 use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
 use diesel::query_dsl::methods::BoxedDsl;
+use diesel::serialize::ToSql;
 use diesel::sql_types::{BigInt, Bool, Float4, Float8, Integer, SmallInt, Text};
 use diesel::sql_types::{HasSqlType, NotNull, Nullable};
 use diesel::{
@@ -15,31 +17,33 @@ use diesel::{
 };
 use failure::Error;
 use filter::build_filter::BuildFilter;
-use query_helper::tuple::{FamilyLt, TupleIndex};
+use query_helper::tuple::TupleIndex;
 use query_helper::{HasMany, HasOne};
 use scalar::WundergraphScalarValue;
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use LoadingHandler2;
+use LoadingHandler;
+#[cfg(feature = "chrono")]
+extern crate chrono;
 
-use juniper::LookAheadMethods;
+use juniper::{GraphQLType, LookAheadMethods};
 
 pub trait PlaceHolderMarker {
     type InnerType;
 
-    fn into_inner(&self) -> Option<&Self::InnerType>;
+    fn into_inner(self) -> Option<Self::InnerType>;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, FromSqlRow)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, FromSqlRow, Hash)]
 pub struct PlaceHolder<T>(Option<T>);
 
 impl<T> PlaceHolderMarker for PlaceHolder<T> {
     type InnerType = T;
 
-    fn into_inner(&self) -> Option<&T> {
-        self.0.as_ref()
+    fn into_inner(self) -> Option<T> {
+        self.0
     }
 }
 
@@ -64,12 +68,13 @@ impl<'a, T> Into<Option<&'a T>> for &'a PlaceHolder<T> {
 impl<ST, T, DB> FromSql<Nullable<ST>, DB> for PlaceHolder<T>
 where
     DB: Backend,
-    T: FromSql<ST, DB>,
+    T: FromSql<ST, DB> + ::std::fmt::Debug,
     ST: NotNull,
 {
     fn from_sql(bytes: Option<&DB::RawValue>) -> deserialize::Result<Self> {
         if bytes.is_some() {
-            T::from_sql(bytes).map(Some).map(PlaceHolder)
+            let r = T::from_sql(bytes).map(Some).map(PlaceHolder);
+            r
         } else {
             Ok(PlaceHolder(None))
         }
@@ -81,7 +86,6 @@ pub type SqlTypeOfPlaceholder<T, DB, K, Table> = <T as WundergraphFieldList<DB, 
 pub trait FieldValueResolver<T, DB>
 where
     T: WundergraphValue,
-    T::PlaceHolder: PlaceHolderMarker,
     DB: Backend,
 {
     fn new(elements: usize) -> Self;
@@ -106,7 +110,6 @@ pub struct DirectResolver<T>(PhantomData<T>);
 impl<T, DB> FieldValueResolver<T, DB> for DirectResolver<T>
 where
     T: IntoValue,
-    T::PlaceHolder: PlaceHolderMarker,
     DB: Backend,
 {
     fn new(_elements: usize) -> Self {
@@ -130,10 +133,7 @@ where
     }
 }
 
-pub trait ResolveWundergraphFieldValue<DB: Backend>: WundergraphValue + Sized
-where
-    Self::PlaceHolder: PlaceHolderMarker,
-{
+pub trait ResolveWundergraphFieldValue<DB: Backend>: WundergraphValue + Sized {
     type Resolver: FieldValueResolver<Self, DB>;
 }
 
@@ -251,6 +251,30 @@ impl IntoValue for f64 {
     }
 }
 
+#[cfg(feature = "chrono")]
+impl WundergraphValue for chrono::NaiveDateTime {
+    type PlaceHolder = PlaceHolder<Self>;
+    type SqlType = Nullable<::diesel::sql_types::Timestamp>;
+}
+
+#[cfg(feature = "chrono")]
+impl<DB: Backend> ResolveWundergraphFieldValue<DB> for chrono::NaiveDateTime {
+    type Resolver = DirectResolver<Self>;
+}
+
+#[cfg(feature = "chrono")]
+impl IntoValue for chrono::NaiveDateTime {
+    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
+        juniper::Value::scalar(placeholder.0.expect("Value is there").timestamp() as f64)
+    }
+}
+
+// impl<T> WundergraphValue for Vec<T> where T: WundergraphValue {
+//     type PlaceHolder = PlaceHolder<Vec<T>>;
+//     // TODO: fix that
+//     type SqlType = Nullable<::diesel::sql_types::Array<i32>>;
+// }
+
 impl<T> WundergraphValue for Option<T>
 where
     T: WundergraphValue,
@@ -263,9 +287,10 @@ impl<T, DB> ResolveWundergraphFieldValue<DB> for Option<T>
 where
     DB: Backend,
     Self: WundergraphValue<PlaceHolder = PlaceHolder<T>>,
-    T: ResolveWundergraphFieldValue<DB> + 'static,
-    T::PlaceHolder: PlaceHolderMarker,
-    juniper::Value<WundergraphScalarValue>: From<Self>,
+    T: ResolveWundergraphFieldValue<DB>
+        + GraphQLType<WundergraphScalarValue>
+        + Into<WundergraphScalarValue>
+        + 'static,
 {
     type Resolver = DirectResolver<Self>;
 }
@@ -273,11 +298,14 @@ where
 impl<T> IntoValue for Option<T>
 where
     Self: WundergraphValue<PlaceHolder = PlaceHolder<T>>,
-    juniper::Value<WundergraphScalarValue>: From<Self>,
-    T: 'static,
+    T: Into<WundergraphScalarValue> + 'static,
 {
     fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        placeholder.0.into()
+        placeholder
+            .0
+            .map(Into::into)
+            .map(juniper::Value::Scalar)
+            .unwrap_or(juniper::Value::Null)
     }
 }
 
@@ -296,15 +324,16 @@ pub struct HasOneResolver<R, T>(PhantomData<T>, Vec<Option<R>>);
 impl<R, T, DB> FieldValueResolver<HasOne<R, T>, DB> for HasOneResolver<R, T>
 where
     DB: Backend
-    + HasSqlType<SqlTypeOfPlaceholder<T::FieldList, DB, T::PrimaryKeyIndex, T::Table>>
-    + HasSqlType<SqlTypeOf<<T::Table as Table>::PrimaryKey>>  + 'static,
+        + HasSqlType<SqlTypeOfPlaceholder<T::FieldList, DB, T::PrimaryKeyIndex, T::Table>>
+        + HasSqlType<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>>
+        + 'static,
+    Option<R>: Queryable<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>, DB>
+        + ToSql<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>, DB>,
     HasOne<R, T>: WundergraphValue,
-    <HasOne<R, T> as WundergraphValue>::PlaceHolder: PlaceHolderMarker + Into<Option<R>>,
+    <HasOne<R, T> as WundergraphValue>::PlaceHolder: Into<Option<R>>,
     R: WundergraphValue + Clone + Eq + Hash,
-    <<HasOne<R, T> as WundergraphValue>::PlaceHolder as PlaceHolderMarker>::InnerType: Queryable<SqlTypeOf<<T::Table as Table>::PrimaryKey>, DB>,
-    <R as WundergraphValue>::PlaceHolder: PlaceHolderMarker,
     for<'a> &'a T: Identifiable<Id = &'a R>,
-    T: LoadingHandler2<DB>,
+    T: LoadingHandler<DB>,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
     T::Table: BoxedDsl<
             'static,
@@ -318,10 +347,16 @@ where
         > + 'static,
     NullableExpression<<T::Table as Table>::PrimaryKey>: ExpressionMethods,
     <T::Filter as BuildFilter<DB>>::Ret: AppearsOnTable<T::Table>,
-    Option<R>: AsExpression<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>>,
-    <Option<R> as AsExpression<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>>>::Expression: AppearsOnTable<T::Table> + QueryFragment<DB>,
+    for<'a> &'a Option<R>: AsExpression<
+        SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>,
+        Expression = Bound<
+            SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>,
+            &'a Option<R>,
+        >,
+    >,
     <T::Table as Table>::PrimaryKey: QueryFragment<DB>,
     SqlTypeOf<<T::Table as Table>::PrimaryKey>: NotNull,
+    DB::QueryBuilder: Default,
 {
     fn new(elements: usize) -> Self {
         Self(PhantomData, Vec::with_capacity(elements))
@@ -341,104 +376,227 @@ where
         conn: &impl Connection<Backend = DB>,
         selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
+        use diesel::RunQueryDsl;
 
-        let q = T::build_query(selection)?.filter(
-            <T::Table as Table>::primary_key(&<T as HasTable>::table())
-                .nullable()
-                .eq_any(self.1),
-        );
+        let q = T::build_query(selection)?
+            .filter(
+                <T::Table as Table>::primary_key(&<T as HasTable>::table())
+                    .nullable()
+                    .eq_any(&self.1),
+            )
+            .select((
+                <T::Table as Table>::primary_key(&<T as HasTable>::table()).nullable(),
+                T::get_select(selection)?,
+            ));
 
-        Ok(Some(T::load(selection, conn, q)?))
+        let items = q.load::<(
+            Option<R>,
+            <T::FieldList as WundergraphFieldList<_, _, _>>::PlaceHolder,
+        )>(conn)?;
+
+        let (keys, placeholder): (Vec<_>, Vec<_>) = items.into_iter().unzip();
+
+        let values = T::FieldList::resolve(placeholder, selection, T::FIELD_NAMES, conn)?;
+
+        let map = keys
+            .into_iter()
+            .zip(values.into_iter())
+            .collect::<HashMap<_, _>>();
+
+        Ok(Some(
+            self.1
+                .iter()
+                .map(|key| map.get(key).cloned().unwrap_or(juniper::Value::Null))
+                .collect(),
+        ))
     }
 }
 
-impl<R, T, DB> ResolveWundergraphFieldValue<DB> for HasOne<R, T>
+impl<R, T, DB> FieldValueResolver<Option<HasOne<R, T>>, DB> for HasOneResolver<R, T>
 where
-    DB: Backend + HasSqlType<SqlTypeOfPlaceholder<T::FieldList, DB, T::PrimaryKeyIndex, T::Table>> + HasSqlType<SqlTypeOf<<T::Table as Table>::PrimaryKey>> + 'static,
-    Self: WundergraphValue,
-    Self::PlaceHolder: Into<Option<R>> + PlaceHolderMarker,
-    R: WundergraphValue + Clone + Eq + Hash,
-   <<HasOne<R, T> as WundergraphValue>::PlaceHolder as PlaceHolderMarker>::InnerType: Queryable<SqlTypeOf<<T::Table as Table>::PrimaryKey>, DB>,
-    R::PlaceHolder: PlaceHolderMarker,
+    DB: Backend,
+    R: WundergraphValue + Clone + Hash + Eq,
+    Self: FieldValueResolver<HasOne<R, T>, DB>,
     for<'a> &'a T: Identifiable<Id = &'a R>,
-    T: LoadingHandler2<DB>,
-    <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
-    T::Table: BoxedDsl<
-            'static,
-            DB,
-            Output = BoxedSelectStatement<
-                'static,
-                SqlTypeOf<<T::Table as Table>::AllColumns>,
-                T::Table,
-                DB,
-            >,
-        > + 'static,
-    NullableExpression<<T::Table as Table>::PrimaryKey>: ExpressionMethods,
-     SqlTypeOf<<T::Table as Table>::PrimaryKey>: NotNull,
-      Option<R>: AsExpression<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>>,
-     <Option<R> as AsExpression<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>>>::Expression:
-         AppearsOnTable<T::Table> + NonAggregate + QueryFragment<DB>,
-     <T::Table as Table>::PrimaryKey: QueryFragment<DB>,
-    <T::Filter as BuildFilter<DB>>::Ret: AppearsOnTable<T::Table>,
-<T::Table as QuerySource>::FromClause: QueryFragment<DB>,
-Option<R>: AsExpression<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>>,
-<Option<R> as AsExpression<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>>>::Expression: AppearsOnTable<T::Table> + QueryFragment<DB>,
+    R::PlaceHolder: Into<Option<R>>,
+{
+    fn new(elements: usize) -> Self {
+        Self(PhantomData, Vec::with_capacity(elements))
+    }
+
+    fn resolve_value(
+        &mut self,
+        value: <Option<HasOne<R, T>> as WundergraphValue>::PlaceHolder,
+        _selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+    ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
+        self.1.push(value.into());
+        Ok(None)
+    }
+
+    fn finalize(
+        self,
+        conn: &impl Connection<Backend = DB>,
+        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+    ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
+        <Self as FieldValueResolver<HasOne<R, T>, DB>>::finalize(self, conn, selection)
+    }
+}
+
+impl<R, T, DB> ResolveWundergraphFieldValue<DB> for Option<HasOne<R, T>>
+where
+    HasOneResolver<R, T>:
+        FieldValueResolver<HasOne<R, T>, DB> + FieldValueResolver<Option<HasOne<R, T>>, DB>,
+    R: WundergraphValue + Clone + Eq + Hash,
+    <HasOne<R, T> as WundergraphValue>::PlaceHolder: Into<Option<R>>,
+    HasOne<R, T>: WundergraphValue,
+    DB: Backend,
 {
     type Resolver = HasOneResolver<R, T>;
 }
 
-pub trait CollectTableFields<T> {
-    type Fields;
-    const SQL_NAME_INDICES: &'static [usize];
+impl<R, T, DB> ResolveWundergraphFieldValue<DB> for HasOne<R, T>
+where
+    HasOneResolver<R, T>: FieldValueResolver<HasOne<R, T>, DB>,
+    R: WundergraphValue + Clone + Eq + Hash,
+    Self::PlaceHolder: Into<Option<R>>,
+    Self: WundergraphValue,
+    DB: Backend,
+{
+    type Resolver = HasOneResolver<R, T>;
 }
 
-pub trait CollectNonTableFields<T> {
-    type Fields;
-    const FIELD_INDICES: &'static [usize];
+pub trait AppendToTuple<T> {
+    type Out;
+    const LENGHT: usize;
 }
 
-impl<T> CollectTableFields<()> for T
+impl<T> AppendToTuple<T> for () {
+    type Out = (T,);
+
+    const LENGHT: usize = 1;
+}
+
+pub trait TableFieldCollector<T> {
+    type Out;
+
+    const FIELD_COUNT: usize;
+
+    fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
+}
+
+pub trait NonTableFieldCollector<T> {
+    type Out;
+
+    const FIELD_COUNT: usize;
+
+    fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
+}
+
+pub trait FieldListExtratcor {
+    type Out;
+
+    const FIELD_COUNT: usize;
+
+    fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
+}
+
+pub trait NonTableFieldExtractor {
+    type Out;
+
+    const FIELD_COUNT: usize;
+
+    fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
+}
+
+impl FieldListExtratcor for () {
+    type Out = ();
+
+    const FIELD_COUNT: usize = 0;
+
+    fn map<F: Fn(usize) -> R, R>(_local_index: usize, _callback: F) -> Option<R> {
+        None
+    }
+}
+
+impl NonTableFieldExtractor for () {
+    type Out = ();
+
+    const FIELD_COUNT: usize = 0;
+
+    fn map<F: Fn(usize) -> R, R>(_local_index: usize, _callback: F) -> Option<R> {
+        None
+    }
+}
+
+impl<T> TableFieldCollector<T> for ()
 where
     T: WundergraphValue,
 {
-    type Fields = (T,);
-    const SQL_NAME_INDICES: &'static [usize] = &[0];
+    type Out = (T,);
+
+    const FIELD_COUNT: usize = 1;
+
+    fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R> {
+        if local_index == 0 {
+            Some(callback(0))
+        } else {
+            None
+        }
+    }
 }
 
-impl<T> CollectNonTableFields<()> for T
+impl<T> TableFieldCollector<HasMany<T>> for () {
+    type Out = ();
+
+    const FIELD_COUNT: usize = 0;
+
+    fn map<F: Fn(usize) -> R, R>(_local_index: usize, _callback: F) -> Option<R> {
+        None
+    }
+}
+
+impl<T> NonTableFieldCollector<T> for ()
 where
     T: WundergraphValue,
 {
-    type Fields = ();
-    const FIELD_INDICES: &'static [usize] = &[];
+    type Out = ();
+
+    const FIELD_COUNT: usize = 0;
+
+    fn map<F: Fn(usize) -> R, R>(_local_index: usize, _callback: F) -> Option<R> {
+        None
+    }
 }
 
-impl<R> CollectTableFields<()> for HasMany<R> {
-    type Fields = ();
-    const SQL_NAME_INDICES: &'static [usize] = &[];
-}
+impl<T> NonTableFieldCollector<HasMany<T>> for () {
+    type Out = (HasMany<T>,);
 
-impl<R> CollectNonTableFields<()> for HasMany<R> {
-    type Fields = (Self,);
-    const FIELD_INDICES: &'static [usize] = &[0];
+    const FIELD_COUNT: usize = 1;
+
+    fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R> {
+        if local_index == 0 {
+            Some(callback(0))
+        } else {
+            None
+        }
+    }
 }
 
 pub trait WundergraphResolvePlaceHolderList<R, DB: Backend> {
     fn resolve(
         self,
-        name_list: &'static [&'static str],
-        name_indices: &'static [usize],
+        get_name: impl Fn(usize) -> &'static str,
         selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
         conn: &impl Connection<Backend = DB>,
     ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>, Error>;
 }
 
 pub trait WundergraphFieldList<DB: Backend, Key, Table> {
-    type PlaceHolder: TupleIndex<Key> + 'static;
+    type PlaceHolder: Queryable<Self::SqlType, DB> + 'static;
     type SqlType: 'static;
 
-    const SQL_NAME_INDICES: &'static [usize];
-    const NON_SQL_NAME_INDICES: &'static [usize];
+    const TABLE_FIELD_COUNT: usize;
+    const NON_TABLE_FIELD_COUNT: usize;
 
     fn resolve(
         placeholder: Vec<Self::PlaceHolder>,
@@ -446,13 +604,19 @@ pub trait WundergraphFieldList<DB: Backend, Key, Table> {
         name_list: &'static [&'static str],
         conn: &impl Connection<Backend = DB>,
     ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error>;
+
+    fn map_table_field<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
+    fn map_non_table_field<Func: Fn(usize) -> Ret, Ret>(
+        local_index: usize,
+        callback: Func,
+    ) -> Option<Ret>;
 }
 
 #[derive(Debug)]
 pub struct AssociationsReturn<K: Eq + Hash> {
-    keys: Vec<K>,
+    keys: Vec<Option<K>>,
     fields: Vec<&'static str>,
-    values: HashMap<K, Vec<(usize, Vec<juniper::Value<WundergraphScalarValue>>)>>,
+    values: HashMap<Option<K>, Vec<(usize, Vec<juniper::Value<WundergraphScalarValue>>)>>,
 }
 
 impl<K: Eq + Hash> AssociationsReturn<K> {
@@ -464,7 +628,7 @@ impl<K: Eq + Hash> AssociationsReturn<K> {
         }
     }
 
-    fn init(&mut self, get_keys: &impl Fn() -> Vec<K>) {
+    fn init(&mut self, get_keys: &impl Fn() -> Vec<Option<K>>) {
         if self.keys.is_empty() {
             self.keys = get_keys()
         }
@@ -501,39 +665,46 @@ impl<K: Eq + Hash> AssociationsReturn<K> {
             keys,
             fields,
         } = self;
-        objs.into_iter()
-            .zip(keys.into_iter())
-            .map(|(mut obj, key)| {
-                let values = values.get(&key);
-                if let Some(values) = values {
-                    let mut value_iter = values.iter().peekable();
-                    for (idx, field_name) in fields.iter().enumerate() {
-                        match value_iter.peek() {
-                            Some((field_idx, _value)) if idx == *field_idx => {
-                                let value = value_iter
-                                    .next()
-                                    .expect("It's there because peekable")
-                                    .1
-                                    .clone();
-                                obj.add_field(field_name.to_owned(), juniper::Value::List(value));
-                            }
-                            None | Some(_) => {
-                                obj.add_field(
-                                    field_name.to_owned(),
-                                    juniper::Value::List(Vec::new()),
-                                );
+        if keys.is_empty() {
+            objs.into_iter().map(juniper::Value::object).collect()
+        } else {
+            objs.into_iter()
+                .zip(keys.into_iter())
+                .map(|(mut obj, key)| {
+                    let values = values.get(&key);
+                    if let Some(values) = values {
+                        let mut value_iter = values.iter().peekable();
+                        for (idx, field_name) in fields.iter().enumerate() {
+                            match value_iter.peek() {
+                                Some((field_idx, _value)) if idx == *field_idx => {
+                                    let value = value_iter
+                                        .next()
+                                        .expect("It's there because peekable")
+                                        .1
+                                        .clone();
+                                    obj.add_field(
+                                        field_name.to_owned(),
+                                        juniper::Value::List(value),
+                                    );
+                                }
+                                None | Some(_) => {
+                                    obj.add_field(
+                                        field_name.to_owned(),
+                                        juniper::Value::List(Vec::new()),
+                                    );
+                                }
                             }
                         }
+                    } else {
+                        for f in &fields {
+                            obj.add_field(f.to_owned(), juniper::Value::List(Vec::new()));
+                        }
                     }
-                } else {
-                    for f in &fields {
-                        obj.add_field(f.to_owned(), juniper::Value::List(Vec::new()));
-                    }
-                }
-                obj
-            })
-            .map(juniper::Value::object)
-            .collect()
+                    obj
+                })
+                .map(juniper::Value::object)
+                .collect()
+        }
     }
 }
 
@@ -544,9 +715,8 @@ where
 {
     fn resolve(
         selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
-        name_list: &'static [&'static str],
-        name_indices: &'static [usize],
-        get_keys: impl Fn() -> Vec<K>,
+        get_name: impl Fn(usize) -> &'static str,
+        get_keys: impl Fn() -> Vec<Option<K>>,
         conn: &impl Connection<Backend = DB>,
     ) -> Result<AssociationsReturn<K>, Error>;
 }
@@ -558,9 +728,8 @@ where
 {
     fn resolve(
         _selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
-        _name_list: &'static [&'static str],
-        _name_indices: &'static [usize],
-        _get_keys: impl Fn() -> Vec<K>,
+        _get_name: impl Fn(usize) -> &'static str,
+        _get_keys: impl Fn() -> Vec<Option<K>>,
         _conn: &impl Connection<Backend = DB>,
     ) -> Result<AssociationsReturn<K>, Error> {
         Ok(AssociationsReturn::empty())
@@ -570,43 +739,46 @@ where
 pub trait WundergraphResolveAssociation<K, Other, DB: Backend> {
     fn resolve(
         selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
-        primary_keys: &[K],
+        primary_keys: &[Option<K>],
         conn: &impl Connection<Backend = DB>,
-    ) -> Result<HashMap<K, Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
+    ) -> Result<HashMap<Option<K>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
 }
 
-pub trait WundergraphBelongsTo<Other, K, DB>: LoadingHandler2<DB>
+pub trait WundergraphBelongsTo<Other, DB>: LoadingHandler<DB>
 where
     DB: Backend + 'static,
     Self::Table: 'static,
-    K: Eq + Hash,
     <Self::Table as QuerySource>::FromClause: QueryFragment<DB>,
+    DB::QueryBuilder: Default,
 {
     type ForeignKeyColumn: Default
         + NonAggregate
         + SelectableExpression<Self::Table>
         + QueryFragment<DB>;
 
+    type Key: Eq + Hash;
+
     fn resolve(
         selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
-        keys: &[K],
+        keys: &[Option<Self::Key>],
         conn: &impl Connection<Backend = DB>,
-    ) -> Result<HashMap<K, Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
+    ) -> Result<HashMap<Option<Self::Key>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
 
     fn build_response(
-        res: Vec<(K, <Self as LoadingHandler2<DB>>::PlaceHolder)>,
+        res: Vec<(Option<Self::Key>, <Self::FieldList as WundergraphFieldList<DB, Self::PrimaryKeyIndex, Self::Table>>::PlaceHolder)>,
         selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
         conn: &impl Connection<Backend = DB>,
-    ) -> Result<HashMap<K, Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
+    ) -> Result<HashMap<Option<Self::Key>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>
+    {
         let (keys, vals): (Vec<_>, Vec<_>) = res.into_iter().unzip();
-        let vals = <<Self as LoadingHandler2<DB>>::FieldList as WundergraphFieldList<
+        let vals = <<Self as LoadingHandler<DB>>::FieldList as WundergraphFieldList<
             DB,
-            <Self as LoadingHandler2<DB>>::PrimaryKeyIndex,
+            <Self as LoadingHandler<DB>>::PrimaryKeyIndex,
             <Self as HasTable>::Table,
         >>::resolve(
             vals,
             selection,
-            <Self as LoadingHandler2<DB>>::FIELD_NAMES,
+            <Self as LoadingHandler<DB>>::FIELD_NAMES,
             conn,
         )?;
         Ok(keys
@@ -622,117 +794,18 @@ where
 impl<T, K, Other, DB> WundergraphResolveAssociation<K, Other, DB> for HasMany<T>
 where
     DB: Backend + 'static,
-    T: WundergraphBelongsTo<Other, K, DB>,
+    T: WundergraphBelongsTo<Other, DB, Key = K>,
     K: Eq + Hash,
     T::Table: 'static,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
+    DB::QueryBuilder: Default,
 {
     fn resolve(
         selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
-        primary_keys: &[K],
+        primary_keys: &[Option<K>],
         conn: &impl Connection<Backend = DB>,
-    ) -> Result<HashMap<K, Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
+    ) -> Result<HashMap<Option<K>, Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
         T::resolve(selection, primary_keys, conn)
-    }
-}
-
-macro_rules! expand_field_list {
-    (
-        params = {$($T: ident,)*},
-        indices = {$($idx:tt)*}
-    ) => {
-        expand_field_list!{
-            params = {$($T,)*},
-            indices = {$($idx)*},
-            where_clause = {},
-            table_pusher = {()},
-            non_table_pusher = {()},
-            old_params = {}
-        }
-    };
-    (
-        params = {$H: ident, $($T: ident,)+},
-        indices = {$($idx:tt)*},
-        where_clause = {$($where:tt)*},
-        table_pusher = {$($table_pusher:tt)*},
-        non_table_pusher = {$($non_table_pusher: tt)*},
-        old_params = {$($OldT: ident,)*}
-    ) => {
-        expand_field_list!{
-            params = {$($T,)*},
-            indices = {$($idx)*},
-            where_clause = {$($where)* $H:
-                            CollectTableFields<$($table_pusher)*> +
-                            CollectNonTableFields<$($non_table_pusher)*>,},
-            table_pusher = {<$H as CollectTableFields<$($table_pusher)*>>::Fields},
-            non_table_pusher = {<$H as CollectNonTableFields<$($non_table_pusher)*>>::Fields},
-            old_params = {$($OldT,)* $H,}
-        }
-    };
-    (
-        params = {$H: ident,},
-        indices = {$($idx:tt)*},
-        where_clause = {$($where: tt)*},
-        table_pusher = {$($table_pusher:tt)*},
-        non_table_pusher = {$($non_table_pusher:tt)*},
-        old_params = {$($OldT: ident,)*}
-    ) => {
-        impl<Back, Key, Table, $($OldT,)* $H> WundergraphFieldList<Back, Key, Table> for ($($OldT,)* $H,)
-        where Back: Backend,
-              $($where)*
-              $H: CollectTableFields<$($table_pusher)*> +
-                  CollectNonTableFields<$($non_table_pusher)*>,
-              <$H as CollectTableFields<$($table_pusher)*>>::Fields: WundergraphValue,
-              Vec<<<$H as CollectTableFields<$($table_pusher)*>>::Fields as WundergraphValue>::PlaceHolder>:
-        WundergraphResolvePlaceHolderList<<$H as CollectTableFields<$($table_pusher)*>>::Fields, Back>,
-        <<$H as CollectTableFields<$($table_pusher)*>>::Fields as WundergraphValue>::PlaceHolder: TupleIndex<Key>,
-        for<'a> <<<$H as CollectTableFields<$($table_pusher)*>>::Fields as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::RetValue: FamilyLt<'a, Out = &'a <<<$H as CollectTableFields<$($table_pusher)*>>::Fields as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value>,
-        <<<$H as CollectTableFields<$($table_pusher)*>>::Fields as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value: PlaceHolderMarker,
-        <<<<$H as CollectTableFields<$($table_pusher)*>>::Fields as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType: Eq + Hash + Clone,
-       <$H as CollectNonTableFields<$($non_table_pusher)*>>::Fields:
-       WundergraphResolveAssociations<<<<<$H as CollectTableFields<$($table_pusher)*>>::Fields as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType, Table, Back>
-        {
-            type PlaceHolder = <
-                <$H as CollectTableFields<$($table_pusher)*>>::Fields as WundergraphValue
-                >::PlaceHolder;
-            type SqlType = <
-                <$H as CollectTableFields<$($table_pusher)*>>::Fields as WundergraphValue>::SqlType;
-
-            const SQL_NAME_INDICES: &'static [usize] =
-                <$H as CollectTableFields<$($table_pusher)*>>::SQL_NAME_INDICES;
-            const NON_SQL_NAME_INDICES: &'static [usize] =
-                <$H as CollectNonTableFields<$($non_table_pusher)*>>::FIELD_INDICES;
-
-            fn resolve(
-                placeholder: Vec<Self::PlaceHolder>,
-                select: &juniper::LookAheadSelection<WundergraphScalarValue>,
-                name_list: &'static [&'static str],
-                conn: &impl Connection<Backend = Back>,
-            ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error> {
-                let extern_values = {
-                    let keys = ||{
-                        placeholder.iter()
-                            .map(TupleIndex::<Key>::get)
-                            .map(|p| <_ as PlaceHolderMarker>::into_inner(p).unwrap())
-                            .cloned()
-                            .collect::<Vec<_>>()
-                    };
-                    <$H as CollectNonTableFields<$($non_table_pusher)*>>::Fields::resolve(
-                        select, name_list, Self::NON_SQL_NAME_INDICES, keys, conn
-                    )?
-                };
-
-                let objs = placeholder.resolve(
-                    name_list,
-                    <Self as WundergraphFieldList<Back, Key, Table>>::SQL_NAME_INDICES,
-                    select,
-                    conn
-                )?;
-
-
-                Ok(extern_values.merge_with_object_list(objs))
-            }
-        }
     }
 }
 
@@ -745,6 +818,52 @@ macro_rules! wundergraph_add_one_to_index {
     }
 }
 
+macro_rules! wundergraph_impl_field_extractor {
+    ($($T: ident,)*) => {
+        wundergraph_impl_field_extractor!{
+            t = [$($T,)*],
+            rest = [],
+        }
+    };
+    (
+        t = [$T:ident, $($Ts:ident,)+],
+        rest = [$($Other:ident,)*],
+    ) => {
+        wundergraph_impl_field_extractor!{
+            t = [$($Ts,)*],
+            rest = [$($Other,)* $T,],
+        }
+    };
+    (
+        t = [$T:ident,],
+        rest = [$($Other:ident,)*],
+    ) => {
+        impl<$($Other,)* $T> FieldListExtratcor for ($($Other,)* $T,)
+        where ($($Other,)*): TableFieldCollector<$T>
+        {
+            type Out = <($($Other,)*) as TableFieldCollector<$T>>::Out;
+
+            const FIELD_COUNT: usize = <($($Other,)*) as TableFieldCollector<$T>>::FIELD_COUNT;
+
+            fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
+                <($($Other,)*) as TableFieldCollector<$T>>::map(local_index, callback)
+            }
+        }
+
+        impl<$($Other,)* $T> NonTableFieldExtractor for ($($Other,)* $T,)
+        where ($($Other,)*): NonTableFieldCollector<$T>
+        {
+            type Out = <($($Other,)*) as NonTableFieldCollector<$T>>::Out;
+
+            const FIELD_COUNT: usize = <($($Other,)*) as NonTableFieldCollector<$T>>::FIELD_COUNT;
+
+            fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
+                <($($Other,)*) as NonTableFieldCollector<$T>>::map(local_index, callback)
+            }
+        }
+    };
+}
+
 macro_rules! wundergraph_value_impl {
     ($(
         $Tuple:tt {
@@ -752,40 +871,6 @@ macro_rules! wundergraph_value_impl {
         }
     )+) => {
         $(
-            impl<Value, $($T,)+> CollectTableFields<($($T,)+)> for Value
-            where
-                Value: WundergraphValue
-            {
-                type Fields = ($($T,)+ Value,);
-
-                const SQL_NAME_INDICES: &'static [usize] = &[
-                    $($idx,)* wundergraph_add_one_to_index!($($idx)*)
-                ];
-            }
-
-            impl<Value, $($T,)+> CollectNonTableFields<($($T,)+)> for Value
-            where
-                Value: WundergraphValue
-            {
-                type Fields = ($($T,)+);
-                const FIELD_INDICES: &'static [usize] = &[$($idx,)*];
-            }
-
-
-            impl<Remote, $($T,)+> CollectTableFields<($($T,)+)> for HasMany<Remote> {
-                type Fields = ($($T,)+);
-                const SQL_NAME_INDICES: &'static [usize] = & [$($idx,)*];
-            }
-
-            impl<Remote, $($T,)+> CollectNonTableFields<($($T,)+)> for HasMany<Remote>
-            {
-                type Fields = ($($T,)+ Remote,);
-
-                const FIELD_INDICES: &'static [usize] = &[
-                    $($idx,)* wundergraph_add_one_to_index!($($idx)*)
-                ];
-            }
-
             impl<$($T,)+> WundergraphValue for ($($T,)+)
                 where $($T: WundergraphValue,)+
             {
@@ -802,8 +887,7 @@ macro_rules! wundergraph_value_impl {
             {
                 fn resolve(
                     self,
-                    name_list: &'static [&'static str],
-                    name_indices: &'static [usize],
+                    get_name: impl Fn(usize) -> &'static str,
                     selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
                     conn: &impl Connection<Backend = Back>,
                 ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>, Error>
@@ -812,32 +896,29 @@ macro_rules! wundergraph_value_impl {
                         $(<$ST as ResolveWundergraphFieldValue<Back>>::Resolver::new(self.len()),)*
                     );
                     let mut objs: Vec<juniper::Object<WundergraphScalarValue>>
-                        = vec![juniper::Object::with_capacity(name_list.len()); self.len()];
+                        = vec![juniper::Object::with_capacity(wundergraph_add_one_to_index!($($idx)*)-1); self.len()];
 
                     self.into_iter().zip(objs.iter_mut()).map(|(placeholder, obj)|{
                         $(
-                            if let Some(selection) = selection.select_child(
-                                name_list[name_indices[$idx]]
-                            ) {
-
+                            let name = get_name($idx);
+                            if let Some(selection) = selection.select_child(name) {
                                 if let Some(value) = resolver.$idx.resolve_value(
                                     placeholder.$idx,
                                     selection,
                                 )? {
-                                    obj.add_field(name_list[name_indices[$idx]], value);
+                                    obj.add_field(name, value);
                                 }
                             }
                         )*
                         Ok(())
                     }).collect::<Result<Vec<_>, Error>>()?;
                     $(
-                        if let Some(selection) = selection.select_child(
-                            name_list[name_indices[$idx]]
-                        ) {
+                        let name = get_name($idx);
+                        if let Some(selection) = selection.select_child(name) {
                             let vals = resolver.$idx.finalize(conn, selection)?;
                             if let Some(vals) = vals {
                                 for (obj, val) in objs.iter_mut().zip(vals.into_iter()) {
-                                    obj.add_field(name_list[name_indices[$idx]], val);
+                                    obj.add_field(name, val);
                                 }
                             }
                         }
@@ -855,36 +936,167 @@ macro_rules! wundergraph_value_impl {
             {
                 fn resolve(
                     selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
-                    name_list: &'static [&'static str],
-                    name_indices: &'static [usize],
-                    get_keys: impl Fn() -> Vec<Key>,
+                    get_name: impl Fn(usize) -> &'static str,
+                    get_keys: impl Fn() -> Vec<Option<Key>>,
                     conn: &impl Connection<Backend = Back>
                 ) -> Result<AssociationsReturn<Key>, Error>
                 {
                     let mut ret = AssociationsReturn::empty();
                     $(
-                        if let Some(selection) = selection.select_child(
-                            name_list[name_indices[$idx]]
-                        ) {
+                        let name = get_name($idx);
+                        if let Some(selection) = selection.select_child(name) {
                             ret.init(&get_keys);
-                            ret.push_field::<$T, Other, Back, _>(name_list[name_indices[$idx]], selection, conn)?;
+                            ret.push_field::<$T, Other, Back, _>(name, selection, conn)?;
                         }
                     )*
                     Ok(ret)
                 }
             }
 
-            // impl<$($T,)*> PlaceHolderMarker for ($(PlaceHolder<$T>,)*)
-            // where $(PlaceHolder<$T>: PlaceHolderMarker,)*
-            // {
-            //     type InnerType = ($(<PlaceHolder<$T> as PlaceHolderMarker>::InnerType,)*);
+            impl<$($T,)* New> AppendToTuple<New> for ($($T,)*) {
+                type Out = ($($T,)* New);
+                const LENGHT: usize = wundergraph_add_one_to_index!($($idx)*) + 1;
+            }
 
-            //     fn into_inner(self) -> &
-            // }
+            wundergraph_impl_field_extractor!($($T,)*);
 
-            expand_field_list! {
-                params = {$($T,)*},
-                indices = {$($idx)*}
+            impl<$($T,)* Next> TableFieldCollector<Next> for ($($T,)*)
+            where Next: WundergraphValue,
+                  ($($T,)*): FieldListExtratcor,
+                  <($($T,)*) as FieldListExtratcor>::Out: AppendToTuple<Next>,
+            {
+                type Out = <<($($T,)*) as FieldListExtratcor>::Out as AppendToTuple<Next>>::Out;
+
+                const FIELD_COUNT: usize = <<($($T,)*) as FieldListExtratcor>::Out as AppendToTuple<Next>>::LENGHT;
+
+                fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
+                    if local_index == <<($($T,)*) as FieldListExtratcor>::Out as AppendToTuple<Next>>::LENGHT - 1 {
+                        Some(callback(wundergraph_add_one_to_index!($($idx)*)))
+                    } else {
+                        <($($T,)*) as FieldListExtratcor>::map(local_index, callback)
+                    }
+                }
+            }
+
+            impl<$($T,)* Next> TableFieldCollector<HasMany<Next>> for ($($T,)*)
+                where ($($T,)*): FieldListExtratcor,
+            {
+                type Out = <($($T,)*) as FieldListExtratcor>::Out;
+
+                const FIELD_COUNT: usize = <($($T,)*) as FieldListExtratcor>::FIELD_COUNT;
+
+                fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
+                    <($($T,)*) as FieldListExtratcor>::map(local_index, callback)
+                }
+            }
+
+            impl<$($T,)* Next> NonTableFieldCollector<Next> for ($($T,)*)
+            where Next: WundergraphValue,
+                  ($($T,)*): NonTableFieldExtractor,
+            {
+                type Out = <($($T,)*) as NonTableFieldExtractor>::Out;
+
+                const FIELD_COUNT: usize = <($($T,)*) as NonTableFieldExtractor>::FIELD_COUNT;
+
+                fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
+                    <($($T,)*) as NonTableFieldExtractor>::map(local_index, callback)
+                }
+            }
+
+            impl<$($T,)* Next> NonTableFieldCollector<HasMany<Next>> for ($($T,)*)
+            where ($($T,)*): NonTableFieldExtractor,
+                  <($($T,)*) as NonTableFieldExtractor>::Out: AppendToTuple<HasMany<Next>>,
+            {
+                type Out = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next>>>::Out;
+
+                const FIELD_COUNT: usize = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next>>>::LENGHT;
+
+                fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
+                    if local_index == <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next>>>::LENGHT - 1 {
+                        Some(callback(wundergraph_add_one_to_index!($($idx)*)))
+                    } else {
+                        <($($T,)*) as NonTableFieldExtractor>::map(local_index, callback)
+                    }
+                }
+            }
+
+            impl<Back, Key, Table, $($T,)*> WundergraphFieldList<Back, Key, Table> for ($($T,)*)
+            where Back: Backend,
+                  ($($T,)*): FieldListExtratcor + NonTableFieldExtractor,
+                  <($($T,)*) as FieldListExtratcor>::Out: WundergraphValue,
+                  <<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder: TupleIndex<Key> +
+                      Queryable<<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::SqlType, Back> + 'static,
+            Vec<<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder>:
+            WundergraphResolvePlaceHolderList<<($($T,)*) as FieldListExtratcor>::Out, Back>,
+            <<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value: PlaceHolderMarker,
+            <<<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType: Eq + Hash + Clone,
+            <($($T,)*) as NonTableFieldExtractor>::Out: WundergraphResolveAssociations<<<<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType, Table, Back>,
+            {
+                type PlaceHolder = <<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder;
+                type SqlType = <<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::SqlType;
+
+                const TABLE_FIELD_COUNT: usize = <($($T,)*) as FieldListExtratcor>::FIELD_COUNT;
+                const NON_TABLE_FIELD_COUNT: usize = <($($T,)*) as NonTableFieldExtractor>::FIELD_COUNT;
+
+                fn resolve(
+                    placeholder: Vec<Self::PlaceHolder>,
+                    select: &juniper::LookAheadSelection<WundergraphScalarValue>,
+                    name_list: &'static [&'static str],
+                    conn: &impl Connection<Backend = Back>,
+                ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error> {
+                    let extern_values = {
+                        let keys = ||{
+                            placeholder.iter()
+                                .map(TupleIndex::<Key>::get)
+                                .map(|p| <_ as PlaceHolderMarker>::into_inner(p))
+                                .collect::<Vec<_>>()
+                        };
+
+                        let name = |local_pos| {
+                            <($($T,)*) as NonTableFieldExtractor>::map(
+                                local_pos,
+                                |pos| name_list[pos]
+                            ).expect("Name is there")
+                        };
+                        <($($T,)*) as NonTableFieldExtractor>::Out::resolve(
+                            select, name, keys, conn
+                        )?
+                    };
+                    let name = |local_pos| {
+                        <($($T,)*) as FieldListExtratcor>::map(local_pos, |pos| {
+                            name_list[pos]
+                        }).expect("Name is there")
+                    };
+                    let objs = placeholder.resolve(
+                        name,
+                        select,
+                        conn
+                    )?;
+
+                     Ok(extern_values.merge_with_object_list(objs))
+                }
+
+                fn map_table_field<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
+                    <($($T,)*) as FieldListExtratcor>::map(local_index, callback)
+                }
+
+                fn map_non_table_field<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
+                    <($($T,)*) as NonTableFieldExtractor>::map(local_index, callback)
+                }
+            }
+
+            impl<$($T,)*> PlaceHolderMarker for ($($T,)*)
+            where $($T: PlaceHolderMarker,)*
+            {
+                type InnerType = ($(<$T as PlaceHolderMarker>::InnerType,)*);
+
+                fn into_inner(self) -> Option<Self::InnerType> {
+                    Some((
+                        $(
+                            <$T as PlaceHolderMarker>::into_inner(self.$idx)?,
+                        )*
+                    ))
+                }
             }
 
         )+

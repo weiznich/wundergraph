@@ -192,7 +192,6 @@ allow_tables_to_appear_in_same_query!(
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "actors"]
@@ -213,7 +212,6 @@ struct Actor {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "albums"]
@@ -223,7 +221,6 @@ struct Album {
     id: i32,
     title: String,
     artist_id: HasOne<i32, Artist>,
-    #[wundergraph(is_nullable_reference = "true")]
     tracks: HasMany<Track>,
 }
 
@@ -236,7 +233,6 @@ struct Album {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "artists"]
@@ -256,7 +252,6 @@ struct Artist {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "categories"]
@@ -276,7 +271,6 @@ struct Categorie {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "customers"]
@@ -295,7 +289,7 @@ struct Customer {
     phone: Option<String>,
     fax: Option<String>,
     email: String,
-    support_rep_id: HasOne<Option<i32>, Option<Employee>>,
+    support_rep_id: Option<HasOne<i32, Employee>>,
     invoices: HasMany<Invoice>,
 }
 
@@ -308,7 +302,6 @@ struct Customer {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "employees"]
@@ -342,7 +335,6 @@ struct Employee {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
     Copy,
 )]
@@ -363,7 +355,6 @@ struct FilmActor {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "films"]
@@ -380,7 +371,7 @@ struct Film {
     //  replacement_cost: BigDecimal,
     rating: Option<String>,
     last_update: NaiveDateTime,
-    special_features: Option<Vec<String>>,
+//    special_features: Option<Vec<String>>,
     //fulltext: Tsvector,
 }
 
@@ -393,7 +384,6 @@ struct Film {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "genres"]
@@ -414,7 +404,6 @@ struct Genre {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "invoice_lines"]
@@ -438,7 +427,6 @@ struct InvoiceLine {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "invoices"]
@@ -466,7 +454,6 @@ struct Invoice {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "media_types"]
@@ -486,7 +473,6 @@ struct MediaType {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "playlists"]
@@ -506,7 +492,6 @@ struct Playlist {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "playlist_track"]
@@ -527,7 +512,6 @@ struct PlaylistTrack {
     Hash,
     Identifiable,
     WundergraphEntity,
-    WundergraphFilter,
     Associations,
 )]
 #[table_name = "tracks"]
@@ -538,9 +522,9 @@ struct PlaylistTrack {
 struct Track {
     id: i32,
     name: String,
-    album_id: HasOne<Option<i32>, Option<Album>>,
+    album_id: Option<HasOne<i32, Album>>,
     media_type_id: HasOne<i32, MediaType>,
-    genre_id: HasOne<Option<i32>, Option<Genre>>,
+    genre_id: Option<HasOne<i32, Genre>>,
     composer: Option<String>,
     milliseconds: i32,
     bytes: Option<i32>,
@@ -551,21 +535,21 @@ struct Track {
 
 wundergraph_query_object!{
     Query {
-        Actors(Actor, filter = ActorFilter),
-        Albums(Album, filter = AlbumFilter),
-        Artists(Artist, filter = ArtistFilter),
-        Categories(Categorie, filter = CategorieFilter),
-        Customers(Customer, filter = CustomerFilter),
-        Employees(Employee, filter = EmployeeFilter),
-        FilmActor(FilmActor, filter = FilmActorFilter),
-        Films(Film, filter = FilmFilter),
-        Genres(Genre, filter = GenreFilter),
-        InvoiceLines(InvoiceLine, filter = InvoiceLineFilter),
-        Invoices(Invoice, filter = InvoiceFilter),
-        MediaTypes(MediaType, filter = MediaTypeFilter),
-        Playlists(Playlist, filter = PlaylistFilter),
+        Actors(Actor),
+        Albums(Album),
+        Artists(Artist),
+        Categories(Categorie),
+        Customers(Customer),
+        Employees(Employee),
+        FilmActor(FilmActor),
+        Films(Film),
+        Genres(Genre),
+        InvoiceLines(InvoiceLine),
+        Invoices(Invoice),
+        MediaTypes(MediaType),
+        Playlists(Playlist),
 //        PlaylistTrack(PlaylistTrack, filter = PlaylistTrackFilter),
-        Tracks(Track, filter = TrackFilter),
+        Tracks(Track),
     }
 }
 

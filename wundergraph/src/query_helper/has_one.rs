@@ -5,12 +5,9 @@ use diesel::expression::bound::Bound;
 use diesel::expression::AsExpression;
 use diesel::Queryable;
 use helper::FromLookAheadValue;
-use juniper::meta::MetaType;
-use juniper::{
-    Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, InputValue,
-    LookAheadValue, Registry, Selection, ToInputValue, Value,
-};
+use juniper::{FromInputValue, InputValue, LookAheadValue, ToInputValue};
 
+use graphql_type::WundergraphGraphqlMapper;
 use std::hash::Hash;
 
 use scalar::WundergraphScalarValue;
@@ -142,69 +139,87 @@ where
     }
 }
 
-impl<R, T> GraphQLType<WundergraphScalarValue> for HasOne<R, T>
+impl<R, T, DB> WundergraphGraphqlMapper<DB> for HasOne<R, T>
 where
-    T: GraphQLType<WundergraphScalarValue>,
+    T: WundergraphGraphqlMapper<DB>,
 {
-    type Context = T::Context;
-    type TypeInfo = T::TypeInfo;
-
-    fn name(info: &Self::TypeInfo) -> Option<&str> {
-        T::name(info)
-    }
-
-    fn meta<'r>(
-        info: &Self::TypeInfo,
-        registry: &mut Registry<'r, WundergraphScalarValue>,
-    ) -> MetaType<'r, WundergraphScalarValue>
-    where
-        WundergraphScalarValue: 'r,
-    {
-        T::meta(info, registry)
-    }
-
-    fn resolve_field(
-        &self,
-        info: &Self::TypeInfo,
-        field_name: &str,
-        arguments: &Arguments<WundergraphScalarValue>,
-        executor: &Executor<Self::Context, WundergraphScalarValue>,
-    ) -> ExecutionResult<WundergraphScalarValue> {
-        match *self {
-            HasOne::Id(_) => Err(FieldError::new("HasOne relation not loaded", Value::Null)),
-            HasOne::Item(ref i) => i.resolve_field(info, field_name, arguments, executor),
-        }
-    }
-
-    fn resolve_into_type(
-        &self,
-        info: &Self::TypeInfo,
-        type_name: &str,
-        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
-        executor: &Executor<Self::Context, WundergraphScalarValue>,
-    ) -> ExecutionResult<WundergraphScalarValue> {
-        match *self {
-            HasOne::Id(_) => Err(FieldError::new("HasOne relation not loaded", Value::Null)),
-            HasOne::Item(ref i) => i.resolve_into_type(info, type_name, selection_set, executor),
-        }
-    }
-
-    fn concrete_type_name(&self, context: &Self::Context, info: &Self::TypeInfo) -> String {
-        match *self {
-            HasOne::Id(_) => unreachable!(),
-            HasOne::Item(ref i) => i.concrete_type_name(context, info),
-        }
-    }
-
-    fn resolve(
-        &self,
-        info: &Self::TypeInfo,
-        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
-        executor: &Executor<Self::Context, WundergraphScalarValue>,
-    ) -> Value<WundergraphScalarValue> {
-        match *self {
-            HasOne::Id(_) => unreachable!(),
-            HasOne::Item(ref i) => i.resolve(info, selection_set, executor),
-        }
-    }
+    type GraphQLType = T::GraphQLType;
 }
+
+impl<R, T, DB> WundergraphGraphqlMapper<DB> for Option<HasOne<R, T>>
+where
+    T: WundergraphGraphqlMapper<DB>,
+{
+    type GraphQLType = Option<T::GraphQLType>;
+}
+
+// impl<R, T> GraphQLType<WundergraphScalarValue> for HasOne<R, T>
+// where
+//     GraphqlWrapper<T>: GraphQLType<WundergraphScalarValue>,
+// {
+//     type Context = <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::Context;
+//     type TypeInfo = <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::TypeInfo;
+
+//     fn name(info: &Self::TypeInfo) -> Option<&str> {
+//         <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::name(info)
+//     }
+
+//     fn meta<'r>(
+//         info: &Self::TypeInfo,
+//         registry: &mut Registry<'r, WundergraphScalarValue>,
+//     ) -> MetaType<'r, WundergraphScalarValue>
+//     where
+//         WundergraphScalarValue: 'r,
+//     {
+//         <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::meta(info, registry)
+//     }
+
+//     fn resolve_field(
+//         &self,
+//         info: &Self::TypeInfo,
+//         field_name: &str,
+//         arguments: &Arguments<WundergraphScalarValue>,
+//         executor: &Executor<Self::Context, WundergraphScalarValue>,
+//     ) -> ExecutionResult<WundergraphScalarValue> {
+//         match *self {
+//             HasOne::Id(_) => Err(FieldError::new("HasOne relation not loaded", Value::Null)),
+//             HasOne::Item(ref i) => {
+//                 GraphqlWrapper::new(i).resolve_field(info, field_name, arguments, executor)
+//             }
+//         }
+//     }
+
+//     fn resolve_into_type(
+//         &self,
+//         info: &Self::TypeInfo,
+//         type_name: &str,
+//         selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+//         executor: &Executor<Self::Context, WundergraphScalarValue>,
+//     ) -> ExecutionResult<WundergraphScalarValue> {
+//         match *self {
+//             HasOne::Id(_) => Err(FieldError::new("HasOne relation not loaded", Value::Null)),
+//             HasOne::Item(ref i) => {
+//                 GraphqlWrapper::new(i).resolve_into_type(info, type_name, selection_set, executor)
+//             }
+//         }
+//     }
+
+//     fn concrete_type_name(&self, context: &Self::Context, info: &Self::TypeInfo) -> String {
+//         match *self {
+//             HasOne::Id(_) => unreachable!(),
+//             HasOne::Item(ref i) => GraphqlWrapper::new(i).concrete_type_name(context, info),
+//         }
+//     }
+
+//     fn resolve(
+//         &self,
+//         info: &Self::TypeInfo,
+//         selection_set: Option<&[Selection<WundergraphScalarValue>]>,
+//         executor: &Executor<Self::Context, WundergraphScalarValue>,
+//     ) -> Value<WundergraphScalarValue> {
+//         match *self {
+//             HasOne::Id(_) => unreachable!(),
+//             HasOne::Item(ref i) => GraphqlWrapper::new(i).resolve(info, selection_set, executor),
+//         }
+//     }
+// }

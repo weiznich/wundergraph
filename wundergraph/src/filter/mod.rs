@@ -3,7 +3,7 @@
 
 use std::marker::PhantomData;
 
-use juniper::meta::MetaType;
+use juniper::meta::{Argument, MetaType};
 use juniper::FromInputValue;
 use juniper::GraphQLType;
 use juniper::InputValue;
@@ -24,6 +24,7 @@ use helper::{FromLookAheadValue, NameBuilder, Nameable};
 use scalar::WundergraphScalarValue;
 
 mod common_filter;
+pub mod filter_helper;
 mod not;
 mod nullable_filter;
 mod reference_filter;
@@ -118,11 +119,8 @@ where
     F: InnerFilter,
 {
     fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
-        let mut map = IndexMap::with_capacity(2 + F::FIELD_COUNT);
-        map.insert("and", self.and.to_input_value());
-        map.insert("or", self.or.to_input_value());
-        map.insert("not", self.not.to_input_value());
-        self.inner.to_inner_input_value(&mut map);
+        let mut map = IndexMap::with_capacity(Self::FIELD_COUNT);
+        self.to_inner_input_value(&mut map);
         InputValue::object(map)
     }
 }
@@ -145,11 +143,7 @@ where
     where
         WundergraphScalarValue: 'r,
     {
-        let and = registry.arg_with_default::<Option<Vec<Self>>>("and", &None, info);
-        let or = registry.arg_with_default::<Option<Vec<Self>>>("or", &None, info);
-        let not = registry.arg_with_default::<Option<Box<Not<Self>>>>("not", &None, info);
-        let mut fields = vec![and, or, not];
-        fields.extend(F::register_fields(&NameBuilder::default(), registry));
+        let fields = Self::register_fields(info, registry);
         registry
             .build_input_object_type::<Self>(info, &fields)
             .into_meta()
@@ -162,30 +156,7 @@ where
 {
     fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
-            let and = obj
-                .iter()
-                .find(|o| o.0 == "and")
-                .and_then(|o| Vec::from_look_ahead(&o.1));
-
-            let or = obj
-                .iter()
-                .find(|o| o.0 == "or")
-                .and_then(|o| Vec::from_look_ahead(&o.1));
-
-            let not = obj
-                .iter()
-                .find(|o| o.0 == "not")
-                .and_then(|o| Box::from_look_ahead(&o.1));
-
-            let inner = F::from_inner_look_ahead(obj);
-
-            Some(Self {
-                and,
-                or,
-                not,
-                inner,
-                p: PhantomData,
-            })
+            Some(Self::from_inner_look_ahead(obj))
         } else {
             None
         }
@@ -250,5 +221,86 @@ where
             q = <BoxedSelectStatement<_, _, _> as QueryDsl>::filter(q, f);
         }
         q
+    }
+}
+
+impl<F, T> InnerFilter for Filter<F, T>
+where
+    F: InnerFilter,
+{
+    type Context = F::Context;
+
+    const FIELD_COUNT: usize = F::FIELD_COUNT + 3;
+
+    fn from_inner_input_value(
+        obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
+    ) -> Option<Self> {
+        let and = obj.get("and").map_or_else(
+            || Option::from_input_value(&InputValue::Null),
+            |v| Option::from_input_value(*v),
+        )?;
+        let or = obj.get("or").map_or_else(
+            || Option::from_input_value(&InputValue::Null),
+            |v| Option::from_input_value(*v),
+        )?;
+        let not = obj.get("not").map_or_else(
+            || Option::from_input_value(&InputValue::Null),
+            |v| Option::from_input_value(*v),
+        )?;
+        let inner = F::from_inner_input_value(obj)?;
+        Some(Self {
+            and,
+            or,
+            not,
+            inner,
+            p: PhantomData,
+        })
+    }
+
+    fn from_inner_look_ahead(objs: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
+        let and = objs
+            .iter()
+            .find(|o| o.0 == "and")
+            .and_then(|o| Vec::from_look_ahead(&o.1));
+
+        let or = objs
+            .iter()
+            .find(|o| o.0 == "or")
+            .and_then(|o| Vec::from_look_ahead(&o.1));
+
+        let not = objs
+            .iter()
+            .find(|o| o.0 == "not")
+            .and_then(|o| Box::from_look_ahead(&o.1));
+
+        let inner = F::from_inner_look_ahead(objs);
+
+        Self {
+            and,
+            or,
+            not,
+            inner,
+            p: PhantomData,
+        }
+    }
+
+    fn to_inner_input_value(&self, map: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
+        map.insert("and", self.and.to_input_value());
+        map.insert("or", self.or.to_input_value());
+        map.insert("not", self.not.to_input_value());
+        self.inner.to_inner_input_value(map);
+    }
+
+    fn register_fields<'r>(
+        info: &NameBuilder<Self>,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> Vec<Argument<'r, WundergraphScalarValue>> {
+        let and = registry.arg_with_default::<Option<Vec<Self>>>("and", &None, info);
+        let or = registry.arg_with_default::<Option<Vec<Self>>>("or", &None, info);
+        let not =
+            registry.arg_with_default::<Option<Box<Not<Self>>>>("not", &None, &Default::default());
+        let mut fields = vec![and, or, not];
+        fields.extend(F::register_fields(&NameBuilder::default(), registry));
+        fields
     }
 }

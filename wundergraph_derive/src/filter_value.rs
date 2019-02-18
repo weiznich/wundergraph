@@ -1,4 +1,4 @@
-use diagnostic_shim::Diagnostic;
+ use diagnostic_shim::Diagnostic;
 use proc_macro2::TokenStream;
 use syn;
 use utils::wrap_in_dummy_mod;

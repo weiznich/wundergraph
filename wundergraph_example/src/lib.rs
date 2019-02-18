@@ -66,7 +66,7 @@ use failure::Error;
 use std::io::Write;
 
 use wundergraph::query_helper::{HasMany, HasOne, LazyLoad};
-use wundergraph::query_modifier::{BuildQueryModifier, QueryModifier};
+//use wundergraph::query_modifier::{BuildQueryModifier, QueryModifier};
 use wundergraph::scalar::WundergraphScalarValue;
 use wundergraph::WundergraphContext;
 
@@ -130,7 +130,7 @@ table! {
     }
 }
 
-table!{
+table! {
     friends(hero_id, friend_id) {
         hero_id -> Integer,
         friend_id -> Integer,
@@ -169,98 +169,93 @@ table! {
     WundergraphEntity,
     WundergraphFilter,
     Copy,
-    Associations,
 )]
-#[primary_key(hero_id, episode)]
-#[belongs_to(Hero)]
+#[primary_key(hero_id)]
+//#[belongs_to(Hero)]
 #[table_name = "appears_in"]
-#[wundergraph(context = "MyContext<Conn>")]
+//#[primary_key(hero_id)]
+//#[wundergraph(context = "MyContext<Conn>")]
 pub struct AppearsIn {
-    #[wundergraph(skip)]
+    //#[wundergraph(skip)]
     hero_id: i32,
-    episode: Episode,
+    episode: i16,
 }
 
-#[derive(
-    Clone, Debug, Queryable, Eq, PartialEq, Hash, WundergraphEntity, WundergraphFilter, Associations,
-)]
+#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, WundergraphEntity, Identifiable)]
 #[table_name = "friends"]
-#[belongs_to(Hero)]
-#[wundergraph(context = "MyContext<Conn>")]
+#[primary_key(hero_id)]
+//#[wundergraph(context = "MyContext<Conn>")]
 pub struct Friend {
     #[wundergraph(skip)]
     hero_id: i32,
     friend_id: HasOne<i32, Hero>,
 }
 
-// TODO: make this two impls deriveable
-impl HasTable for Friend {
-    type Table = friends::table;
+// // TODO: make this two impls deriveable
+// impl HasTable for Friend {
+//     type Table = friends::table;
 
-    fn table() -> Self::Table {
-        friends::table
-    }
-}
+//     fn table() -> Self::Table {
+//         friends::table
+//     }
+// }
 
-impl<'a> Identifiable for &'a Friend {
-    type Id = (&'a i32, &'a i32);
+// impl<'a> Identifiable for &'a Friend {
+//     type Id = (&'a i32, &'a i32);
 
-    fn id(self) -> Self::Id {
-        let friend_id = match self.friend_id {
-            HasOne::Id(ref id) => id,
-            HasOne::Item(ref hero) => &hero.id,
-        };
-        (&self.hero_id, friend_id)
-    }
-}
+//     fn id(self) -> Self::Id {
+//         let friend_id = match self.friend_id {
+//             HasOne::Id(ref id) => id,
+//             HasOne::Item(ref hero) => &hero.id,
+//         };
+//         (&self.hero_id, friend_id)
+//     }
+// }
 
-#[derive(Debug, Copy, Clone)]
-pub struct TestModifier;
+// #[derive(Debug, Copy, Clone)]
+// pub struct TestModifier;
 
-impl QueryModifier<<DBConnection as Connection>::Backend> for TestModifier {
-    type Entity = HomeWorld;
+// impl QueryModifier<<DBConnection as Connection>::Backend> for TestModifier {
+//     type Entity = HomeWorld;
 
-    fn modify_query<'a>(
-        &self,
-        final_query: BoxedSelectStatement<
-            'a,
-            (Integer, Nullable<Text>, Nullable<Bool>),
-            home_worlds::table,
-            <DBConnection as Connection>::Backend,
-        >,
-        _selection: &LookAheadSelection<WundergraphScalarValue>,
-    ) -> Result<
-        BoxedSelectStatement<
-            'a,
-            (Integer, Nullable<Text>, Nullable<Bool>),
-            home_worlds::table,
-            <DBConnection as Connection>::Backend,
-        >,
-        Error,
-    > {
-        Ok(final_query)
-    }
-}
+//     fn modify_query<'a>(
+//         &self,
+//         final_query: BoxedSelectStatement<
+//             'a,
+//             (Integer, Nullable<Text>, Nullable<Bool>),
+//             home_worlds::table,
+//             <DBConnection as Connection>::Backend,
+//         >,
+//         _selection: &LookAheadSelection<WundergraphScalarValue>,
+//     ) -> Result<
+//         BoxedSelectStatement<
+//             'a,
+//             (Integer, Nullable<Text>, Nullable<Bool>),
+//             home_worlds::table,
+//             <DBConnection as Connection>::Backend,
+//         >,
+//         Error,
+//     > {
+//         Ok(final_query)
+//     }
+// }
 
-impl BuildQueryModifier<HomeWorld> for TestModifier {
-    type Context = MyContext<DBConnection>;
-    fn from_ctx(_ctx: &Self::Context) -> Result<Self, Error> {
-        Ok(TestModifier)
-    }
-}
+// impl BuildQueryModifier<HomeWorld> for TestModifier {
+//     type Context = MyContext<DBConnection>;
+//     fn from_ctx(_ctx: &Self::Context) -> Result<Self, Error> {
+//         Ok(TestModifier)
+//     }
+// }
 
-#[derive(
-    Clone, Debug, Hash, Eq, PartialEq, Identifiable, Queryable, WundergraphEntity, WundergraphFilter,
-)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, WundergraphEntity)]
 #[table_name = "home_worlds"]
-#[wundergraph(query_modifier = "TestModifier", context = "MyContext<Conn>")]
+//#[wundergraph(query_modifier = "TestModifier", context = "MyContext<Conn>")]
 /// A world where a hero was born
 pub struct HomeWorld {
     /// Internal id of a world
     id: i32,
     /// The name of a world
-    name: LazyLoad<String>,
-    #[wundergraph(is_nullable_reference = "true")]
+    name: String,
     /// All heros of a given world
     heros: HasMany<Hero>,
 }
@@ -268,21 +263,8 @@ pub struct HomeWorld {
 #[allow(deprecated)]
 mod hero {
     use super::*;
-    #[derive(
-        Clone,
-        Debug,
-        Identifiable,
-        Hash,
-        Eq,
-        PartialEq,
-        Queryable,
-        WundergraphEntity,
-        WundergraphFilter,
-        Associations,
-    )]
+    #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity)]
     #[table_name = "heros"]
-    #[belongs_to(Species, foreign_key = "species")]
-    #[belongs_to(HomeWorld, foreign_key = "home_world")]
     #[wundergraph(context = "MyContext<Conn>")]
     /// A hero from Star Wars
     pub struct Hero {
@@ -298,18 +280,16 @@ mod hero {
         /// Which species a hero belongs to
         species: HasOne<i32, Species>,
         /// On which world a hero was born
-        home_world: HasOne<Option<i32>, Option<HomeWorld>>,
-        /// Episodes a hero appears in
-        appears_in: HasMany<AppearsIn>,
+        home_world: Option<HasOne<i32, HomeWorld>>,
+        //        /// Episodes a hero appears in
+        //        appears_in: HasMany<AppearsIn>,
         /// List of friends of the current hero
         friends: HasMany<Friend>,
     }
 }
-pub use self::hero::{Hero, HeroFilter};
+pub use self::hero::Hero;
 
-#[derive(
-    Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity, WundergraphFilter,
-)]
+#[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity)]
 #[table_name = "species"]
 #[wundergraph(context = "MyContext<Conn>")]
 /// A species
@@ -322,11 +302,14 @@ pub struct Species {
     heros: HasMany<Hero>,
 }
 
-wundergraph_query_object!{
+use diesel::sqlite::Sqlite;
+use wundergraph::graphql_type::*;
+
+wundergraph_query_object! {
     Query(context = MyContext<Conn>) {
-        Heros(Hero, filter = HeroFilter),
-        Species(Species, filter = SpeciesFilter),
-        HomeWorlds(HomeWorld, filter = HomeWorldFilter),
+        Heros(Hero),
+        Species(Species),
+        HomeWorlds(HomeWorld),
     }
 }
 
@@ -365,9 +348,12 @@ pub type DBConnection = ::diesel::PgConnection;
 #[cfg(feature = "sqlite")]
 pub type DBConnection = ::diesel::SqliteConnection;
 
+use juniper::EmptyMutation;
+
 pub type Schema<Conn> = juniper::RootNode<
     'static,
     Query<Pool<ConnectionManager<Conn>>>,
+    //    EmptyMutation<MyContext<diesel::SqliteConnection>>,
     Mutation<Pool<ConnectionManager<Conn>>>,
     WundergraphScalarValue,
 >;

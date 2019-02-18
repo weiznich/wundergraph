@@ -5,7 +5,7 @@ use super::home_worlds;
 use super::species;
 use super::AppearsIn;
 use super::Episode;
-use super::Friend;
+//use super::Friend;
 use super::Hero;
 use super::HomeWorld;
 use super::Species;
@@ -55,12 +55,12 @@ pub struct HomeWorldChangeset {
     name: Option<String>,
 }
 
-#[derive(Insertable, GraphQLInputObject, Debug, Copy, Clone)]
-#[table_name = "friends"]
-pub struct NewFriend {
-    hero_id: i32,
-    friend_id: i32,
-}
+// #[derive(Insertable, GraphQLInputObject, Debug, Copy, Clone)]
+// #[table_name = "friends"]
+// pub struct NewFriend {
+//     hero_id: i32,
+//     friend_id: i32,
+// }
 
 #[derive(Insertable, GraphQLInputObject, Debug, Copy, Clone)]
 #[table_name = "appears_in"]
@@ -72,9 +72,9 @@ pub struct NewAppearsIn {
 wundergraph_mutation_object! {
     Mutation(context = super::MyContext<Conn>) {
         Hero(insert = NewHero, update = HeroChangeset,),
-        Species(insert = NewSpecies, update = SpeciesChangeset,),
-        HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset,),
-        Friend( insert = NewFriend,),
-        AppearsIn(insert = NewAppearsIn,),
+        // Species(insert = NewSpecies, update = SpeciesChangeset,),
+        // HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset,),
+        // Friend( insert = NewFriend,),
+        // AppearsIn(insert = NewAppearsIn,),
     }
 }

@@ -1,24 +1,12 @@
-#![allow(missing_debug_implementations, missing_copy_implementations)]
-use std::marker::PhantomData;
-
-pub trait FamilyLt<'a> {
-    type Out;
-}
-
-pub struct RefFamilyLt<T>(PhantomData<T>);
-
-impl<'a, T: 'a> FamilyLt<'a> for RefFamilyLt<T> {
-    type Out = &'a T;
+pub trait IsPrimaryKeyIndex {
+    fn is_index(v: usize) -> bool;
 }
 
 pub trait TupleIndex<N> {
-    type Value: 'static;
-    type RetValue: for<'a> FamilyLt<'a>;
+    type Value;
 
-    fn get(&self) -> <Self::RetValue as FamilyLt>::Out;
+    fn get(&self) -> Self::Value;
 }
-
-pub type TupleValue<'a, T, I> = <<T as TupleIndex<I>>::RetValue as FamilyLt<'a>>::Out;
 
 macro_rules! name_from_tuple {
     (1, $callback: ident, $($params: tt)*) => { $callback!(TupleIndex0, $($params)*); };
@@ -138,17 +126,14 @@ macro_rules! impl_multiple_tuple_index {
         where
             $($ST: 'static,)*
             $(
-                $tuple: TupleIndex<$T, RetValue = RefFamilyLt<<$tuple as TupleIndex<$T>>::Value>>,
+                $tuple: TupleIndex<$T>,
             )*
         {
             type Value = (
                 $(<$tuple as TupleIndex<$T>>::Value,)*
             );
-            type RetValue = (
-                $(<$tuple as TupleIndex<$T>>::RetValue,)*
-            );
 
-            fn get(&self) -> <Self::RetValue as FamilyLt>::Out {
+            fn get(&self) -> Self::Value {
                 ($(
                     <$tuple as TupleIndex<$T>>::get(self),
                 )*)
@@ -179,12 +164,13 @@ macro_rules! impl_multiple_tuple_index {
 
 macro_rules! impl_tuple_index{
     ($name: ident, $tuple_idx: tt, $($T: ident,)*) => {
-        impl<$($T:'static,)*> TupleIndex<$name> for ($($T,)*) {
+        impl<'a, $($T:'static,)*> TupleIndex<$name> for ($($T,)*)
+            where get_type!($tuple_idx, $($T,)*): Clone,
+        {
             type Value = get_type!($tuple_idx, $($T,)*);
-            type RetValue = RefFamilyLt<Self::Value>;
 
-            fn get(&self) -> <Self::RetValue as FamilyLt>::Out {
-                &self.$tuple_idx
+            fn get(&self) -> Self::Value {
+                self.$tuple_idx.clone()
             }
         }
     };
@@ -198,15 +184,14 @@ macro_rules! create_tuple_index {
         name_from_idx!($idx, impl_tuple_index, $idx, $($T,)*);
     };
     ($name: ident, $tuple_idx: tt, $($T: ident,)*, $($idx: tt)*) => {
-        #[derive(Default)]
+        #[derive(Default, Debug, Clone, Copy)]
         pub struct $name;
 
-        impl From<$name> for usize {
-            fn from(_: $name) -> usize {
-                $tuple_idx - 1
+        impl IsPrimaryKeyIndex for $name {
+            fn is_index(v: usize) -> bool {
+                $tuple_idx - 1 == v
             }
         }
-
         create_tuple_index!(@call_tuple [$($idx)*] @  ($tuple_idx, $($T,)*));
     }
 }
@@ -221,11 +206,18 @@ macro_rules! impl_tuple_macro_wrapper {
             name_from_tuple!($Tuple, create_tuple_index, $Tuple, $($T,)*, $($idx)*);
             impl_multiple_tuple_index!{
                 index = {$($T,)*},
-                tuple = {$($ST,)*},
+                tuple = {$( $ST,)*},
             }
 
-            impl<'a, $($T: 'a,)*> FamilyLt<'a> for ($(RefFamilyLt<$T>,)*) {
-                type Out = ($(&'a $T,)*);
+            impl<$($T,)*> IsPrimaryKeyIndex for ($($T,)*)
+            where $($T: IsPrimaryKeyIndex,)*
+            {
+                fn is_index(v: usize) -> bool {
+                    $(
+                        <$T as IsPrimaryKeyIndex>::is_index(v) ||
+                    )*
+                    false
+                }
             }
         )*
     }

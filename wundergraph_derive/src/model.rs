@@ -11,6 +11,7 @@ pub struct Model {
     flags: MetaItem,
     table_name: Option<syn::Ident>,
     pub docs: Option<String>,
+    primary_keys: Vec<syn::Ident>,
 }
 
 impl Model {
@@ -21,12 +22,16 @@ impl Model {
         let flags = MetaItem::with_name(&item.attrs, "wundergraph")
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
         let docs = MetaItem::get_docs(&item.attrs);
+        let primary_keys = MetaItem::with_name(&item.attrs, "primary_key")
+            .map(|m| m.nested()?.map(|m| m.word()).collect())
+            .unwrap_or_else(|| Ok(vec![syn::Ident::new("id", Span::call_site())]))?;
         Ok(Self {
             name: item.ident.clone(),
             fields,
             flags,
             table_name,
             docs,
+            primary_keys,
         })
     }
 
@@ -45,25 +50,8 @@ impl Model {
         )
     }
 
-    pub fn should_have_limit(&self) -> bool {
-        self.flags
-            .nested_item("limit")
-            .and_then(|m| m.bool_value())
-            .unwrap_or(true)
-    }
-
-    pub fn should_have_offset(&self) -> bool {
-        self.flags
-            .nested_item("offset")
-            .and_then(|m| m.bool_value())
-            .unwrap_or(true)
-    }
-
-    pub fn should_have_order(&self) -> bool {
-        self.flags
-            .nested_item("order")
-            .and_then(|m| m.bool_value())
-            .unwrap_or(true)
+    pub fn primary_key(&self) -> &[syn::Ident] {
+        &self.primary_keys
     }
 
     pub fn filter_type(&self) -> Option<syn::Path> {
@@ -138,28 +126,10 @@ impl Model {
         self.flags
             .get_flag::<syn::Path>("query_modifier")
             .unwrap_or_else(|_| {
-                parse_quote!{
+                parse_quote! {
                     wundergraph::query_modifier::DefaultModifier<Self::Context, Self>
                 }
             })
-    }
-
-    pub fn select(&self) -> Vec<syn::Ident> {
-        self.flags
-            .nested_item("select")
-            .ok()
-            .and_then(|s| {
-                s.nested()
-                    .ok()
-                    .map(|m| m.filter_map(|m| m.word().ok()).collect())
-            }).unwrap_or_else(Vec::new)
-    }
-
-    pub fn select_span(&self) -> Span {
-        self.flags
-            .nested_item("select")
-            .map(|n| n.span())
-            .unwrap_or_else(|_| Span::call_site())
     }
 }
 

@@ -11,7 +11,7 @@ pub fn wrap_in_dummy_mod(
         &format!("_impl_{}_for_{}", name_place_holder, ident.to_string()).to_uppercase(),
         call_site,
     );
-    quote!{
+    quote! {
         #[doc(hidden)]
         #[allow(non_snake_case)]
         const #const_name: () = {
@@ -48,11 +48,10 @@ pub fn is_has_one(ty: &Type) -> bool {
     inner_ty_arg(inner_of_option_ty(ty), "HasOne", 0).is_some()
 }
 
-pub fn is_lazy_load(ty: &Type) -> bool {
-    inner_ty_arg(inner_of_option_ty(ty), "LazyLoad", 0).is_some()
-}
-
-pub fn inner_ty_arg<'a>(ty: &'a Type, type_name: &str, index: usize) -> Option<&'a Type> {
+pub fn inner_ty_args<'a>(
+    ty: &'a Type,
+    type_name: &str,
+) -> Option<&'a syn::punctuated::Punctuated<syn::GenericArgument, syn::token::Comma>> {
     use syn::PathArguments::AngleBracketed;
 
     match *ty {
@@ -64,17 +63,19 @@ pub fn inner_ty_arg<'a>(ty: &'a Type, type_name: &str, index: usize) -> Option<&
                 .last()
                 .expect("Path without any segments");
             match last_segment.arguments {
-                AngleBracketed(ref args) if last_segment.ident == type_name => {
-                    match args.args[index] {
-                        GenericArgument::Type(ref ty) => Some(ty),
-                        _ => None,
-                    }
-                }
+                AngleBracketed(ref args) if last_segment.ident == type_name => Some(&args.args),
                 _ => None,
             }
         }
         _ => None,
     }
+}
+
+pub fn inner_ty_arg<'a>(ty: &'a Type, type_name: &str, index: usize) -> Option<&'a Type> {
+    inner_ty_args(ty, type_name).and_then(|args| match args[index] {
+        GenericArgument::Type(ref ty) => Some(ty),
+        _ => None,
+    })
 }
 
 pub fn ty_name(ty: &Type) -> Option<&Ident> {

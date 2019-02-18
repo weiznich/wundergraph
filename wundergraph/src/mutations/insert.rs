@@ -1,15 +1,21 @@
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
+use diesel::dsl::SqlTypeOf;
 use diesel::query_builder::BoxedSelectStatement;
 use diesel::query_builder::QueryFragment;
 use diesel::query_dsl::methods::BoxedDsl;
-use diesel::sql_types::Bool;
-use diesel::{Connection, Insertable, QueryDsl, RunQueryDsl, Table};
+use diesel::sql_types::{Bool, HasSqlType};
+use diesel::QuerySource;
+use diesel::{AppearsOnTable, Connection, Insertable, Queryable, RunQueryDsl, Table};
+
+use filter::build_filter::BuildFilter;
+use query_helper::order::BuildOrder;
+use query_helper::placeholder::{SqlTypeOfPlaceholder, WundergraphFieldList};
+use query_helper::select::BuildSelect;
+use query_helper::tuple::TupleIndex;
 
 #[cfg(feature = "postgres")]
-use diesel::dsl::Filter;
-#[cfg(feature = "postgres")]
-use diesel::expression::{Expression, NonAggregate, SelectableExpression};
+use diesel::expression::{AsExpression, Expression, NonAggregate, SelectableExpression};
 #[cfg(feature = "postgres")]
 use diesel::insertable::CanInsertInSingleQuery;
 #[cfg(feature = "postgres")]
@@ -19,13 +25,7 @@ use diesel::query_builder::UndecoratedInsertRecord;
 #[cfg(feature = "postgres")]
 use diesel::query_dsl::methods::FilterDsl;
 #[cfg(feature = "postgres")]
-use diesel::sql_types::HasSqlType;
-#[cfg(feature = "postgres")]
-use diesel::Identifiable;
-#[cfg(feature = "postgres")]
-use diesel::{EqAll, Queryable};
-#[cfg(feature = "postgres")]
-use diesel_ext::BoxableFilter;
+use diesel::{EqAll, ExpressionMethods, Identifiable};
 #[cfg(feature = "postgres")]
 use helper::primary_keys::UnRef;
 
@@ -109,8 +109,11 @@ impl<I, DB, R, Ctx> InsertHelper<DB, R, Ctx> for I
 where
     I: Insertable<R::Table>,
     R: LoadingHandler<DB>,
-    DB: Backend,
+    DB: Backend + 'static,
     InsertableWrapper<I>: HandleInsert<DB, R, Ctx>,
+    <R::Table as QuerySource>::FromClause: QueryFragment<DB>,
+    R::Table: 'static,
+    DB::QueryBuilder: Default,
 {
     type Handler = InsertableWrapper<I>;
 }
@@ -121,7 +124,7 @@ where
     I: Insertable<T> + UndecoratedInsertRecord<T>,
     T: Table + HasTable<Table = T> + 'static,
     Ctx: WundergraphContext<Pg>,
-    R: LoadingHandler<Pg, Table = T, Context = Ctx>
+    R: LoadingHandler<Pg, Table = T>
         + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>
         + 'static,
     Pg: HasSqlType<<T::PrimaryKey as Expression>::SqlType>,
@@ -132,15 +135,29 @@ where
     <Vec<I> as Insertable<T>>::Values: QueryFragment<Pg> + CanInsertInSingleQuery<Pg>,
     &'static R: Identifiable,
     <&'static R as Identifiable>::Id: UnRef<'static, UnRefed = Id>,
-    R::Query: FilterDsl<<T::PrimaryKey as EqAll<Id>>::Output>,
-    R::Query: FilterDsl<Box<BoxableFilter<T, Pg, SqlType = Bool>>>,
-    T::PrimaryKey: EqAll<Id>,
+    T::PrimaryKey: EqAll<Id> + ExpressionMethods,
     <T::PrimaryKey as EqAll<Id>>::Output:
         SelectableExpression<T> + NonAggregate + QueryFragment<Pg> + 'static,
-    Filter<R::Query, <T::PrimaryKey as EqAll<Id>>::Output>:
-        QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, R::SqlType, T, Pg>>,
-    Filter<R::Query, Box<BoxableFilter<T, Pg, SqlType = Bool>>>:
-        QueryDsl + BoxedDsl<'static, Pg, Output = BoxedSelectStatement<'static, R::SqlType, T, Pg>>,
+    R::Columns: BuildOrder<T, Pg>
+        + BuildSelect<
+            T,
+            Pg,
+            SqlTypeOfPlaceholder<R::FieldList, Pg, R::PrimaryKeyIndex, R::Table>,
+        >,
+    R::FieldList: WundergraphFieldList<Pg, R::PrimaryKeyIndex, T>
+        + TupleIndex<R::PrimaryKeyIndex>,
+    <R::FieldList as WundergraphFieldList<Pg, R::PrimaryKeyIndex, T>>::PlaceHolder:
+        Queryable<SqlTypeOfPlaceholder<R::FieldList, Pg, R::PrimaryKeyIndex, R::Table>, Pg>,
+    for<'a> R::Table: BoxedDsl<
+        'a,
+        Pg,
+        Output = BoxedSelectStatement<'a, SqlTypeOf<<R::Table as Table>::AllColumns>, R::Table, Pg>,
+    >,
+    <R::Filter as BuildFilter<Pg>>::Ret: AppearsOnTable<T>,
+    Pg: HasSqlType<SqlTypeOfPlaceholder<R::FieldList, Pg, R::PrimaryKeyIndex, R::Table>>,
+    Id: AsExpression<SqlTypeOf<T::PrimaryKey>>,
+    <Id as AsExpression<SqlTypeOf<T::PrimaryKey>>>::Expression:
+        AppearsOnTable<T> + QueryFragment<Pg>,
 {
     type Insert = I;
 
@@ -151,6 +168,7 @@ where
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
+            let look_ahead = executor.look_ahead();
             let inserted = insertable
                 .insert_into(T::table())
                 .returning(T::table().primary_key());
@@ -158,14 +176,10 @@ where
                 debug!("{}", ::diesel::debug_query(&inserted));
             }
             let inserted: Id = inserted.get_result(conn)?;
-
-            let q = FilterDsl::filter(
-                R::default_query(),
-                T::table().primary_key().eq_all(inserted),
-            );
-            let q = q.into_boxed();
-            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
-            executor.resolve_with_ctx(&(), &items.iter().next())
+            let q = R::build_query(&look_ahead)?;
+            let q = FilterDsl::filter(q, T::table().primary_key().eq_all(inserted));
+            let items = R::load(&look_ahead, conn, q)?;
+            Ok(items.into_iter().next().unwrap_or(Value::Null))
         })
     }
 
@@ -173,10 +187,10 @@ where
         executor: &Executor<Ctx, WundergraphScalarValue>,
         batch: Vec<Self::Insert>,
     ) -> ExecutionResult<WundergraphScalarValue> {
-        use diesel::BoolExpressionMethods;
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
+            let look_ahead = executor.look_ahead();
             let inserted = batch
                 .insert_into(T::table())
                 .returning(T::table().primary_key());
@@ -184,20 +198,12 @@ where
                 debug!("{}", ::diesel::debug_query(&inserted));
             }
             let inserted: Vec<Id> = inserted.get_results(conn)?;
-
-            let mut ids = inserted.into_iter();
-            if let Some(id) = ids.next() {
-                let mut f = Box::new(T::table().primary_key().eq_all(id))
-                    as Box<BoxableFilter<T, Pg, SqlType = Bool>>;
-                for id in ids {
-                    f = Box::new(f.or(T::table().primary_key().eq_all(id))) as Box<_>;
-                }
-                let q = FilterDsl::filter(R::default_query(), f).into_boxed();
-                let items = R::load_items(&executor.look_ahead(), ctx, q)?;
-                executor.resolve_with_ctx(&(), &items)
-            } else {
-                Ok(Value::Null)
-            }
+            let q = FilterDsl::filter(
+                R::build_query(&look_ahead)?,
+                T::table().primary_key().eq_any(inserted),
+            );
+            let items = R::load(&look_ahead, conn, q)?;
+            Ok(Value::list(items))
         })
     }
 }
@@ -209,16 +215,32 @@ where
     Vec<I>: Insertable<T>,
     T: Table + HasTable<Table = T> + 'static,
     Ctx: WundergraphContext<Sqlite>,
-    R: LoadingHandler<Sqlite, Table = T, Context = Ctx>
+    R: LoadingHandler<Sqlite, Table = T>
         + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
     T::FromClause: QueryFragment<Sqlite>,
     InsertStatement<T, I::Values>: ExecuteDsl<Ctx::Connection>,
-    R::Query: QueryDsl
-        + BoxedDsl<
-            'static,
+    R::Columns: BuildOrder<T, Sqlite>
+        + BuildSelect<
+            T,
             Sqlite,
-            Output = BoxedSelectStatement<'static, R::SqlType, T, Sqlite>,
+            SqlTypeOfPlaceholder<R::FieldList, Sqlite, R::PrimaryKeyIndex, R::Table>,
         >,
+    R::FieldList: WundergraphFieldList<Sqlite, R::PrimaryKeyIndex, T>
+        + TupleIndex<R::PrimaryKeyIndex>,
+    <R::FieldList as WundergraphFieldList<Sqlite, R::PrimaryKeyIndex, T>>::PlaceHolder:
+        Queryable<SqlTypeOfPlaceholder<R::FieldList, Sqlite, R::PrimaryKeyIndex, R::Table>, Sqlite>,
+    for<'a> R::Table: BoxedDsl<
+        'a,
+        Sqlite,
+        Output = BoxedSelectStatement<
+            'a,
+            SqlTypeOf<<R::Table as Table>::AllColumns>,
+            R::Table,
+            Sqlite,
+        >,
+    >,
+    <R::Filter as BuildFilter<Sqlite>>::Ret: AppearsOnTable<T>,
+    Sqlite: HasSqlType<SqlTypeOfPlaceholder<R::FieldList, Sqlite, R::PrimaryKeyIndex, R::Table>>,
 {
     type Insert = I;
 
@@ -229,11 +251,13 @@ where
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
+            let look_ahead = executor.look_ahead();
             insertable.insert_into(T::table()).execute(conn)?;
-            let q = OrderDsl::order(R::default_query().into_boxed(), sql::<Bool>("rowid DESC"));
+            let q = OrderDsl::order(R::build_query(&look_ahead)?, sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, 1);
-            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
-            executor.resolve_with_ctx(&(), &items.into_iter().next())
+            let items = R::load(&look_ahead, conn, q)?;
+
+            Ok(items.into_iter().next().unwrap_or(Value::Null))
         })
     }
 
@@ -244,16 +268,17 @@ where
         let ctx = executor.context();
         let conn = ctx.get_connection();
         conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
+            let look_ahead = executor.look_ahead();
             let n: usize = batch
                 .into_iter()
                 .map(|i| i.insert_into(T::table()).execute(conn))
                 .collect::<Result<Vec<_>, _>>()?
                 .into_iter()
                 .sum();
-            let q = OrderDsl::order(R::default_query().into_boxed(), sql::<Bool>("rowid DESC"));
+            let q = OrderDsl::order(R::build_query(&look_ahead)?, sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, n as i64);
-            let items = R::load_items(&executor.look_ahead(), ctx, q)?;
-            executor.resolve_with_ctx(&(), &items)
+            let items = R::load(&look_ahead, conn, q)?;
+            Ok(Value::list(items))
         })
     }
 }

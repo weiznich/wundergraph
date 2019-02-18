@@ -2,6 +2,7 @@ use super::BuildFilter;
 use diesel::backend::Backend;
 use diesel::dsl;
 use diesel::helper_types;
+use helper::{NameBuilder, Nameable};
 use helper::FromLookAheadValue;
 use juniper::meta::MetaType;
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
@@ -19,6 +20,15 @@ where
 
     fn into_filter(self) -> Option<Self::Ret> {
         self.0.into_filter().map(dsl::not)
+    }
+}
+
+impl<I> Nameable for Not<I>
+where
+    I: Nameable,
+{
+    fn name() -> String {
+        format!("Not_{}", I::name())
     }
 }
 
@@ -52,21 +62,22 @@ where
 impl<F> GraphQLType<WundergraphScalarValue> for Not<F>
 where
     F: GraphQLType<WundergraphScalarValue>,
+    F::TypeInfo: Default,
 {
     type Context = F::Context;
-    type TypeInfo = F::TypeInfo;
+    type TypeInfo = NameBuilder<Self>;
 
-    fn name(_info: &Self::TypeInfo) -> Option<&str> {
-        Some("not")
+    fn name(info: &Self::TypeInfo) -> Option<&str> {
+        Some(info.name())
     }
 
     fn meta<'r>(
-        info: &Self::TypeInfo,
+        _info: &Self::TypeInfo,
         registry: &mut Registry<'r, WundergraphScalarValue>,
     ) -> MetaType<'r, WundergraphScalarValue>
     where
         WundergraphScalarValue: 'r,
     {
-        F::meta(info, registry)
+        F::meta(&Default::default(), registry)
     }
 }

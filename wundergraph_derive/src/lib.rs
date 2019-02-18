@@ -84,7 +84,7 @@ pub fn derive_build_filter(input: TokenStream) -> TokenStream {
     expand_derive(input, build_filter::derive)
 }
 
-#[proc_macro_derive(WundergraphEntity, attributes(wundergraph, table_name))]
+#[proc_macro_derive(WundergraphEntity, attributes(wundergraph, table_name, primary_key))]
 pub fn derive_wundergraph_entity(input: TokenStream) -> TokenStream {
     expand_derive(input, wundergraph_entity::derive)
 }

@@ -21,20 +21,21 @@ impl FromLookAheadValue for i16 {
 
 impl FromLookAheadValue for i32 {
     fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
-        if let LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) = *v {
-            Some(*i)
-        } else {
-            None
+        match *v {
+            LookAheadValue::Scalar(WundergraphScalarValue::SmallInt(ref i)) => Some(*i as _),
+            LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) => Some(*i),
+            _ => None,
         }
     }
 }
 
 impl FromLookAheadValue for i64 {
     fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
-        if let LookAheadValue::Scalar(WundergraphScalarValue::BigInt(ref i)) = *v {
-            Some(*i)
-        } else {
-            None
+        match *v {
+            LookAheadValue::Scalar(WundergraphScalarValue::SmallInt(ref i)) => Some(*i as _),
+            LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) => Some(*i as _),
+            LookAheadValue::Scalar(WundergraphScalarValue::BigInt(ref i)) => Some(*i),
+            _ => None,
         }
     }
 }
@@ -71,10 +72,10 @@ impl FromLookAheadValue for f32 {
 
 impl FromLookAheadValue for f64 {
     fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
-        if let LookAheadValue::Scalar(WundergraphScalarValue::Double(ref f)) = *v {
-            Some(*f)
-        } else {
-            None
+        match *v {
+            LookAheadValue::Scalar(WundergraphScalarValue::Float(ref i)) => Some(*i as _),
+            LookAheadValue::Scalar(WundergraphScalarValue::Double(ref i)) => Some(*i),
+            _ => None,
         }
     }
 }

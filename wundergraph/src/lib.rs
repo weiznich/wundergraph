@@ -1,4 +1,4 @@
-#![feature(trace_macros)]
+#![feature(trace_macros, nll)]
 #![deny(missing_debug_implementations, missing_copy_implementations)]
 #![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy))]
@@ -71,16 +71,15 @@ pub mod helper;
 pub mod mutations;
 pub mod order;
 pub mod query_helper;
-pub mod query_modifier;
+//pub mod query_modifier;
 pub mod scalar;
 #[macro_use]
 mod macros;
-mod graphql_type;
+pub mod graphql_type;
 
 use self::error::WundergraphError;
-use self::helper::primary_keys::{PrimaryKeyArgument, UnRef};
 use self::helper::FromLookAheadValue;
-use self::query_modifier::{BuildQueryModifier, QueryModifier};
+//use self::query_modifier::{BuildQueryModifier, QueryModifier};
 use self::scalar::WundergraphScalarValue;
 
 use diesel::associations::HasTable;
@@ -91,11 +90,13 @@ use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
 use diesel::query_dsl::methods::BoxedDsl;
 use diesel::query_dsl::methods::{LimitDsl, OffsetDsl, SelectDsl};
 use diesel::r2d2;
+use diesel::EqAll;
+use diesel::Identifiable;
 use diesel::QuerySource;
-use diesel::{AppearsOnTable, Connection, EqAll, Identifiable, QueryDsl, Table};
+use diesel::{AppearsOnTable, Connection, QueryDsl, Table};
 use failure::Error;
+use helper::primary_keys::{PrimaryKeyArgument, UnRef};
 use query_helper::placeholder::*;
-use std::collections::HashMap;
 
 use juniper::LookAheadSelection;
 
@@ -122,7 +123,6 @@ where
 use diesel::query_dsl::methods::FilterDsl;
 use diesel::sql_types::{Bool, HasSqlType};
 use diesel::BoxableExpression;
-use diesel::Queryable;
 use diesel_ext::BoxableFilter;
 use filter::build_filter::BuildFilter;
 use filter::inner_filter::InnerFilter;
@@ -130,13 +130,14 @@ use filter::Filter;
 use juniper::LookAheadValue;
 use query_helper::order::BuildOrder;
 use query_helper::select::BuildSelect;
-use query_helper::tuple::*;
+use query_helper::tuple::IsPrimaryKeyIndex;
 
-pub trait LoadingHandler2<DB>: HasTable + Sized
+pub trait LoadingHandler<DB>: HasTable + Sized
 where
     DB: Backend + 'static,
     Self::Table: 'static,
     <Self::Table as QuerySource>::FromClause: QueryFragment<DB>,
+    DB::QueryBuilder: Default,
 {
     type Columns: BuildOrder<Self::Table, DB>
         + BuildSelect<
@@ -144,21 +145,13 @@ where
             DB,
             SqlTypeOfPlaceholder<Self::FieldList, DB, Self::PrimaryKeyIndex, Self::Table>,
         >;
-    type FieldList: WundergraphFieldList<
-            DB,
-            Self::PrimaryKeyIndex,
-            Self::Table,
-            PlaceHolder = Self::PlaceHolder,
-        > + TupleIndex<Self::PrimaryKeyIndex>;
-    type PrimaryKeyIndex: Default + Into<usize>;
-    type PlaceHolder: TupleIndex<Self::PrimaryKeyIndex>
-        + Queryable<
-            SqlTypeOfPlaceholder<Self::FieldList, DB, Self::PrimaryKeyIndex, Self::Table>,
-            DB,
-        > + 'static;
+    type FieldList: WundergraphFieldList<DB, Self::PrimaryKeyIndex, Self::Table>;
+
+    type PrimaryKeyIndex: Default + IsPrimaryKeyIndex;
     type Filter: InnerFilter + BuildFilter<DB> + 'static;
 
     const FIELD_NAMES: &'static [&'static str];
+    const TYPE_NAME: &'static str;
 
     fn load<'a>(
         select: &LookAheadSelection<WundergraphScalarValue>,
@@ -176,7 +169,9 @@ where
         >,
     {
         use diesel::RunQueryDsl;
-
+        if cfg!(feature = "debug") {
+            println!("{:?}", diesel::debug_query(&query));
+        }
         let placeholder = <_ as RunQueryDsl<_>>::load(query, conn)?;
         Ok(Self::FieldList::resolve(
             placeholder,
@@ -186,53 +181,46 @@ where
         )?)
     }
 
-    // fn raw_single_load<'a>(
-    //     select: &LookAheadSelection<WundergraphScalarValue>,
-    //     conn: &impl Connection<Backend = DB>,
-    //     mut query: BoxedSelectStatement<
-    //         'a,
-    //         SqlTypeOfPlaceholder<Self::PlaceHolder, DB, Self::PrimaryKey>,
-    //         Self::Table,
-    //         DB,
-    //     >,
-    // ) -> Result<<Self::PlaceHolder as WundergraphFieldList>::PlaceHolder, Error>
-    // where
-    //     DB: 'a,
-    //     Self::Table: 'a,
-    //     SqlTypeOfPlaceholder<Self::PlaceHolder, DB, Self::PrimaryKey>: 'a,
-    //     <Self::Table as QuerySource>::FromClause: QueryFragment<DB>,
-    //     DB: HasSqlType<SqlTypeOfPlaceholder<Self::PlaceHolder, DB, Self::PrimaryKey>>,
-    //     <Self::PlaceHolder as WundergraphFieldList>::PlaceHolder:
-    //         Queryable<SqlTypeOfPlaceholder<Self::PlaceHolder, DB, Self::PrimaryKey>, DB>,
-    // {
-    //     use diesel::RunQueryDsl;
-    //     query = Self::apply_select(query, select)?;
-    //     query = Self::apply_filter(query, select)?;
-    //     query = Self::apply_limit(query, select)?;
-    //     query = Self::apply_offset(query, select)?;
-    //     query = Self::apply_order(query, select)?;
-
-    //     Ok(<_ as RunQueryDsl<_>>::first(query, conn)?)
-    // }
-
-    // fn raw_load<'a>(
-    //     conn: &impl Connection<Backend = DB>,
-    //     query: BoxedSelectStatement<
-    //         'a,
-    //         SqlTypeOfPlaceholder<Self::FieldList, DB, Self::PrimaryKeyIndex, Self::Table>,
-    //         Self::Table,
-    //         DB,
-    //     >,
-    // ) -> Result<Vec<Self::PlaceHolder>, Error>
-    // where
-    //     DB: HasSqlType<
-    //         SqlTypeOfPlaceholder<Self::FieldList, DB, Self::PrimaryKeyIndex, Self::Table>,
-    //     >,
-    // {
-    //     use diesel::RunQueryDsl;
-
-    //     Ok(?)
-    // }
+    fn load_by_primary_key<'a>(
+        select: &LookAheadSelection<WundergraphScalarValue>,
+        conn: &impl Connection<Backend = DB>,
+        mut query: BoxedSelectStatement<
+            'a,
+            SqlTypeOfPlaceholder<Self::FieldList, DB, Self::PrimaryKeyIndex, Self::Table>,
+            Self::Table,
+            DB,
+        >,
+    ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error>
+    where
+        Self: 'static,
+        &'static Self: Identifiable,
+        <&'static Self as Identifiable>::Id: UnRef<'static>,
+        <Self::Table as Table>::PrimaryKey:
+            EqAll<<<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed>,
+        <<Self::Table as Table>::PrimaryKey as EqAll<
+            <<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed,
+        >>::Output: AppearsOnTable<Self::Table> + NonAggregate + QueryFragment<DB>,
+        PrimaryKeyArgument<'static, Self::Table, (), <&'static Self as Identifiable>::Id>:
+            FromLookAheadValue,
+        DB: HasSqlType<
+            SqlTypeOfPlaceholder<Self::FieldList, DB, Self::PrimaryKeyIndex, Self::Table>,
+        >,
+    {
+        use juniper::LookAheadMethods;
+        let v = select
+            .argument("primaryKey")
+            .ok_or(WundergraphError::NoPrimaryKeyArgumentFound)?;
+        let key = PrimaryKeyArgument::<
+            Self::Table,
+            _,
+            <&'static Self as Identifiable>::Id,
+            >::from_look_ahead(v.value())
+            .ok_or(WundergraphError::NoPrimaryKeyArgumentFound)?;
+        query = <_ as QueryDsl>::filter(query, Self::table().primary_key().eq_all(key.values));
+        query = <_ as QueryDsl>::limit(query, 1);
+        let res = Self::load(select, conn, query)?;
+        Ok(res.into_iter().next())
+    }
 
     fn build_query<'a>(
         select: &LookAheadSelection<WundergraphScalarValue>,
@@ -286,38 +274,22 @@ where
         >,
         Error,
     > {
+        use juniper::LookAheadMethods;
         <Self::Columns as BuildSelect<Self::Table, DB, _>>::build_select(
             select,
-            Self::FIELD_NAMES,
-            <Self::FieldList as WundergraphFieldList<DB, Self::PrimaryKeyIndex, Self::Table>>::SQL_NAME_INDICES,
-            <Self::FieldList as WundergraphFieldList<DB, Self::PrimaryKeyIndex, Self::Table>>::NON_SQL_NAME_INDICES,
-            Self::PrimaryKeyIndex::default().into()
+            |local_index| {
+                Self::FieldList::map_table_field(local_index, |global| Self::FIELD_NAMES[global])
+                    .expect("Field is there")
+            },
+            Self::PrimaryKeyIndex::is_index,
+            (0..Self::FieldList::NON_TABLE_FIELD_COUNT).any(|i| {
+                Self::FieldList::map_non_table_field(i, |global| {
+                    select.has_child(Self::FIELD_NAMES[global])
+                })
+                .unwrap_or(false)
+            }),
         )
     }
-
-    // fn apply_select<'a>(
-    //     query: BoxedSelectStatement<
-    //         'a,
-    //         SqlTypeOfPlaceholder<Self::PlaceHolder, DB, Self::PrimaryKey>,
-    //         Self::Table,
-    //         DB,
-    //     >,
-    //     select: &LookAheadSelection<WundergraphScalarValue>,
-    // ) -> Result<
-    //     BoxedSelectStatement<'a, SqlTypeOfPlaceholder<Self::PlaceHolder, DB, Self::PrimaryKey>, Self::Table, DB>,
-    //     Error,
-    // >
-    // where
-    //     Self::Table: 'a,
-    //     SqlTypeOfPlaceholder<Self::PlaceHolder, DB, Self::PrimaryKey>: 'a,
-    //     DB: 'a,
-    //     Self::Columns: BuildSelect<Self::Table, DB, SqlTypeOfPlaceholder<Self::PlaceHolder, DB, Self::PrimaryKey>>,
-    // {
-    //     Ok(<_ as SelectDsl<_>>::select(
-    //         query,
-    //         Self::get_select(select)?,
-    //     ))
-    // }
 
     fn get_filter(
         input: &LookAheadValue<WundergraphScalarValue>,
@@ -384,16 +356,15 @@ where
         if let Some(LookAheadValue::<WundergraphScalarValue>::List(order)) =
             select.argument("order").map(|o| o.value())
         {
-            let order_stmts =
-                <Self::Columns as BuildOrder<Self::Table, DB>>::build_order(
-                    order,
-                    Self::FIELD_NAMES,
-                    <Self::FieldList as WundergraphFieldList<
-                        DB,
-                        Self::PrimaryKeyIndex,
-                        Self::Table,
-                    >>::SQL_NAME_INDICES,
-                )?;
+            let order_stmts = <Self::Columns as BuildOrder<Self::Table, DB>>::build_order(
+                order,
+                |local_index| {
+                    Self::FieldList::map_table_field(local_index, |global| {
+                        Self::FIELD_NAMES[global]
+                    })
+                    .expect("Field is there")
+                },
+            )?;
             for s in order_stmts {
                 query = query.then_order_by(s);
             }
@@ -460,168 +431,6 @@ where
             Ok(query)
         }
     }
-}
-
-table! {
-    foo {
-        id -> Integer,
-        name -> Text,
-        hair_color -> Nullable<Text>,
-    }
-}
-
-table! {
-    bar {
-        id -> Integer,
-        foo_id -> Integer,
-    }
-}
-
-#[derive(Clone, Copy, Debug, Identifiable, Associations)]
-#[table_name = "bar"]
-#[belongs_to(Foo)]
-struct Bar {
-    id: i32,
-    foo_id: i32,
-}
-
-impl LoadingHandler2<Pg> for Bar {
-    type Columns = <bar::table as Table>::AllColumns;
-    type FieldList = (i32, HasOne<i32, Foo>);
-    type PrimaryKeyIndex = TupleIndex0;
-    type Filter = ();
-
-    type PlaceHolder = <Self::FieldList as WundergraphFieldList<
-        Pg,
-        Self::PrimaryKeyIndex,
-        Self::Table,
-    >>::PlaceHolder;
-
-    const FIELD_NAMES: &'static [&'static str] = &[bar::id::NAME, bar::foo_id::NAME];
-}
-
-impl WundergraphBelongsTo<foo::table, i32, Pg> for Bar {
-    type ForeignKeyColumn = bar::foo_id;
-
-    fn resolve(
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
-        keys: &[i32],
-        conn: &impl Connection<Backend = Pg>,
-    ) -> Result<HashMap<i32, Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
-        use diesel::{ExpressionMethods, RunQueryDsl};
-
-        let query = <_ as QueryDsl>::filter(
-            <_ as QueryDsl>::select(
-                Self::build_query(selection)?,
-                (
-                    Self::ForeignKeyColumn::default(),
-                    Self::get_select(selection)?,
-                ),
-            ),
-            Self::ForeignKeyColumn::default().eq_any(keys),
-        );
-
-        Self::build_response(query.load(conn)?, selection, conn)
-    }
-}
-
-#[derive(Identifiable, Debug)]
-#[table_name = "foo"]
-struct Foo {
-    id: i32,
-    name: String,
-    hair_color: Option<String>,
-}
-
-use diesel::pg::Pg;
-use diesel::Column;
-use query_helper::{HasMany, HasOne};
-
-impl LoadingHandler2<Pg> for Foo {
-    type Columns = <foo::table as Table>::AllColumns;
-    type FieldList = (i32, String, Option<String>, HasMany<Bar>);
-    type PrimaryKeyIndex = TupleIndex0;
-    type Filter = ();
-
-    type PlaceHolder = <Self::FieldList as WundergraphFieldList<
-        Pg,
-        Self::PrimaryKeyIndex,
-        Self::Table,
-    >>::PlaceHolder;
-
-    const FIELD_NAMES: &'static [&'static str] = &[
-        foo::id::NAME,
-        foo::name::NAME,
-        foo::hair_color::NAME,
-        "bars",
-    ];
-}
-
-#[allow(dead_code)]
-fn test_foo(conn: &diesel::PgConnection, select: &LookAheadSelection<WundergraphScalarValue>) {
-    let _r = Foo::load(select, conn, Foo::build_query(select).unwrap()).unwrap();
-}
-
-pub trait LoadingHandler<DB>: Sized + HasTable
-where
-    DB: Backend,
-{
-    type SqlType;
-    type QueryModifier: BuildQueryModifier<Self, Context = Self::Context>
-        + QueryModifier<DB, Entity = Self>;
-    type Context: WundergraphContext<DB>;
-    type Query: QueryDsl
-        + BoxedDsl<
-            'static,
-            DB,
-            Output = BoxedSelectStatement<'static, Self::SqlType, Self::Table, DB>,
-        >;
-
-    fn load_items<'a>(
-        select: &LookAheadSelection<WundergraphScalarValue>,
-        ctx: &Self::Context,
-        source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, DB>,
-    ) -> Result<Vec<Self>, Error>;
-
-    fn load_item<'a>(
-        select: &LookAheadSelection<WundergraphScalarValue>,
-        _ctx: &Self::Context,
-        _source: BoxedSelectStatement<'a, Self::SqlType, Self::Table, DB>,
-    ) -> Result<Option<Self>, Error>
-    where
-        Self: 'static,
-        &'static Self: Identifiable,
-        <&'static Self as Identifiable>::Id: UnRef<'static>,
-        <Self::Table as Table>::PrimaryKey:
-            EqAll<<<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed>,
-        <<Self::Table as Table>::PrimaryKey as EqAll<
-            <<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed,
-        >>::Output: AppearsOnTable<Self::Table> + NonAggregate + QueryFragment<DB>,
-        PrimaryKeyArgument<
-            'static,
-            Self::Table,
-            Self::Context,
-            <&'static Self as Identifiable>::Id,
-        >: FromLookAheadValue,
-    {
-        use juniper::LookAheadMethods;
-        let v = select
-            .argument("primaryKey")
-            .ok_or(WundergraphError::NoPrimaryKeyArgumentFound)?;
-        let _key = PrimaryKeyArgument::<
-            Self::Table,
-            Self::Context,
-            <&'static Self as Identifiable>::Id,
-        >::from_look_ahead(v.value())
-        .ok_or(WundergraphError::NoPrimaryKeyArgumentFound)?;
-        unimplemented!()
-        // let query = source
-        //     .filter(Self::table().primary_key().eq_all(key.values))
-        //     .limit(1);
-        // Self::load_items(select, ctx, query).map(|i| i.into_iter().next())
-    }
-
-    fn default_query() -> Self::Query;
 }
 
 #[macro_export]

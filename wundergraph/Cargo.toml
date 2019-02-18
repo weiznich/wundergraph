@@ -25,7 +25,8 @@ criterion = "0.2"
 lazy_static = "1"
 
 [features]
-default = ["postgres", "sqlite"]
+default = []
+#default = ["postgres", "sqlite"]
 debug = ["wundergraph_derive/debug"]
 sqlite = ["diesel/sqlite", "wundergraph_derive/sqlite"]
 postgres = ["diesel/postgres", "wundergraph_derive/postgres"]

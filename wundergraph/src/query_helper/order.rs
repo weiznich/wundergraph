@@ -12,8 +12,7 @@ use WundergraphError;
 pub trait BuildOrder<T, DB> {
     fn build_order(
         order: &[LookAheadValue<WundergraphScalarValue>],
-        name_list: &'static [&'static str],
-        name_indices: &'static [usize],
+        field_name: impl Fn(usize) -> &'static str,
     ) -> Result<Vec<Box<dyn BoxableExpression<T, DB, SqlType = ()>>>, Error>;
 }
 
@@ -32,8 +31,7 @@ macro_rules! impl_order_builder {
             {
                 fn build_order(
                     fields: &[LookAheadValue<WundergraphScalarValue>],
-                    name_list: &'static [&'static str],
-                    name_indices: &'static [usize],
+                    field_name: impl Fn(usize) -> &'static str,
                 ) -> Result<Vec<Box<dyn BoxableExpression<Table, DB, SqlType = ()>>>, Error>
                 {
                     let mut ret = Vec::with_capacity(fields.len());
@@ -51,7 +49,7 @@ macro_rules! impl_order_builder {
                                 .ok_or(WundergraphError::CouldNotBuildFilterArgument)?;
                             match *column {
                             $(
-                                x if x == name_list[name_indices[$idx]] => if order == Order::Desc {
+                                x if x == field_name($idx) => if order == Order::Desc {
                                     ret.push(Box::new($T::default().desc())
                                              as Box<dyn BoxableExpression<Table, DB, SqlType = ()>>)
                                 } else {

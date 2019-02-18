@@ -11,10 +11,9 @@ use scalar::WundergraphScalarValue;
 pub trait BuildSelect<T: ::diesel::Table, DB, ST> {
     fn build_select(
         select: &LookAheadSelection<WundergraphScalarValue>,
-        name_list: &'static [&'static str],
-        sql_name_indices: &'static [usize],
-        non_sql_name_indices: &'static [usize],
-        primary_key_index: usize,
+        get_field_name: impl Fn(usize) -> &'static str,
+        is_primary_key_index: impl Fn(usize) -> bool,
+        should_select_primary_key: bool,
     ) -> Result<Box<dyn BoxableExpression<T, DB, SqlType = ST>>, Error>;
 }
 
@@ -36,26 +35,24 @@ macro_rules! impl_select_builder {
             {
                 fn build_select(
                     select: &LookAheadSelection<WundergraphScalarValue>,
-                    name_list: &'static [&'static str],
-                    sql_name_indices: &'static [usize],
-                    non_sql_name_indices: &'static [usize],
-                    primary_key_index: usize,
-    ) -> Result<
-        Box<
-            dyn BoxableExpression<
-                Table,
+                    get_field_name: impl Fn(usize) -> &'static str,
+                    is_primary_key_index: impl Fn(usize) -> bool,
+                    should_select_primary_key: bool,
+                ) -> Result<
+                    Box<
+                    dyn BoxableExpression<
+                    Table,
                 DB,
                 SqlType = ($(<MaybeNull<$T> as Expression>::SqlType,)+)>,
-        >,
-        Error,
-                > {
+                >,
+                Error,
+                >
+                {
                     Ok(Box::new((
                         $(
-                            if select.has_child(name_list[sql_name_indices[$idx]]) ||
-                                (
-                                    primary_key_index == $idx &&
-                                        non_sql_name_indices.iter().any(|i| select.has_child(name_list[*i]))
-                                ) {
+                            if select.has_child(get_field_name($idx)) ||
+                                (is_primary_key_index($idx) && should_select_primary_key)
+                            {
                                 MaybeNull::Expr($T::default())
                             } else {
                                 MaybeNull::Null
