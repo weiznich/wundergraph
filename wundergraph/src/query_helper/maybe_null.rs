@@ -23,7 +23,7 @@ where
     DB: Backend,
     T: QueryFragment<DB>,
 {
-    fn walk_ast(&self, mut pass: AstPass<DB>) -> QueryResult<()> {
+    fn walk_ast(&self, mut pass: AstPass<'_, DB>) -> QueryResult<()> {
         match self {
             MaybeNull::Expr(e) => e.walk_ast(pass)?,
             MaybeNull::Null => pass.push_sql(" NULL "),

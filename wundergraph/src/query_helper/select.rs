@@ -10,7 +10,7 @@ use crate::scalar::WundergraphScalarValue;
 
 pub trait BuildSelect<T: ::diesel::Table, DB, ST> {
     fn build_select(
-        select: &LookAheadSelection<WundergraphScalarValue>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
         get_field_name: impl Fn(usize) -> &'static str,
         is_primary_key_index: impl Fn(usize) -> bool,
         should_select_primary_key: bool,
@@ -34,7 +34,7 @@ macro_rules! impl_select_builder {
                 $(MaybeNull<$T>: Expression,)+
             {
                 fn build_select(
-                    select: &LookAheadSelection<WundergraphScalarValue>,
+                    select: &LookAheadSelection<'_, WundergraphScalarValue>,
                     get_field_name: impl Fn(usize) -> &'static str,
                     is_primary_key_index: impl Fn(usize) -> bool,
                     should_select_primary_key: bool,

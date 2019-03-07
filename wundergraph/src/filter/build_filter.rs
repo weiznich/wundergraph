@@ -18,7 +18,7 @@ where
 }
 
 impl<'a, T, DB> BuildFilter<DB>
-    for Box<BoxableFilter<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>
+    for Box<dyn BoxableFilter<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>
 where
     DB: Backend,
 {

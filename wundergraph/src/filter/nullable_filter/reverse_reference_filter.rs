@@ -70,7 +70,7 @@ where
     NeAny<Nullable<C>, BoxedSelectStatement<'static, C2::SqlType, C2::Table, DB>>:
         AppearsOnTable<C::Table> + QueryFragment<DB> + Expression<SqlType = Bool>,
 {
-    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret> {
         let mut and = AndCollector::default();
@@ -129,7 +129,7 @@ impl<C, I, C2> FromLookAheadValue for ReverseNullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
             let inner = I::from_inner_look_ahead(obj);
             Some(Self {
@@ -188,7 +188,7 @@ where
         })
     }
 
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
         let inner = I::from_inner_look_ahead(obj);
         Self {
             inner: Box::new(inner),

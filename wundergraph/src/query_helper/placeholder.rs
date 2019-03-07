@@ -93,13 +93,13 @@ where
     fn resolve_value(
         &mut self,
         value: T::PlaceHolder,
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error>;
 
     fn finalize(
         self,
         conn: &impl Connection<Backend = DB>,
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
 }
 
@@ -119,7 +119,7 @@ where
     fn resolve_value(
         &mut self,
         value: T::PlaceHolder,
-        _selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
         Ok(Some(T::resolve(value)))
     }
@@ -127,7 +127,7 @@ where
     fn finalize(
         self,
         _conn: &impl Connection<Backend = DB>,
-        _selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
         Ok(None)
     }
@@ -404,7 +404,7 @@ where
     fn resolve_value(
         &mut self,
         value: <HasOne<R, T> as WundergraphValue>::PlaceHolder,
-        _selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
         self.1.push(value.into());
         Ok(None)
@@ -413,7 +413,7 @@ where
     fn finalize(
         self,
         conn: &impl Connection<Backend = DB>,
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
         use diesel::RunQueryDsl;
 
@@ -466,7 +466,7 @@ where
     fn resolve_value(
         &mut self,
         value: <Option<HasOne<R, T>> as WundergraphValue>::PlaceHolder,
-        _selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
         self.1.push(value.into());
         Ok(None)
@@ -475,7 +475,7 @@ where
     fn finalize(
         self,
         conn: &impl Connection<Backend = DB>,
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
         <Self as FieldValueResolver<HasOne<R, T>, DB>>::finalize(self, conn, selection)
     }
@@ -625,7 +625,7 @@ pub trait WundergraphResolvePlaceHolderList<R, DB: Backend> {
     fn resolve(
         self,
         get_name: impl Fn(usize) -> &'static str,
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         conn: &impl Connection<Backend = DB>,
     ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>, Error>;
 }
@@ -639,7 +639,7 @@ pub trait WundergraphFieldList<DB: Backend, Key, Table> {
 
     fn resolve(
         placeholder: Vec<Self::PlaceHolder>,
-        select: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        select: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         name_list: &'static [&'static str],
         conn: &impl Connection<Backend = DB>,
     ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error>;
@@ -676,7 +676,7 @@ impl<K: Eq + Hash> AssociationsReturn<K> {
     fn push_field<T, O, DB, C>(
         &mut self,
         field: &'static str,
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         conn: &C,
     ) -> Result<(), Error>
     where
@@ -753,7 +753,7 @@ where
     DB: Backend,
 {
     fn resolve(
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         get_name: impl Fn(usize) -> &'static str,
         get_keys: impl Fn() -> Vec<Option<K>>,
         conn: &impl Connection<Backend = DB>,
@@ -766,7 +766,7 @@ where
     DB: Backend,
 {
     fn resolve(
-        _selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         _get_name: impl Fn(usize) -> &'static str,
         _get_keys: impl Fn() -> Vec<Option<K>>,
         _conn: &impl Connection<Backend = DB>,
@@ -777,7 +777,7 @@ where
 
 pub trait WundergraphResolveAssociation<K, Other, DB: Backend> {
     fn resolve(
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         primary_keys: &[Option<K>],
         conn: &impl Connection<Backend = DB>,
     ) -> Result<HashMap<Option<K>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
@@ -798,14 +798,14 @@ where
     type Key: Eq + Hash;
 
     fn resolve(
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         keys: &[Option<Self::Key>],
         conn: &impl Connection<Backend = DB>,
     ) -> Result<HashMap<Option<Self::Key>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
 
     fn build_response(
         res: Vec<(Option<Self::Key>, <Self::FieldList as WundergraphFieldList<DB, Self::PrimaryKeyIndex, Self::Table>>::PlaceHolder)>,
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         conn: &impl Connection<Backend = DB>,
     ) -> Result<HashMap<Option<Self::Key>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>
     {
@@ -840,7 +840,7 @@ where
     DB::QueryBuilder: Default,
 {
     fn resolve(
-        selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+        selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         primary_keys: &[Option<K>],
         conn: &impl Connection<Backend = DB>,
     ) -> Result<HashMap<Option<K>, Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
@@ -927,7 +927,7 @@ macro_rules! wundergraph_value_impl {
                 fn resolve(
                     self,
                     get_name: impl Fn(usize) -> &'static str,
-                    selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+                    selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
                     conn: &impl Connection<Backend = Back>,
                 ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>, Error>
                 {
@@ -974,7 +974,7 @@ macro_rules! wundergraph_value_impl {
 
             {
                 fn resolve(
-                    selection: &juniper::LookAheadSelection<WundergraphScalarValue>,
+                    selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
                     get_name: impl Fn(usize) -> &'static str,
                     get_keys: impl Fn() -> Vec<Option<Key>>,
                     conn: &impl Connection<Backend = Back>
@@ -1079,7 +1079,7 @@ macro_rules! wundergraph_value_impl {
 
                 fn resolve(
                     placeholder: Vec<Self::PlaceHolder>,
-                    select: &juniper::LookAheadSelection<WundergraphScalarValue>,
+                    select: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
                     name_list: &'static [&'static str],
                     conn: &impl Connection<Backend = Back>,
                 ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error> {

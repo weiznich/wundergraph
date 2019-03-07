@@ -154,7 +154,7 @@ impl<F, T> FromLookAheadValue for Filter<F, T>
 where
     F: InnerFilter,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
             Some(Self::from_inner_look_ahead(obj))
         } else {
@@ -218,7 +218,7 @@ where
         <Self as BuildFilter<DB>>::Ret: AppearsOnTable<T> + QueryFragment<DB> + 'a,
     {
         if let Some(f) = self.into_filter() {
-            q = <BoxedSelectStatement<_, _, _> as QueryDsl>::filter(q, f);
+            q = <BoxedSelectStatement<'_, _, _, _> as QueryDsl>::filter(q, f);
         }
         q
     }
@@ -257,7 +257,7 @@ where
         })
     }
 
-    fn from_inner_look_ahead(objs: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
+    fn from_inner_look_ahead(objs: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
         let and = objs
             .iter()
             .find(|o| o.0 == "and")

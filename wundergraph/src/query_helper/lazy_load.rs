@@ -82,8 +82,8 @@ where
         &self,
         info: &Self::TypeInfo,
         field_name: &str,
-        arguments: &Arguments<WundergraphScalarValue>,
-        executor: &Executor<Self::Context, WundergraphScalarValue>,
+        arguments: &Arguments<'_, WundergraphScalarValue>,
+        executor: &Executor<'_, Self::Context, WundergraphScalarValue>,
     ) -> ExecutionResult<WundergraphScalarValue> {
         match *self {
             LazyLoad::NotLoaded => Err(FieldError::new("LazyLoad item not loaded", Value::Null)),
@@ -95,8 +95,8 @@ where
         &self,
         info: &Self::TypeInfo,
         type_name: &str,
-        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
-        executor: &Executor<Self::Context, WundergraphScalarValue>,
+        selection_set: Option<&[Selection<'_, WundergraphScalarValue>]>,
+        executor: &Executor<'_, Self::Context, WundergraphScalarValue>,
     ) -> ExecutionResult<WundergraphScalarValue> {
         match *self {
             LazyLoad::NotLoaded => Err(FieldError::new("LazyLoad item not loaded", Value::Null)),
@@ -114,8 +114,8 @@ where
     fn resolve(
         &self,
         info: &Self::TypeInfo,
-        selection_set: Option<&[Selection<WundergraphScalarValue>]>,
-        executor: &Executor<Self::Context, WundergraphScalarValue>,
+        selection_set: Option<&[Selection<'_, WundergraphScalarValue>]>,
+        executor: &Executor<'_, Self::Context, WundergraphScalarValue>,
     ) -> Value<WundergraphScalarValue> {
         match *self {
             LazyLoad::NotLoaded => unreachable!(),
@@ -149,7 +149,7 @@ impl<T> FromLookAheadValue for LazyLoad<T>
 where
     T: FromLookAheadValue,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         T::from_look_ahead(v).map(LazyLoad::Item)
     }
 }

@@ -19,8 +19,8 @@ use crate::LoadingHandler;
 use crate::WundergraphContext;
 
 pub fn handle_update<DB, U, R, Ctx>(
-    executor: &Executor<Ctx, WundergraphScalarValue>,
-    arguments: &Arguments<WundergraphScalarValue>,
+    executor: &Executor<'_, Ctx, WundergraphScalarValue>,
+    arguments: &Arguments<'_, WundergraphScalarValue>,
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
@@ -47,7 +47,7 @@ where
 
 pub trait HandleUpdate<L, U, DB, Ctx> {
     fn handle_update(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         update: &U,
     ) -> ExecutionResult<WundergraphScalarValue>;
 }
@@ -83,7 +83,7 @@ where
         AppearsOnTable<T> + NonAggregate + QueryFragment<DB>,
 {
     fn handle_update(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         change_set: &U,
     ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();

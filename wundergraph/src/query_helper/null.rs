@@ -23,7 +23,7 @@ impl<ST, DB> QueryFragment<DB> for Null<ST>
 where
     DB: Backend,
 {
-    fn walk_ast(&self, mut pass: AstPass<DB>) -> QueryResult<()> {
+    fn walk_ast(&self, mut pass: AstPass<'_, DB>) -> QueryResult<()> {
         pass.push_sql(" NULL ");
         Ok(())
     }

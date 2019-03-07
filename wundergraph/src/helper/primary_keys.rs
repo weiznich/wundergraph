@@ -80,7 +80,7 @@ pub trait PrimaryKeyInputObject<V, I> {
     ) -> Vec<Argument<'r, WundergraphScalarValue>>;
 
     fn from_input_value(value: &InputValue<WundergraphScalarValue>) -> Option<V>;
-    fn from_look_ahead(look_ahead: &LookAheadValue<WundergraphScalarValue>) -> Option<V>;
+    fn from_look_ahead(look_ahead: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<V>;
     fn to_input_value(values: &V) -> InputValue<WundergraphScalarValue>;
 }
 
@@ -109,7 +109,7 @@ where
         }
     }
 
-    fn from_look_ahead(value: &LookAheadValue<WundergraphScalarValue>) -> Option<V1> {
+    fn from_look_ahead(value: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<V1> {
         if let LookAheadValue::Object(ref o) = *value {
             o.iter()
                 .find(|&(n, _)| *n == Self::NAME)
@@ -165,7 +165,7 @@ macro_rules! primary_key_input_object_impl {
                     }
                 }
 
-                fn from_look_ahead(value: &LookAheadValue<WundergraphScalarValue>)
+                fn from_look_ahead(value: &LookAheadValue<'_, WundergraphScalarValue>)
                     -> Option<($($ST, )+)>
                 {
                     if let LookAheadValue::Object(ref o) = *value {
@@ -205,7 +205,7 @@ impl PrimaryKeyInfo {
     }
 }
 
-pub struct PrimaryKeyArgument<'a, T: 'a, Ctx, V>
+pub struct PrimaryKeyArgument<'a, T, Ctx, V>
 where
     V: UnRef<'a>,
 {
@@ -218,7 +218,7 @@ where
     V: UnRef<'a>,
     V::UnRefed: Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PrimaryKeyArgument")
             .field("primary_key", &self.values)
             .finish()
@@ -283,7 +283,7 @@ where
     T::PrimaryKey: PrimaryKeyInputObject<V::UnRefed, ()>,
     V: UnRef<'a>,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         T::PrimaryKey::from_look_ahead(v).map(|values| Self {
             values,
             _marker: PhantomData,

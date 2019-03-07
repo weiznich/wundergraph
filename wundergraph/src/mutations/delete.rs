@@ -23,8 +23,8 @@ pub struct DeletedCount {
 }
 
 pub fn handle_delete<DB, D, R, Ctx>(
-    executor: &Executor<Ctx, WundergraphScalarValue>,
-    arguments: &Arguments<WundergraphScalarValue>,
+    executor: &Executor<'_, Ctx, WundergraphScalarValue>,
+    arguments: &Arguments<'_, WundergraphScalarValue>,
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
@@ -51,7 +51,7 @@ where
 
 pub trait HandleDelete<L, K, DB, Ctx> {
     fn handle_delete(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         to_delete: &K,
     ) -> ExecutionResult<WundergraphScalarValue>;
 }
@@ -79,7 +79,7 @@ where
        + QueryId,
 {
     fn handle_delete(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         to_delete: &K,
     ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();

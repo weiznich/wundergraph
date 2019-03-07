@@ -35,7 +35,7 @@ where
     operators::IsNull<C>: AppearsOnTable<C::Table, SqlType = Bool>,
     operators::IsNotNull<C>: AppearsOnTable<C::Table, SqlType = Bool>,
 {
-    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret> {
         if self.0 {

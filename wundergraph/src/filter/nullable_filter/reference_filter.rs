@@ -78,7 +78,7 @@ AppearsOnTable<C::Table, SqlType = Bool>,
     NeAny<C, BoxedSelectStatement<'static, diesel::sql_types::Nullable<SqlTypeOf<C2>>, C2::Table, DB>>:
         AppearsOnTable<C::Table, SqlType = Bool>,
 {
-    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret>
     {
@@ -148,7 +148,7 @@ impl<C, I, C2> FromLookAheadValue for NullableReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
             let is_null = obj
                 .iter()
@@ -225,7 +225,7 @@ where
             p: PhantomData,
         })
     }
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
         let inner = I::from_inner_look_ahead(obj);
         let is_null = obj
             .iter()

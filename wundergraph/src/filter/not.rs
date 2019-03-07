@@ -45,7 +45,7 @@ impl<I> FromLookAheadValue for Not<I>
 where
     I: FromLookAheadValue,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         I::from_look_ahead(v).map(Not)
     }
 }

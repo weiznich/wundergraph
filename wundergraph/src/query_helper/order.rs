@@ -11,7 +11,7 @@ use crate::WundergraphError;
 
 pub trait BuildOrder<T, DB> {
     fn build_order(
-        order: &[LookAheadValue<WundergraphScalarValue>],
+        order: &[LookAheadValue<'_, WundergraphScalarValue>],
         field_name: impl Fn(usize) -> &'static str,
     ) -> Result<Vec<Box<dyn BoxableExpression<T, DB, SqlType = ()>>>, Error>;
 }
@@ -30,7 +30,7 @@ macro_rules! impl_order_builder {
               SelectableExpression<Table> + NonAggregate + QueryFragment<DB> + 'static,)+
             {
                 fn build_order(
-                    fields: &[LookAheadValue<WundergraphScalarValue>],
+                    fields: &[LookAheadValue<'_, WundergraphScalarValue>],
                     field_name: impl Fn(usize) -> &'static str,
                 ) -> Result<Vec<Box<dyn BoxableExpression<Table, DB, SqlType = ()>>>, Error>
                 {

@@ -70,7 +70,7 @@ pub struct WundergraphScalarVisitor;
 impl<'de> de::Visitor<'de> for WundergraphScalarVisitor {
     type Value = WundergraphScalarValue;
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("a valid input value")
     }
 

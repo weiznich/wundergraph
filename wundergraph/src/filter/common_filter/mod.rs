@@ -102,7 +102,7 @@ where
         })
     }
 
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
         let eq = obj
             .iter()
             .find(|o| o.0 == "eq")
@@ -221,7 +221,7 @@ where
     C: Column,
     Self: InnerFilter,
 {
-    fn from_look_ahead(a: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(a: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *a {
             Some(Self::from_inner_look_ahead(obj))
         } else {
@@ -250,7 +250,7 @@ where
     In<C, Many<<T::RawValue as AsExpression<C::SqlType>>::Expression>>:
         AppearsOnTable<C::Table, SqlType = Bool>,
 {
-    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret> {
         let mut combinator = AndCollector::default();

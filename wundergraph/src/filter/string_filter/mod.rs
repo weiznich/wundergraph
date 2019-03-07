@@ -40,9 +40,9 @@ impl<C, DB> BuildFilter<DB> for StringFilter<C>
 where
     DB: Backend,
     C: Column,
-    Like<C>: BuildFilter<DB, Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>>,
+    Like<C>: BuildFilter<DB, Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>>,
 {
-    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret> {
         self.like.into_filter()
@@ -67,7 +67,7 @@ impl<C> InnerFilter for StringFilter<C> {
         Some(Self { like })
     }
 
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
         let like = obj
             .iter()
             .find(|o| o.0 == "like")

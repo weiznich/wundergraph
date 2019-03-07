@@ -56,7 +56,7 @@ pub extern crate failure;
 #[doc(hidden)]
 #[macro_use]
 pub extern crate log;
-extern crate serde;
+
 #[allow(unused_imports)]
 #[macro_use]
 extern crate wundergraph_derive;
@@ -154,7 +154,7 @@ where
     const TYPE_NAME: &'static str;
 
     fn load<'a>(
-        select: &LookAheadSelection<WundergraphScalarValue>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
         conn: &impl Connection<Backend = DB>,
         query: BoxedSelectStatement<
             'a,
@@ -182,7 +182,7 @@ where
     }
 
     fn load_by_primary_key<'a>(
-        select: &LookAheadSelection<WundergraphScalarValue>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
         conn: &impl Connection<Backend = DB>,
         mut query: BoxedSelectStatement<
             'a,
@@ -223,7 +223,7 @@ where
     }
 
     fn build_query<'a>(
-        select: &LookAheadSelection<WundergraphScalarValue>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<
         BoxedSelectStatement<
             'a,
@@ -258,7 +258,7 @@ where
     }
 
     fn get_select(
-        select: &LookAheadSelection<WundergraphScalarValue>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<
         Box<
             dyn BoxableExpression<
@@ -292,7 +292,7 @@ where
     }
 
     fn get_filter(
-        input: &LookAheadValue<WundergraphScalarValue>,
+        input: &LookAheadValue<'_, WundergraphScalarValue>,
     ) -> Result<Option<Box<dyn BoxableFilter<Self::Table, DB, SqlType = Bool>>>, Error>
     where
         <Self::Filter as BuildFilter<DB>>::Ret: AppearsOnTable<Self::Table>,
@@ -310,7 +310,7 @@ where
             Self::Table,
             DB,
         >,
-        select: &LookAheadSelection<WundergraphScalarValue>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<
         BoxedSelectStatement<
             'a,
@@ -342,7 +342,7 @@ where
             Self::Table,
             DB,
         >,
-        select: &LookAheadSelection<WundergraphScalarValue>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<
         BoxedSelectStatement<
             'a,
@@ -381,7 +381,7 @@ where
             Self::Table,
             DB,
         >,
-        select: &LookAheadSelection<WundergraphScalarValue>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<
         BoxedSelectStatement<
             'a,
@@ -410,7 +410,7 @@ where
             Self::Table,
             DB,
         >,
-        select: &LookAheadSelection<WundergraphScalarValue>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<
         BoxedSelectStatement<
             'a,

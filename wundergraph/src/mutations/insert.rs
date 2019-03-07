@@ -44,8 +44,8 @@ use crate::LoadingHandler;
 use crate::WundergraphContext;
 
 pub fn handle_insert<DB, I, R, Ctx>(
-    executor: &Executor<Ctx, WundergraphScalarValue>,
-    arguments: &Arguments<WundergraphScalarValue>,
+    executor: &Executor<'_, Ctx, WundergraphScalarValue>,
+    arguments: &Arguments<'_, WundergraphScalarValue>,
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
@@ -71,8 +71,8 @@ where
 }
 
 pub fn handle_batch_insert<DB, I, R, Ctx>(
-    executor: &Executor<Ctx, WundergraphScalarValue>,
-    arguments: &Arguments<WundergraphScalarValue>,
+    executor: &Executor<'_, Ctx, WundergraphScalarValue>,
+    arguments: &Arguments<'_, WundergraphScalarValue>,
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
@@ -99,14 +99,14 @@ where
 
 pub trait HandleInsert<L, I, DB, Ctx> {
     fn handle_insert(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         insertable: I,
     ) -> ExecutionResult<WundergraphScalarValue>;
 }
 
 pub trait HandleBatchInsert<L, I, DB, Ctx> {
     fn handle_batch_insert(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         insertable: Vec<I>,
     ) -> ExecutionResult<WundergraphScalarValue>;
 }
@@ -140,7 +140,7 @@ where
         SelectableExpression<T> + NonAggregate + QueryFragment<Pg> + 'static,
 {
     fn handle_insert(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         insertable: I,
     ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
@@ -193,7 +193,7 @@ where
         SelectableExpression<T> + NonAggregate + QueryFragment<Pg> + 'static,
 {
     fn handle_batch_insert(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         batch: Vec<I>,
     ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
@@ -243,7 +243,7 @@ where
     Sqlite: HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Sqlite, L::PrimaryKeyIndex, T>>,
 {
     fn handle_insert(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         insertable: I,
     ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
@@ -286,7 +286,7 @@ where
     Sqlite: HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Sqlite, L::PrimaryKeyIndex, T>>,
 {
     fn handle_batch_insert(
-        executor: &Executor<Ctx, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         batch: Vec<I>,
     ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();

@@ -10,7 +10,7 @@ use std::fmt::{self, Debug};
 
 /// A filter collected that combines all given filters using `or`
 pub struct OrCollector<'a, T, DB>(
-    Option<Box<BoxableFilter<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>>,
+    Option<Box<dyn BoxableFilter<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>>,
 );
 
 impl<'a, T, DB> Debug for OrCollector<'a, T, DB>
@@ -18,7 +18,7 @@ where
     DB: Backend,
     DB::QueryBuilder: Default,
 {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_tuple("OrCollector")
             .field(&self.0.as_ref().map(|q| ::diesel::debug_query(q)))
             .finish()
@@ -56,7 +56,7 @@ impl<'a, T, DB> BuildFilter<DB> for OrCollector<'a, T, DB>
 where
     DB: Backend,
 {
-    type Ret = Box<BoxableFilter<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>;
+    type Ret = Box<dyn BoxableFilter<T, DB, SqlType = ::diesel::sql_types::Bool> + 'a>;
 
     fn into_filter(self) -> Option<Self::Ret> {
         self.0

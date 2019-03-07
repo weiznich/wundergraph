@@ -153,7 +153,7 @@ macro_rules! __impl_build_filter_for_tuples {
                 Back::QueryBuilder: Default,
 
             {
-                type Ret = Box<BoxableFilter<Loading::Table, Back, SqlType = Bool>>;
+                type Ret = Box<dyn BoxableFilter<Loading::Table, Back, SqlType = Bool>>;
 
                 fn into_filter(self) -> Option<Self::Ret> {
                     use crate::filter::collector::{AndCollector, FilterCollector};
@@ -200,7 +200,7 @@ macro_rules! __impl_build_filter_for_tuples {
                 }
 
                 fn from_inner_look_ahead(
-                    objs: &[(&str, LookAheadValue<WundergraphScalarValue>)]
+                    objs: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]
                 ) -> Self {
                     use crate::query_helper::placeholder::WundergraphFieldList;
                     let mut values = ($(Option::<$T>::None,)*);

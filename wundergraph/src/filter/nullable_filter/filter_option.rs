@@ -57,7 +57,7 @@ where
     IsNull<C>: BuildFilter<DB>,
     <IsNull<C> as BuildFilter<DB>>::Ret: AppearsOnTable<C::Table> + QueryFragment<DB>,
 {
-    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret> {
         let mut combinator = AndCollector::default();
@@ -103,7 +103,7 @@ where
         })
     }
 
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
         let is_null = obj
             .iter()
             .find(|o| o.0 == "is_null")

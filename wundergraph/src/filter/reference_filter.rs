@@ -59,7 +59,7 @@ where
     EqAny<C, IntoBoxed<'static, Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>, DB>>: BoxableFilter<C::Table, DB, SqlType = Bool>,
     NeAny<C, IntoBoxed<'static, Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>, DB>>: BoxableFilter<C::Table, DB, SqlType = Bool>
 {
-    type Ret = Box<BoxableFilter<C::Table, DB, SqlType = Bool>>;
+    type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret>
     {
@@ -118,7 +118,7 @@ impl<C, I, C2> FromLookAheadValue for ReferenceFilter<C, I, C2>
 where
     I: InnerFilter,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Object(ref obj) = *v {
             let inner = I::from_inner_look_ahead(obj);
             Some(Self {
@@ -177,7 +177,7 @@ where
             p: PhantomData,
         })
     }
-    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
         let inner = I::from_inner_look_ahead(obj);
         Self {
             inner: Box::new(inner),

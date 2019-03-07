@@ -58,7 +58,7 @@ impl<R, T> FromLookAheadValue for HasOne<R, T>
 where
     R: FromLookAheadValue,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         R::from_look_ahead(v).map(HasOne::Id)
     }
 }

@@ -21,7 +21,7 @@ pub trait InnerFilter: Sized + Nameable {
         v: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
     ) -> Option<Self>;
     /// Create the given filter from a graphql lookahead value
-    fn from_inner_look_ahead(v: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self;
+    fn from_inner_look_ahead(v: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self;
     /// Covert the given filter into a graphql value
     fn to_inner_input_value(&self, v: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>);
     /// Register all fields of the the filter in a given graphql schema
@@ -42,7 +42,7 @@ impl InnerFilter for () {
     ) -> Option<Self> {
         Some(())
     }
-    fn from_inner_look_ahead(_v: &[(&str, LookAheadValue<WundergraphScalarValue>)]) -> Self {
+    fn from_inner_look_ahead(_v: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
         ()
     }
     fn to_inner_input_value(&self, _v: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {}

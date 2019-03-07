@@ -6,11 +6,11 @@ pub trait FromLookAheadValue: Sized {
     /// Try to convert a `LookAheadValue` into a specific type
     ///
     /// For a successful conversion `Some(value)` is returned, otherwise `None`
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self>;
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self>;
 }
 
 impl FromLookAheadValue for i16 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::SmallInt(ref i)) = *v {
             Some(*i)
         } else {
@@ -20,7 +20,7 @@ impl FromLookAheadValue for i16 {
 }
 
 impl FromLookAheadValue for i32 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         match *v {
             LookAheadValue::Scalar(WundergraphScalarValue::SmallInt(ref i)) => Some(*i as _),
             LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) => Some(*i),
@@ -30,7 +30,7 @@ impl FromLookAheadValue for i32 {
 }
 
 impl FromLookAheadValue for i64 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         match *v {
             LookAheadValue::Scalar(WundergraphScalarValue::SmallInt(ref i)) => Some(*i as _),
             LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) => Some(*i as _),
@@ -41,7 +41,7 @@ impl FromLookAheadValue for i64 {
 }
 
 impl FromLookAheadValue for bool {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::Boolean(ref b)) = *v {
             Some(*b)
         } else {
@@ -51,7 +51,7 @@ impl FromLookAheadValue for bool {
 }
 
 impl FromLookAheadValue for String {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             Some(s.to_owned())
         } else {
@@ -61,7 +61,7 @@ impl FromLookAheadValue for String {
 }
 
 impl FromLookAheadValue for f32 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::Float(ref f)) = *v {
             Some(*f)
         } else {
@@ -71,7 +71,7 @@ impl FromLookAheadValue for f32 {
 }
 
 impl FromLookAheadValue for f64 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         match *v {
             LookAheadValue::Scalar(WundergraphScalarValue::Float(ref i)) => Some(*i as _),
             LookAheadValue::Scalar(WundergraphScalarValue::Double(ref i)) => Some(*i),
@@ -81,7 +81,7 @@ impl FromLookAheadValue for f64 {
 }
 
 impl FromLookAheadValue for ID {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         match *v {
             LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) => {
                 Some(Self::from(i.to_string()))
@@ -98,7 +98,7 @@ impl<T> FromLookAheadValue for Vec<T>
 where
     T: FromLookAheadValue,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::List(ref l) = *v {
             l.iter().map(T::from_look_ahead).collect()
         } else {
@@ -111,7 +111,7 @@ impl<T> FromLookAheadValue for Box<T>
 where
     T: FromLookAheadValue,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         T::from_look_ahead(v).map(Box::new)
     }
 }
@@ -121,7 +121,7 @@ impl<T> FromLookAheadValue for Option<T>
 where
     T: FromLookAheadValue,
 {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         Some(T::from_look_ahead(v))
     }
 }
@@ -136,7 +136,7 @@ extern crate chrono;
 
 #[cfg(feature = "chrono")]
 impl FromLookAheadValue for self::chrono::NaiveDateTime {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             Self::parse_from_str(s, RFC3339_PARSE_FORMAT).ok()
         } else {
@@ -147,7 +147,7 @@ impl FromLookAheadValue for self::chrono::NaiveDateTime {
 
 #[cfg(feature = "chrono")]
 impl FromLookAheadValue for self::chrono::DateTime<self::chrono::Utc> {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             s.parse().ok()
         } else {
@@ -158,7 +158,7 @@ impl FromLookAheadValue for self::chrono::DateTime<self::chrono::Utc> {
 
 #[cfg(feature = "chrono")]
 impl FromLookAheadValue for self::chrono::DateTime<self::chrono::FixedOffset> {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             Self::parse_from_rfc3339(s).ok()
         } else {
@@ -169,7 +169,7 @@ impl FromLookAheadValue for self::chrono::DateTime<self::chrono::FixedOffset> {
 
 #[cfg(feature = "chrono")]
 impl FromLookAheadValue for self::chrono::NaiveDate {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             Self::parse_from_str(s, RFC3339_FORMAT).ok()
         } else {
@@ -183,7 +183,7 @@ extern crate uuid;
 
 #[cfg(feature = "uuid")]
 impl FromLookAheadValue for self::uuid::Uuid {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             Self::parse_str(s).ok()
         } else {

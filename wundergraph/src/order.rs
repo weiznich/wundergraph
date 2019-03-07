@@ -16,7 +16,7 @@ pub enum Order {
 }
 
 impl FromLookAheadValue for Order {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
+    fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Enum(e) = *v {
             match e {
                 "ASC" => Some(Order::Asc),
