@@ -1,13 +1,13 @@
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
 use diesel::QuerySource;
-use graphql_type::GraphqlOrderWrapper;
-use helper::FromLookAheadValue;
+use crate::graphql_type::GraphqlOrderWrapper;
+use crate::helper::FromLookAheadValue;
 use juniper::LookAheadValue;
 use juniper::{meta, FromInputValue, GraphQLType, Registry, ToInputValue};
-use scalar::WundergraphScalarValue;
+use crate::scalar::WundergraphScalarValue;
 use std::marker::PhantomData;
-use LoadingHandler;
+use crate::LoadingHandler;
 
 #[derive(Debug, GraphQLEnum, Copy, Clone, PartialEq)]
 pub enum Order {

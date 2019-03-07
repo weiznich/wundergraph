@@ -10,13 +10,13 @@ use diesel::{AppearsOnTable, Connection, EqAll, QuerySource, RunQueryDsl, Table}
 
 use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Value};
 
-use filter::build_filter::BuildFilter;
-use query_helper::order::BuildOrder;
-use query_helper::placeholder::{SqlTypeOfPlaceholder, WundergraphFieldList};
-use query_helper::select::BuildSelect;
-use scalar::WundergraphScalarValue;
-use LoadingHandler;
-use WundergraphContext;
+use crate::filter::build_filter::BuildFilter;
+use crate::query_helper::order::BuildOrder;
+use crate::query_helper::placeholder::{SqlTypeOfPlaceholder, WundergraphFieldList};
+use crate::query_helper::select::BuildSelect;
+use crate::scalar::WundergraphScalarValue;
+use crate::LoadingHandler;
+use crate::WundergraphContext;
 
 pub fn handle_update<DB, U, R, Ctx>(
     executor: &Executor<Ctx, WundergraphScalarValue>,

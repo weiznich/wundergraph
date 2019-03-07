@@ -1,5 +1,5 @@
 use juniper::{LookAheadValue, ID};
-use scalar::WundergraphScalarValue;
+use crate::scalar::WundergraphScalarValue;
 
 /// A helper trait marking how to convert a `LookAheadValue` into a specific type
 pub trait FromLookAheadValue: Sized {

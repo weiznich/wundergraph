@@ -3,11 +3,11 @@ use diesel::expression::NonAggregate;
 use diesel::query_builder::QueryFragment;
 use diesel::{BoxableExpression, Column, ExpressionMethods, SelectableExpression};
 use failure::Error;
-use helper::FromLookAheadValue;
+use crate::helper::FromLookAheadValue;
 use juniper::LookAheadValue;
-use order::Order;
-use scalar::WundergraphScalarValue;
-use WundergraphError;
+use crate::order::Order;
+use crate::scalar::WundergraphScalarValue;
+use crate::WundergraphError;
 
 pub trait BuildOrder<T, DB> {
     fn build_order(

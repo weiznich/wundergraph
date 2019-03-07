@@ -95,8 +95,8 @@ use diesel::Identifiable;
 use diesel::QuerySource;
 use diesel::{AppearsOnTable, Connection, QueryDsl, Table};
 use failure::Error;
-use helper::primary_keys::{PrimaryKeyArgument, UnRef};
-use query_helper::placeholder::*;
+use crate::helper::primary_keys::{PrimaryKeyArgument, UnRef};
+use crate::query_helper::placeholder::*;
 
 use juniper::LookAheadSelection;
 
@@ -123,14 +123,14 @@ where
 use diesel::query_dsl::methods::FilterDsl;
 use diesel::sql_types::{Bool, HasSqlType};
 use diesel::BoxableExpression;
-use diesel_ext::BoxableFilter;
-use filter::build_filter::BuildFilter;
-use filter::inner_filter::InnerFilter;
-use filter::Filter;
+use crate::diesel_ext::BoxableFilter;
+use crate::filter::build_filter::BuildFilter;
+use crate::filter::inner_filter::InnerFilter;
+use crate::filter::Filter;
 use juniper::LookAheadValue;
-use query_helper::order::BuildOrder;
-use query_helper::select::BuildSelect;
-use query_helper::tuple::IsPrimaryKeyIndex;
+use crate::query_helper::order::BuildOrder;
+use crate::query_helper::select::BuildSelect;
+use crate::query_helper::tuple::IsPrimaryKeyIndex;
 
 pub trait LoadingHandler<DB>: HasTable + Sized
 where

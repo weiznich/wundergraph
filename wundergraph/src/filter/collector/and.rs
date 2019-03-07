@@ -1,10 +1,10 @@
 use super::FilterCollector;
-use filter::build_filter::BuildFilter;
+use crate::filter::build_filter::BuildFilter;
 
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
 use diesel::{AppearsOnTable, BoolExpressionMethods};
-use diesel_ext::BoxableFilter;
+use crate::diesel_ext::BoxableFilter;
 
 use std::fmt::{self, Debug};
 

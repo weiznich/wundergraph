@@ -5,7 +5,7 @@ use diesel::{Column, Identifiable, QuerySource, Table};
 use indexmap::IndexMap;
 use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
-use scalar::WundergraphScalarValue;
+use crate::scalar::WundergraphScalarValue;
 use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::marker::PhantomData;

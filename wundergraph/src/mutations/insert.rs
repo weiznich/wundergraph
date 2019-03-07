@@ -8,10 +8,10 @@ use diesel::sql_types::HasSqlType;
 use diesel::QuerySource;
 use diesel::{AppearsOnTable, Connection, Insertable, Queryable, RunQueryDsl, Table};
 
-use filter::build_filter::BuildFilter;
-use query_helper::order::BuildOrder;
-use query_helper::placeholder::{SqlTypeOfPlaceholder, WundergraphFieldList};
-use query_helper::select::BuildSelect;
+use crate::filter::build_filter::BuildFilter;
+use crate::query_helper::order::BuildOrder;
+use crate::query_helper::placeholder::{SqlTypeOfPlaceholder, WundergraphFieldList};
+use crate::query_helper::select::BuildSelect;
 
 #[cfg(feature = "postgres")]
 use diesel::expression::{Expression, NonAggregate, SelectableExpression};
@@ -24,7 +24,7 @@ use diesel::query_dsl::methods::FilterDsl;
 #[cfg(feature = "postgres")]
 use diesel::{EqAll, Identifiable};
 #[cfg(feature = "postgres")]
-use helper::primary_keys::UnRef;
+use crate::helper::primary_keys::UnRef;
 
 #[cfg(feature = "sqlite")]
 use diesel::expression::dsl::sql;
@@ -39,9 +39,9 @@ use diesel::sqlite::Sqlite;
 
 use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Value};
 
-use scalar::WundergraphScalarValue;
-use LoadingHandler;
-use WundergraphContext;
+use crate::scalar::WundergraphScalarValue;
+use crate::LoadingHandler;
+use crate::WundergraphContext;
 
 pub fn handle_insert<DB, I, R, Ctx>(
     executor: &Executor<Ctx, WundergraphScalarValue>,

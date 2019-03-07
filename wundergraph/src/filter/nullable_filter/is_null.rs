@@ -1,14 +1,14 @@
 use std::marker::PhantomData;
 
-use filter::build_filter::BuildFilter;
-use scalar::WundergraphScalarValue;
+use crate::filter::build_filter::BuildFilter;
+use crate::scalar::WundergraphScalarValue;
 
 use diesel::backend::Backend;
 use diesel::expression::{operators, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::sql_types::Bool;
 use diesel::{AppearsOnTable, Column, ExpressionMethods};
-use diesel_ext::BoxableFilter;
+use crate::diesel_ext::BoxableFilter;
 
 use juniper::{InputValue, ToInputValue};
 

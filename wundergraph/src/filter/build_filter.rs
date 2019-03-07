@@ -2,7 +2,7 @@ use diesel::backend::Backend;
 use diesel::expression::{Expression, NonAggregate, SqlLiteral};
 use diesel::query_builder::QueryFragment;
 use diesel::sql_types::Bool;
-use diesel_ext::BoxableFilter;
+use crate::diesel_ext::BoxableFilter;
 
 /// A trait that indicates that some type could be converted into a sql filter
 /// operation.

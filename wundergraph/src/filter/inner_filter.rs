@@ -1,5 +1,5 @@
-use helper::{NameBuilder, Nameable};
-use scalar::WundergraphScalarValue;
+use crate::helper::{NameBuilder, Nameable};
+use crate::scalar::WundergraphScalarValue;
 
 use indexmap::IndexMap;
 use juniper::meta::Argument;

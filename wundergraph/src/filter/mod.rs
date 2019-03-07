@@ -17,11 +17,11 @@ use diesel::sql_types::Bool;
 use diesel::AppearsOnTable;
 use diesel::QueryDsl;
 use diesel::Table;
-use diesel_ext::BoxableFilter;
+use crate::diesel_ext::BoxableFilter;
 use indexmap::IndexMap;
 
-use helper::{FromLookAheadValue, NameBuilder, Nameable};
-use scalar::WundergraphScalarValue;
+use crate::helper::{FromLookAheadValue, NameBuilder, Nameable};
+use crate::scalar::WundergraphScalarValue;
 
 mod common_filter;
 pub mod filter_helper;

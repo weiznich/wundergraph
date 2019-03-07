@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use filter::build_filter::BuildFilter;
-use filter::collector::{AndCollector, FilterCollector};
-use filter::inner_filter::InnerFilter;
+use crate::filter::build_filter::BuildFilter;
+use crate::filter::collector::{AndCollector, FilterCollector};
+use crate::filter::inner_filter::InnerFilter;
 
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
@@ -14,15 +14,15 @@ use diesel::query_builder::QueryFragment;
 use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl};
 use diesel::sql_types::{Bool, SingleValue};
 use diesel::{AppearsOnTable, Column, ExpressionMethods, QueryDsl};
-use diesel_ext::BoxableFilter;
+use crate::diesel_ext::BoxableFilter;
 
 use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
 use indexmap::IndexMap;
-use scalar::WundergraphScalarValue;
+use crate::scalar::WundergraphScalarValue;
 
-use helper::{FromLookAheadValue, NameBuilder, Nameable};
+use crate::helper::{FromLookAheadValue, NameBuilder, Nameable};
 
 #[derive(Debug)]
 pub struct ReferenceFilter<C, I, C2> {

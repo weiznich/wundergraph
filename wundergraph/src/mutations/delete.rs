@@ -8,13 +8,13 @@ use diesel::{Connection, EqAll, RunQueryDsl, Table, QuerySource};
 
 use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Value};
 
-use query_helper::order::BuildOrder;
-use query_helper::placeholder::SqlTypeOfPlaceholder;
-use query_helper::placeholder::WundergraphFieldList;
-use query_helper::select::BuildSelect;
-use scalar::WundergraphScalarValue;
-use LoadingHandler;
-use WundergraphContext;
+use crate::query_helper::order::BuildOrder;
+use crate::query_helper::placeholder::SqlTypeOfPlaceholder;
+use crate::query_helper::placeholder::WundergraphFieldList;
+use crate::query_helper::select::BuildSelect;
+use crate::scalar::WundergraphScalarValue;
+use crate::LoadingHandler;
+use crate::WundergraphContext;
 
 #[derive(Debug, GraphQLObject, Clone, Copy)]
 #[graphql(scalar = "WundergraphScalarValue")]

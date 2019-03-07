@@ -1,15 +1,15 @@
 use diesel::backend::Backend;
 use diesel::sql_types::{NotNull, Nullable};
 use diesel::Queryable;
-use filter::filter_value::FilterValue;
-use helper::{FromLookAheadValue, Nameable};
+use crate::filter::filter_value::FilterValue;
+use crate::helper::{FromLookAheadValue, Nameable};
 use juniper::meta::MetaType;
 use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, InputValue,
     LookAheadValue, Registry, Selection, ToInputValue, Value,
 };
 
-use scalar::WundergraphScalarValue;
+use crate::scalar::WundergraphScalarValue;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum LazyLoad<T> {

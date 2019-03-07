@@ -16,15 +16,15 @@ use diesel::{
     QuerySource, Queryable, SelectableExpression, Table,
 };
 use failure::Error;
-use filter::build_filter::BuildFilter;
-use query_helper::tuple::TupleIndex;
-use query_helper::{HasMany, HasOne};
-use scalar::WundergraphScalarValue;
+use crate::filter::build_filter::BuildFilter;
+use crate::query_helper::tuple::TupleIndex;
+use crate::query_helper::{HasMany, HasOne};
+use crate::scalar::WundergraphScalarValue;
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use LoadingHandler;
+use crate::LoadingHandler;
 #[cfg(feature = "chrono")]
 extern crate chrono;
 

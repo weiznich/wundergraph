@@ -2,7 +2,7 @@ use diesel::associations::BelongsTo;
 use diesel::backend::Backend;
 use diesel::sql_types::{Bool, Nullable};
 use diesel::Queryable;
-use graphql_type::WundergraphGraphqlMapper;
+use crate::graphql_type::WundergraphGraphqlMapper;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum HasMany<T> {

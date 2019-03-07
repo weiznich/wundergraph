@@ -1,18 +1,18 @@
-use filter::build_filter::BuildFilter;
-use filter::inner_filter::InnerFilter;
+use crate::filter::build_filter::BuildFilter;
+use crate::filter::inner_filter::InnerFilter;
 
 use diesel::backend::Backend;
 use diesel::sql_types::Bool;
 use diesel::Column;
-use diesel_ext::BoxableFilter;
+use crate::diesel_ext::BoxableFilter;
 
 use juniper::meta::Argument;
 use juniper::{FromInputValue, InputValue, LookAheadValue, Registry, ToInputValue};
 
 use indexmap::IndexMap;
 
-use helper::{FromLookAheadValue, NameBuilder, Nameable};
-use scalar::WundergraphScalarValue;
+use crate::helper::{FromLookAheadValue, NameBuilder, Nameable};
+use crate::scalar::WundergraphScalarValue;
 
 mod like;
 use self::like::Like;

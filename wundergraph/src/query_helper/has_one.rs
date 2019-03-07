@@ -4,13 +4,13 @@ use diesel::deserialize::{self, FromSql};
 use diesel::expression::bound::Bound;
 use diesel::expression::AsExpression;
 use diesel::Queryable;
-use helper::FromLookAheadValue;
+use crate::helper::FromLookAheadValue;
 use juniper::{FromInputValue, InputValue, LookAheadValue, ToInputValue};
 
-use graphql_type::WundergraphGraphqlMapper;
+use crate::graphql_type::WundergraphGraphqlMapper;
 use std::hash::Hash;
 
-use scalar::WundergraphScalarValue;
+use crate::scalar::WundergraphScalarValue;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum HasOne<R, T> {

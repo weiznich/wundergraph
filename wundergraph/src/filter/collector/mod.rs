@@ -1,7 +1,7 @@
 //! This module contains helper types to combine multiple filter expressions
 //! into a final expression
 
-use filter::build_filter::BuildFilter;
+use crate::filter::build_filter::BuildFilter;
 
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;

@@ -2,11 +2,11 @@ use super::BuildFilter;
 use diesel::backend::Backend;
 use diesel::dsl;
 use diesel::helper_types;
-use helper::{NameBuilder, Nameable};
-use helper::FromLookAheadValue;
+use crate::helper::{NameBuilder, Nameable};
+use crate::helper::FromLookAheadValue;
 use juniper::meta::MetaType;
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
-use scalar::WundergraphScalarValue;
+use crate::scalar::WundergraphScalarValue;
 
 #[derive(Debug)]
 pub struct Not<I>(I);

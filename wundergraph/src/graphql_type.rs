@@ -2,10 +2,10 @@ use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
 use diesel::QuerySource;
 use juniper::{meta, FromInputValue, GraphQLType, Registry};
-use query_helper::placeholder::FieldListExtractor;
-use scalar::WundergraphScalarValue;
+use crate::query_helper::placeholder::FieldListExtractor;
+use crate::scalar::WundergraphScalarValue;
 use std::marker::PhantomData;
-use LoadingHandler;
+use crate::LoadingHandler;
 
 #[derive(Debug)]
 pub struct GraphqlWrapper<T, DB>(T, PhantomData<DB>);
@@ -83,7 +83,7 @@ where
     where
         WundergraphScalarValue: 'r,
     {
-        use query_helper::placeholder::WundergraphFieldList;
+        use crate::query_helper::placeholder::WundergraphFieldList;
 
         <<T::FieldList as FieldListExtractor>::Out as WundergraphGraphqlHelper<DB>>::order_meta::<
             Self,

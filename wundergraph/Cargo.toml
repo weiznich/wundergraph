@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Georg Semmler <georg_semmler_05@web.de>"]
 license = "MIT OR Apache-2.0"
 autotests = false
+edition = "2018"
 
 [dependencies]
 serde = "1"

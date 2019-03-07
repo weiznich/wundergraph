@@ -5,23 +5,23 @@ use diesel::AppearsOnTable;
 use diesel::Column;
 use diesel::QuerySource;
 use diesel::Table;
-use diesel_ext::BoxableFilter;
-use filter::build_filter::BuildFilter;
-use filter::common_filter::FilterOption;
-use filter::filter_value::FilterValue;
-use filter::inner_filter::InnerFilter;
-use filter::nullable_filter::NullableReferenceFilter;
-use filter::reference_filter::ReferenceFilter;
-use filter::Filter;
-use helper::{FromLookAheadValue, NameBuilder, Nameable};
+use crate::diesel_ext::BoxableFilter;
+use crate::filter::build_filter::BuildFilter;
+use crate::filter::common_filter::FilterOption;
+use crate::filter::filter_value::FilterValue;
+use crate::filter::inner_filter::InnerFilter;
+use crate::filter::nullable_filter::NullableReferenceFilter;
+use crate::filter::reference_filter::ReferenceFilter;
+use crate::filter::Filter;
+use crate::helper::{FromLookAheadValue, NameBuilder, Nameable};
 use indexmap::IndexMap;
 use juniper::meta::Argument;
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
-use query_helper::placeholder::WundergraphBelongsTo;
-use query_helper::{HasMany, HasOne};
-use scalar::WundergraphScalarValue;
+use crate::query_helper::placeholder::WundergraphBelongsTo;
+use crate::query_helper::{HasMany, HasOne};
+use crate::scalar::WundergraphScalarValue;
 use std::marker::PhantomData;
-use LoadingHandler;
+use crate::LoadingHandler;
 
 
 #[derive(Debug, Clone)]
@@ -156,7 +156,7 @@ macro_rules! __impl_build_filter_for_tuples {
                 type Ret = Box<BoxableFilter<Loading::Table, Back, SqlType = Bool>>;
 
                 fn into_filter(self) -> Option<Self::Ret> {
-                    use filter::collector::{AndCollector, FilterCollector};
+                    use crate::filter::collector::{AndCollector, FilterCollector};
 
                     let mut and = AndCollector::<_, Back>::default();
                     $(
@@ -202,7 +202,7 @@ macro_rules! __impl_build_filter_for_tuples {
                 fn from_inner_look_ahead(
                     objs: &[(&str, LookAheadValue<WundergraphScalarValue>)]
                 ) -> Self {
-                    use query_helper::placeholder::WundergraphFieldList;
+                    use crate::query_helper::placeholder::WundergraphFieldList;
                     let mut values = ($(Option::<$T>::None,)*);
                     for (name, value) in objs {
                         match name {
@@ -228,7 +228,7 @@ macro_rules! __impl_build_filter_for_tuples {
                     _info: &NameBuilder<Self>,
                     registry: &mut Registry<'r, WundergraphScalarValue>,
                 ) -> Vec<Argument<'r, WundergraphScalarValue>> {
-                    use query_helper::placeholder::WundergraphFieldList;
+                    use crate::query_helper::placeholder::WundergraphFieldList;
                     vec![
                         $(
                             registry.arg_with_default::<Option<$T>>(

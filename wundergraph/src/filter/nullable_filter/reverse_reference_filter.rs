@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use filter::build_filter::BuildFilter;
-use filter::collector::{AndCollector, FilterCollector};
-use filter::inner_filter::InnerFilter;
+use crate::filter::build_filter::BuildFilter;
+use crate::filter::collector::{AndCollector, FilterCollector};
+use crate::filter::inner_filter::InnerFilter;
 
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
@@ -16,15 +16,15 @@ use diesel::sql_types::{Bool, NotNull, SingleValue};
 use diesel::{
     AppearsOnTable, Column, Expression, ExpressionMethods, NullableExpressionMethods, QueryDsl,
 };
-use diesel_ext::BoxableFilter;
+use crate::diesel_ext::BoxableFilter;
 
 use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
 use indexmap::IndexMap;
 
-use helper::{FromLookAheadValue, NameBuilder, Nameable};
-use scalar::WundergraphScalarValue;
+use crate::helper::{FromLookAheadValue, NameBuilder, Nameable};
+use crate::scalar::WundergraphScalarValue;
 
 #[derive(Debug)]
 pub struct ReverseNullableReferenceFilter<C, I, C2> {
