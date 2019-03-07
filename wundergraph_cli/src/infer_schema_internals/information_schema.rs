@@ -258,7 +258,8 @@ where
         ).collect()
 }
 
-#[cfg(all(test, feature = "postgres"))]
+
+/*#[cfg(all(test, feature = "postgres"))]
 mod tests {
     extern crate dotenv;
 
@@ -474,3 +475,4 @@ mod tests {
         );
     }
 }
+*/

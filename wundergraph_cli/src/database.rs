@@ -81,6 +81,7 @@ impl InferConnection {
     }
 }
 
+/*
 #[cfg(all(test, any(feature = "postgres", feature = "mysql")))]
 mod tests {
     use super::change_database_of_url;
@@ -122,3 +123,4 @@ mod tests {
         );
     }
 }
+*/
