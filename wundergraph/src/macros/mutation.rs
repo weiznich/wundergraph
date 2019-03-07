@@ -21,7 +21,7 @@ macro_rules! __wundergraph_expand_delete {
     ($registry: ident, $entity: ident, $fields: ident, $info: expr, $field_info:expr, $context: ty, delete = $delete:ty) => {
         {
             let delete = $registry.arg::<$delete>(concat!("Delete", stringify!($entity)), $info);
-            let delete = $registry.field::<Option<$entity>>(concat!("Delete", stringify!($entity)), $field_info)
+            let delete = $registry.field::<Option<$crate::mutations::DeletedCount>>(concat!("Delete", stringify!($entity)), $field_info)
                 .argument(delete);
             $fields.push(delete);
         }
@@ -239,92 +239,92 @@ macro_rules! __wundergraph_expand_mutation_graphql_type {
                         fields.push(new);
                     )*
                 )*
-                    // $(
-                    //     $(
-                    //         let update = registry.arg::<$update>(concat!("Update", stringify!($entity_name)), info);
-                    //         let update = registry.field::<Option<$entity_name>>(concat!("Update", stringify!($entity_name)), info)
-                    //             .argument(update);
-                    //         fields.push(update);
-                    //     )*
-                    // )*
-                    // $(
-                    //     __wundergraph_expand_delete!{registry,
-                    //                                  $entity_name,
-                    //                                  fields,
-                    //                                  info,
-                    //                                  info,
-                    //                                  $context,
-                    //                                  $(delete = $($delete)+)*}
-                    // )*
+                    $(
+                        $(
+                            let update = registry.arg::<$update>(concat!("Update", stringify!($entity_name)), info);
+                            let update = registry.field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, <$conn as $crate::diesel::Connection>::Backend>>>(concat!("Update", stringify!($entity_name)), info)
+                                .argument(update);
+                            fields.push(update);
+                        )*
+                    )*
+                    $(
+                        __wundergraph_expand_delete!{registry,
+                                                     $entity_name,
+                                                     fields,
+                                                     info,
+                                                     info,
+                                                     $context,
+                                                     $(delete = $($delete)+)*}
+                    )*
                     let mutation = registry.build_object_type::<Self>(info, &fields);
                 $crate::juniper::meta::MetaType::Object(mutation)
             }
 
-            // fn resolve_field(
-            //     &self,
-            //     _info: &Self::TypeInfo,
-            //     field_name: &str,
-            //     arguments: &$crate::juniper::Arguments<$crate::scalar::WundergraphScalarValue>,
-            //     executor: &$crate::juniper::Executor<Self::Context, $crate::scalar::WundergraphScalarValue>,
-            // ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue> {
-            //     match field_name {
-            //         $(
-            //             $(
-            //                 concat!("Create", stringify!($entity_name)) => {
-            //                     $crate::mutations::handle_insert::<
-            //                         <$conn as $crate::diesel::Connection>::Backend,
-            //                         $insert,
-            //                         $entity_name,
-            //                         Self::Context>
-            //                     (
-            //                         executor,
-            //                         arguments,
-            //                         concat!("New", stringify!($entity_name))
-            //                     )
-            //                 }
-            //                 concat!("Create", stringify!($entity_name), "s") => {
-            //                     $crate::mutations::handle_batch_insert::<
-            //                         <$conn as $crate::diesel::Connection>::Backend,
-            //                         $insert,
-            //                         $entity_name,
-            //                         Self::Context>
-            //                     (
-            //                         executor,
-            //                         arguments,
-            //                         concat!("New", stringify!($entity_name), "s")
-            //                     )
-            //                 }
-            //             )*
-            //         )*
-            //             $(
-            //                 $(
-            //                     concat!("Update", stringify!($entity_name)) => {
-            //                         $crate::mutations::handle_update::<
-            //                             <$conn as $crate::diesel::Connection>::Backend,
-            //                             $update,
-            //                             $entity_name,
-            //                             Self::Context
-            //                             >(
-            //                                 executor,
-            //                                 arguments,
-            //                                 concat!("Update", stringify!($entity_name))
-            //                             )
-            //                     }
-            //                 )*
-            //             )*
-            //             $(
-            //                 concat!("Delete", stringify!($entity_name)) => {
-            //                     __wundergraph_expand_handle_delete!{
-            //                         $conn, $entity_name, executor, arguments, $(delete = $($delete)+)*
-            //                     }
-            //                 }
-            //             )*
-            //             e => Err($crate::juniper::FieldError::new(
-            //                 "Unknown field:",
-            //                 $crate::juniper::Value::scalar(e),
-            //             )),
-            //         }
-            // }
+            fn resolve_field(
+                &self,
+                _info: &Self::TypeInfo,
+                field_name: &str,
+                arguments: &$crate::juniper::Arguments<$crate::scalar::WundergraphScalarValue>,
+                executor: &$crate::juniper::Executor<Self::Context, $crate::scalar::WundergraphScalarValue>,
+            ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue> {
+                match field_name {
+                    $(
+                        $(
+                            concat!("Create", stringify!($entity_name)) => {
+                                $crate::mutations::handle_insert::<
+                                    <$conn as $crate::diesel::Connection>::Backend,
+                                    $insert,
+                                    $entity_name,
+                                    Self::Context>
+                                (
+                                    executor,
+                                    arguments,
+                                    concat!("New", stringify!($entity_name))
+                                )
+                            }
+                            concat!("Create", stringify!($entity_name), "s") => {
+                                $crate::mutations::handle_batch_insert::<
+                                    <$conn as $crate::diesel::Connection>::Backend,
+                                    $insert,
+                                    $entity_name,
+                                    Self::Context>
+                                (
+                                    executor,
+                                    arguments,
+                                    concat!("New", stringify!($entity_name), "s")
+                                )
+                            }
+                        )*
+                    )*
+                        $(
+                            $(
+                                concat!("Update", stringify!($entity_name)) => {
+                                    $crate::mutations::handle_update::<
+                                        <$conn as $crate::diesel::Connection>::Backend,
+                                        $update,
+                                        $entity_name,
+                                        Self::Context
+                                        >(
+                                            executor,
+                                            arguments,
+                                            concat!("Update", stringify!($entity_name))
+                                        )
+                                }
+                            )*
+                        )*
+                        $(
+                            concat!("Delete", stringify!($entity_name)) => {
+                                __wundergraph_expand_handle_delete!{
+                                    $conn, $entity_name, executor, arguments, $(delete = $($delete)+)*
+                                }
+                            }
+                        )*
+                        e => Err($crate::juniper::FieldError::new(
+                            "Unknown field:",
+                            $crate::juniper::Value::scalar(e),
+                        )),
+                    }
+            }
         }
     }
 }

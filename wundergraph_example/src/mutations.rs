@@ -6,9 +6,14 @@ use super::species;
 use super::AppearsIn;
 use super::Episode;
 //use super::Friend;
+use super::DBConnection;
 use super::Hero;
 use super::HomeWorld;
+use super::MyContext;
 use super::Species;
+use diesel::sqlite::Sqlite;
+use juniper::*;
+use wundergraph::scalar::WundergraphScalarValue;
 
 #[derive(Insertable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "heros"]
@@ -72,9 +77,9 @@ pub struct NewAppearsIn {
 wundergraph_mutation_object! {
     Mutation(context = super::MyContext<Conn>) {
         Hero(insert = NewHero, update = HeroChangeset,),
-        // Species(insert = NewSpecies, update = SpeciesChangeset,),
-        // HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset,),
-        // Friend( insert = NewFriend,),
-        // AppearsIn(insert = NewAppearsIn,),
+        Species(insert = NewSpecies, update = SpeciesChangeset,),
+        HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset,),
+//        Friend( insert = NewFriend,),
+//        AppearsIn(insert = NewAppearsIn,),
     }
 }

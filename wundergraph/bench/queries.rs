@@ -74,13 +74,13 @@ const QUERIES: &[&str] = &[
     }
   }
 }"#,
-    r#"query artists_collaboration {
-  Artists(filter: {albums: {tracks: {composer: {eq: "Ludwig van Beethoven"}}}})
-  {
-    id
-    name
-  }
-}"#,
+//    r#"query artists_collaboration {
+//  Artists(filter: {albums: {tracks: {composer: {eq: "Ludwig van Beethoven"}}}})
+//  {
+//    id
+//    name
+//  }
+//}"#,
     r#"query artistByArtistId {
   Artists(filter: {id: {eq:3}}) {
     id

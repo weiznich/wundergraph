@@ -5,7 +5,7 @@ macro_rules! __wundergraph_expand_optional_argument {
      $arg_ty: ty,
      $registry: ident,
      $entity: ident,
-     $info: ident, true $(, $rest: expr)*) => {
+     $info: expr, true $(, $rest: expr)*) => {
         let arg = $registry.arg_with_default::<Option<$arg_ty>>($name, &None, &$info);
         $entity = $entity.argument(arg);
         __wundergraph_expand_optional_argument!($name, $arg_ty, $registry, $entity, $info $(, $rest )*)
@@ -14,10 +14,10 @@ macro_rules! __wundergraph_expand_optional_argument {
      $arg_ty: ty,
      $registry: ident,
      $entity: ident,
-     $info: ident, false $(, $rest: expr)*) => {
+     $info: expr, false $(, $rest: expr)*) => {
         __wundergraph_expand_optional_argument!($name, $arg_ty, $registry, $entity, $info $(, $rest )*)
     };
-    ($name:expr, $arg_ty: ty, $registry: ident, $entity: ident, $info: ident) => {};
+    ($name:expr, $arg_ty: ty, $registry: ident, $entity: ident, $info: expr) => {};
 }
 
 #[doc(hidden)]
@@ -45,11 +45,15 @@ macro_rules! __wundergraph_expand_offset {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __wundergraph_expand_order {
-    ($registry: ident, $entity: ident, $info: ident, ) => {
-        __wundergraph_expand_optional_argument!("order", Vec<$crate::order::OrderBy>, $registry, $entity, $info, true)
+    ($registry: ident, $entity: ident, $conn: ty, $graphql_struct: ident ) => {
+        __wundergraph_expand_optional_argument!("order",
+                                                Vec<$crate::order::OrderBy<$graphql_struct, <$conn as $crate::diesel::Connection>::Backend>>,
+                                                $registry, $entity, &Default::default(), true)
     };
-    ($registry: ident, $entity: ident, $info: ident, $(,$order: tt)+) => {
-        __wundergraph_expand_optional_argument!("order", Vec<$crate::order::OrderBy>, $registry, $entity, $info $(,$order)*)
+    ($registry: ident, $entity: ident, $conn: ty, $graphql_struct: ident, $(,$order: tt)+) => {
+        __wundergraph_expand_optional_argument!("order",
+                                                Vec<$crate::order::OrderBy<$graphql_struct, <$conn as $crate::diesel::Connection>::Backend>>,
+                                                $registry, $entity, &Default::default() $(,$order)*)
     };
 }
 
@@ -263,7 +267,7 @@ macro_rules! __wundergraph_expand_graphql_type_for_query {
   //                          )*
                                 __wundergraph_expand_limit!(registry, field, info, $(, $limit)*);
                                __wundergraph_expand_offset!(registry, field, info, $(, $offset)*);
-                            // __wundergraph_expand_order!(registry, field, info, $(, $order)*);
+                               __wundergraph_expand_order!(registry, field, $conn, $graphql_struct $(, $order)*);
                             field
                         },
                         {

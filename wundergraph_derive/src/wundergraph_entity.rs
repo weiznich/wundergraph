@@ -2,7 +2,7 @@ use diagnostic_shim::{Diagnostic, DiagnosticShim};
 use model::Model;
 use proc_macro2::{Span, TokenStream};
 use syn;
-use utils::{inner_of_option_ty, inner_ty_args, is_has_many, is_option_ty, wrap_in_dummy_mod};
+use utils::{inner_of_option_ty, inner_ty_args, is_has_many, wrap_in_dummy_mod};
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let model = Model::from_item(item)?;
@@ -32,12 +32,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         .filter_map(|f| {
             if let Some(args) = inner_ty_args(inner_of_option_ty(&f.ty), "HasOne") {
                 let key_ty = if let syn::GenericArgument::Type(ref ty) = args[0] {
-                    if is_option_ty(&f.ty) {
-                        quote!(#ty)
-                    //                        quote!(std::option::Option<#ty>)
-                    } else {
-                        quote!(#ty)
-                    }
+                    quote!(#ty)
                 } else {
                     panic!("No key type found");
                 };
@@ -117,7 +112,7 @@ fn derive_loading_handler(
             Some(quote!(#table::#column))
         }
     });
-    let primary_keys = dbg!(model.primary_key());
+    let primary_keys = model.primary_key();
     assert!(!primary_keys.is_empty());
     let primary_key_index = model
         .primary_key()
@@ -127,7 +122,6 @@ fn derive_loading_handler(
                 .fields()
                 .iter()
                 .enumerate()
-                .inspect(|p| println!("{:?} -> {:?}", p, primary_key))
                 .find(|(_, f)| *f.sql_name() == *primary_key)
                 .map(|(i, _)| {
                     let index = syn::Ident::new(&format!("TupleIndex{}", i), Span::call_site());
@@ -162,21 +156,17 @@ fn derive_loading_handler(
 
                 type PrimaryKeyIndex = #primary_key_index;
 
-                type Filter = //wundergraph::filter::Filter<
+                type Filter =
                     wundergraph::filter::filter_helper::FilterWrapper<
                     <wundergraph::filter::filter_helper::FilterConverter<
-    //                         Self::FieldList,
-                             <Self::FieldList as wundergraph::query_helper::placeholder::FieldListExtratcor>::Out,
+                              <Self::FieldList as wundergraph::query_helper::placeholder::FieldListExtractor>::Out,
                              Self::Columns,
                              Self,
                              #backend
                 > as wundergraph::filter::filter_helper::CreateFilter>::Filter,
                 Self,
                 #backend
-                >;//,
-               // Self::Table
-                //    >;
-
+                >;
                 const FIELD_NAMES: &'static [&'static str] = &[#(stringify!(#field_names),)*];
                 const TYPE_NAME: &'static str = stringify!(#struct_type);
             }

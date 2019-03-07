@@ -28,7 +28,7 @@ use LoadingHandler;
 #[cfg(feature = "chrono")]
 extern crate chrono;
 
-use juniper::{GraphQLType, LookAheadMethods};
+use juniper::LookAheadMethods;
 
 pub trait PlaceHolderMarker {
     type InnerType;
@@ -269,11 +269,38 @@ impl IntoValue for chrono::NaiveDateTime {
     }
 }
 
-// impl<T> WundergraphValue for Vec<T> where T: WundergraphValue {
-//     type PlaceHolder = PlaceHolder<Vec<T>>;
-//     // TODO: fix that
-//     type SqlType = Nullable<::diesel::sql_types::Array<i32>>;
-// }
+impl<T, Inner> WundergraphValue for Vec<T>
+where
+    T: WundergraphValue<SqlType = Nullable<Inner>> + 'static,
+    Inner: NotNull + 'static,
+{
+    type PlaceHolder = PlaceHolder<Vec<T>>;
+    type SqlType = Nullable<::diesel::sql_types::Array<Inner>>;
+}
+
+#[cfg(feature = "postgres")]
+impl<T> ResolveWundergraphFieldValue<::diesel::pg::Pg> for Vec<T>
+where
+    T: 'static,
+    Self: WundergraphValue<PlaceHolder = PlaceHolder<Vec<T>>> + IntoValue,
+{
+    type Resolver = DirectResolver<Self>;
+}
+
+impl<T> IntoValue for Vec<T>
+where
+    Self: WundergraphValue<PlaceHolder = PlaceHolder<Vec<T>>>,
+    T: IntoValue + WundergraphValue<PlaceHolder = PlaceHolder<T>> + 'static,
+{
+    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
+        let v = placeholder.0.expect("Value is there");
+        let list = v
+            .into_iter()
+            .map(|v| T::resolve(PlaceHolder(Some(v))))
+            .collect();
+        juniper::Value::List(list)
+    }
+}
 
 impl<T> WundergraphValue for Option<T>
 where
@@ -286,11 +313,8 @@ where
 impl<T, DB> ResolveWundergraphFieldValue<DB> for Option<T>
 where
     DB: Backend,
-    Self: WundergraphValue<PlaceHolder = PlaceHolder<T>>,
-    T: ResolveWundergraphFieldValue<DB>
-        + GraphQLType<WundergraphScalarValue>
-        + Into<WundergraphScalarValue>
-        + 'static,
+    Self: WundergraphValue<PlaceHolder = PlaceHolder<T>> + IntoValue,
+    T: 'static,
 {
     type Resolver = DirectResolver<Self>;
 }
@@ -306,6 +330,21 @@ where
             .map(Into::into)
             .map(juniper::Value::Scalar)
             .unwrap_or(juniper::Value::Null)
+    }
+}
+
+impl<T> IntoValue for Option<Vec<T>>
+where
+    T: 'static,
+    Vec<T>: IntoValue + WundergraphValue<PlaceHolder = PlaceHolder<Vec<T>>>,
+    Self: WundergraphValue<PlaceHolder = PlaceHolder<Vec<T>>>,
+{
+    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
+        if placeholder.0.is_some() {
+            <Vec<T> as IntoValue>::resolve(placeholder)
+        } else {
+            juniper::Value::Null
+        }
     }
 }
 
@@ -492,7 +531,7 @@ pub trait NonTableFieldCollector<T> {
     fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
 }
 
-pub trait FieldListExtratcor {
+pub trait FieldListExtractor {
     type Out;
 
     const FIELD_COUNT: usize;
@@ -508,7 +547,7 @@ pub trait NonTableFieldExtractor {
     fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
 }
 
-impl FieldListExtratcor for () {
+impl FieldListExtractor for () {
     type Out = ();
 
     const FIELD_COUNT: usize = 0;
@@ -838,7 +877,7 @@ macro_rules! wundergraph_impl_field_extractor {
         t = [$T:ident,],
         rest = [$($Other:ident,)*],
     ) => {
-        impl<$($Other,)* $T> FieldListExtratcor for ($($Other,)* $T,)
+        impl<$($Other,)* $T> FieldListExtractor for ($($Other,)* $T,)
         where ($($Other,)*): TableFieldCollector<$T>
         {
             type Out = <($($Other,)*) as TableFieldCollector<$T>>::Out;
@@ -962,31 +1001,31 @@ macro_rules! wundergraph_value_impl {
 
             impl<$($T,)* Next> TableFieldCollector<Next> for ($($T,)*)
             where Next: WundergraphValue,
-                  ($($T,)*): FieldListExtratcor,
-                  <($($T,)*) as FieldListExtratcor>::Out: AppendToTuple<Next>,
+                  ($($T,)*): FieldListExtractor,
+                  <($($T,)*) as FieldListExtractor>::Out: AppendToTuple<Next>,
             {
-                type Out = <<($($T,)*) as FieldListExtratcor>::Out as AppendToTuple<Next>>::Out;
+                type Out = <<($($T,)*) as FieldListExtractor>::Out as AppendToTuple<Next>>::Out;
 
-                const FIELD_COUNT: usize = <<($($T,)*) as FieldListExtratcor>::Out as AppendToTuple<Next>>::LENGHT;
+                const FIELD_COUNT: usize = <<($($T,)*) as FieldListExtractor>::Out as AppendToTuple<Next>>::LENGHT;
 
                 fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
-                    if local_index == <<($($T,)*) as FieldListExtratcor>::Out as AppendToTuple<Next>>::LENGHT - 1 {
+                    if local_index == <<($($T,)*) as FieldListExtractor>::Out as AppendToTuple<Next>>::LENGHT - 1 {
                         Some(callback(wundergraph_add_one_to_index!($($idx)*)))
                     } else {
-                        <($($T,)*) as FieldListExtratcor>::map(local_index, callback)
+                        <($($T,)*) as FieldListExtractor>::map(local_index, callback)
                     }
                 }
             }
 
             impl<$($T,)* Next> TableFieldCollector<HasMany<Next>> for ($($T,)*)
-                where ($($T,)*): FieldListExtratcor,
+                where ($($T,)*): FieldListExtractor,
             {
-                type Out = <($($T,)*) as FieldListExtratcor>::Out;
+                type Out = <($($T,)*) as FieldListExtractor>::Out;
 
-                const FIELD_COUNT: usize = <($($T,)*) as FieldListExtratcor>::FIELD_COUNT;
+                const FIELD_COUNT: usize = <($($T,)*) as FieldListExtractor>::FIELD_COUNT;
 
                 fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
-                    <($($T,)*) as FieldListExtratcor>::map(local_index, callback)
+                    <($($T,)*) as FieldListExtractor>::map(local_index, callback)
                 }
             }
 
@@ -1022,20 +1061,20 @@ macro_rules! wundergraph_value_impl {
 
             impl<Back, Key, Table, $($T,)*> WundergraphFieldList<Back, Key, Table> for ($($T,)*)
             where Back: Backend,
-                  ($($T,)*): FieldListExtratcor + NonTableFieldExtractor,
-                  <($($T,)*) as FieldListExtratcor>::Out: WundergraphValue,
-                  <<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder: TupleIndex<Key> +
-                      Queryable<<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::SqlType, Back> + 'static,
-            Vec<<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder>:
-            WundergraphResolvePlaceHolderList<<($($T,)*) as FieldListExtratcor>::Out, Back>,
-            <<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value: PlaceHolderMarker,
-            <<<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType: Eq + Hash + Clone,
-            <($($T,)*) as NonTableFieldExtractor>::Out: WundergraphResolveAssociations<<<<<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType, Table, Back>,
+                  ($($T,)*): FieldListExtractor + NonTableFieldExtractor,
+                  <($($T,)*) as FieldListExtractor>::Out: WundergraphValue,
+                  <<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder: TupleIndex<Key> +
+                      Queryable<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::SqlType, Back> + 'static,
+            Vec<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder>:
+            WundergraphResolvePlaceHolderList<<($($T,)*) as FieldListExtractor>::Out, Back>,
+            <<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value: PlaceHolderMarker,
+            <<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType: Eq + Hash + Clone,
+            <($($T,)*) as NonTableFieldExtractor>::Out: WundergraphResolveAssociations<<<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType, Table, Back>,
             {
-                type PlaceHolder = <<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::PlaceHolder;
-                type SqlType = <<($($T,)*) as FieldListExtratcor>::Out as WundergraphValue>::SqlType;
+                type PlaceHolder = <<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder;
+                type SqlType = <<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::SqlType;
 
-                const TABLE_FIELD_COUNT: usize = <($($T,)*) as FieldListExtratcor>::FIELD_COUNT;
+                const TABLE_FIELD_COUNT: usize = <($($T,)*) as FieldListExtractor>::FIELD_COUNT;
                 const NON_TABLE_FIELD_COUNT: usize = <($($T,)*) as NonTableFieldExtractor>::FIELD_COUNT;
 
                 fn resolve(
@@ -1063,7 +1102,7 @@ macro_rules! wundergraph_value_impl {
                         )?
                     };
                     let name = |local_pos| {
-                        <($($T,)*) as FieldListExtratcor>::map(local_pos, |pos| {
+                        <($($T,)*) as FieldListExtractor>::map(local_pos, |pos| {
                             name_list[pos]
                         }).expect("Name is there")
                     };
@@ -1077,7 +1116,7 @@ macro_rules! wundergraph_value_impl {
                 }
 
                 fn map_table_field<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
-                    <($($T,)*) as FieldListExtratcor>::map(local_index, callback)
+                    <($($T,)*) as FieldListExtractor>::map(local_index, callback)
                 }
 
                 fn map_non_table_field<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {

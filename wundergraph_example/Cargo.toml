@@ -5,9 +5,9 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-diesel = { version = "=1.3.3", features = ["r2d2", "sqlite", "chrono", "postgres"]}
-diesel_migrations = "=1.3.0"
-juniper = "=0.10.0"
+diesel = { version = "1.4.0", features = ["r2d2", "sqlite", "chrono", "postgres"]}
+diesel_migrations = "1.4.0"
+juniper = "0.11.0"
 actix = "0.7"
 actix-web = "0.7"
 indexmap = "1"

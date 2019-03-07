@@ -371,7 +371,7 @@ struct Film {
     //  replacement_cost: BigDecimal,
     rating: Option<String>,
     last_update: NaiveDateTime,
-//    special_features: Option<Vec<String>>,
+    special_features: Option<Vec<String>>,
     //fulltext: Tsvector,
 }
 

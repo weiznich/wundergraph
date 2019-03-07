@@ -6,17 +6,14 @@ use diesel::query_builder::BoxedSelectStatement;
 use diesel::query_builder::{AsChangeset, IntoUpdateTarget, QueryFragment};
 use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl};
 use diesel::sql_types::HasSqlType;
-use diesel::{AppearsOnTable, Connection, EqAll, Queryable, RunQueryDsl, Table};
+use diesel::{AppearsOnTable, Connection, EqAll, QuerySource, RunQueryDsl, Table};
 
-use juniper::{
-    Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, Value,
-};
+use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Value};
 
 use filter::build_filter::BuildFilter;
 use query_helper::order::BuildOrder;
 use query_helper::placeholder::{SqlTypeOfPlaceholder, WundergraphFieldList};
 use query_helper::select::BuildSelect;
-use query_helper::tuple::TupleIndex;
 use scalar::WundergraphScalarValue;
 use LoadingHandler;
 use WundergraphContext;
@@ -27,108 +24,67 @@ pub fn handle_update<DB, U, R, Ctx>(
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
-    DB: Backend,
-    Ctx: WundergraphContext<DB>,
-    U: UpdateHelper<DB, R, Ctx> + FromInputValue<WundergraphScalarValue>,
-    U::Handler: HandleUpdate<DB, R, Ctx, Update = U>,
+    R: LoadingHandler<DB>,
+    R::Table: HandleUpdate<R, U, DB, Ctx> + 'static,
+    DB: Backend + 'static,
+    DB::QueryBuilder: Default,
+    R::Columns: BuildOrder<R::Table, DB>
+        + BuildSelect<
+            R::Table,
+            DB,
+            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>,
+        >,
+    <R::Table as QuerySource>::FromClause: QueryFragment<DB>,
+    U: FromInputValue<WundergraphScalarValue>,
 {
     if let Some(n) = arguments.get::<U>(field_name) {
-        U::Handler::handle_update(executor, &n)
+        <R::Table as HandleUpdate<_, _, _, _>>::handle_update(executor, &n)
     } else {
         let msg = format!("Missing argument {:?}", field_name);
         Err(FieldError::new(&msg, Value::Null))
     }
 }
 
-pub trait HandleUpdate<DB, R, Ctx>: Sized {
-    type Update;
+pub trait HandleUpdate<L, U, DB, Ctx> {
     fn handle_update(
         executor: &Executor<Ctx, WundergraphScalarValue>,
-        update: &Self::Update,
+        update: &U,
     ) -> ExecutionResult<WundergraphScalarValue>;
-}
-
-pub trait UpdateHelper<DB, R, Ctx> {
-    type Handler: HandleUpdate<DB, R, Ctx>;
-}
-
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct AsChangeSetWrapper<U>(U);
-
-#[cfg_attr(feature = "cargo-clippy", allow(use_self))]
-impl<U, DB, R, Ctx, T> UpdateHelper<DB, R, Ctx> for U
-where
-    U: 'static,
-    DB: Backend + 'static,
-    &'static U: AsChangeset<Target = T> + HasTable<Table = T> + Identifiable,
-    AsChangeSetWrapper<U>: HandleUpdate<DB, R, Ctx>,
-
-    T: Table + HasTable<Table = T> + FindDsl<<&'static U as Identifiable>::Id> + 'static,
-    Ctx: WundergraphContext<DB>,
-    Find<T, <&'static U as Identifiable>::Id>: IntoUpdateTarget<Table = T>,
-    R: LoadingHandler<DB, Table = T>
-        + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
-    T::FromClause: QueryFragment<DB>,
-    T::PrimaryKey: EqAll<<&'static U as Identifiable>::Id>,
-    R::Columns: BuildOrder<T, DB>
-        + BuildSelect<
-            T,
-            DB,
-            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>,
-    >,
-    DB::QueryBuilder: Default,
-    R::FieldList: WundergraphFieldList<DB, R::PrimaryKeyIndex, T>
-        + TupleIndex<R::PrimaryKeyIndex>,
-    <R::FieldList as WundergraphFieldList<DB, R::PrimaryKeyIndex, T>>::PlaceHolder:
-        Queryable<SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>, DB>,
-{
-    type Handler = AsChangeSetWrapper<U>;
 }
 
 // We use the 'static static lifetime here because otherwise rustc will
 // tell us that it could not find a applying lifetime (caused by broken projection
 // on higher ranked lifetime bounds)
-impl<DB, R, Ctx, T, U> HandleUpdate<DB, R, Ctx> for AsChangeSetWrapper<U>
+impl<L, U, DB, Ctx, T> HandleUpdate<L, U, DB, Ctx> for T
 where
-    U: 'static,
-    DB: Backend + 'static,
-    &'static U: AsChangeset<Target = T> + HasTable<Table = T> + Identifiable,
     T: Table + HasTable<Table = T> + FindDsl<<&'static U as Identifiable>::Id> + 'static,
-    Ctx: WundergraphContext<DB>,
-    Find<T, <&'static U as Identifiable>::Id>: IntoUpdateTarget<Table = T>,
-    R: LoadingHandler<DB, Table = T>
-        + GraphQLType<WundergraphScalarValue, TypeInfo = (), Context = ()>,
+    DB: Backend + 'static,
+    DB::QueryBuilder: Default,
     T::FromClause: QueryFragment<DB>,
+    L: LoadingHandler<DB, Table = T>,
+    L::Columns: BuildOrder<T, DB>
+        + BuildSelect<T, DB, SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T>>,
+    Ctx: WundergraphContext<DB>,
+    L::FieldList: WundergraphFieldList<DB, L::PrimaryKeyIndex, T>,
+    T: BoxedDsl<
+        'static,
+        DB,
+        Output = BoxedSelectStatement<'static, SqlTypeOf<<T as Table>::AllColumns>, T, DB>,
+    >,
+    <L::Filter as BuildFilter<DB>>::Ret: AppearsOnTable<T>,
+    U: 'static,
+    &'static U: AsChangeset<Target = T> + Identifiable + HasTable<Table = T>,
+    Find<T, <&'static U as Identifiable>::Id>: IntoUpdateTarget<Table = T>,
     <Find<T, <&'static U as Identifiable>::Id> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>,
     <&'static U as AsChangeset>::Changeset: QueryFragment<DB>,
-    DB::QueryBuilder: Default,
     T::PrimaryKey: EqAll<<&'static U as Identifiable>::Id>,
-    R::Columns: BuildOrder<T, DB>
-        + BuildSelect<
-            T,
-            DB,
-            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>,
-        >,
-    R::FieldList: WundergraphFieldList<DB, R::PrimaryKeyIndex, T>
-        + TupleIndex<R::PrimaryKeyIndex>,
-    <R::FieldList as WundergraphFieldList<DB, R::PrimaryKeyIndex, T>>::PlaceHolder:
-        Queryable<SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>, DB>,
-    for<'a> R::Table: BoxedDsl<
-        'a,
-        DB,
-        Output = BoxedSelectStatement<'a, SqlTypeOf<<R::Table as Table>::AllColumns>, R::Table, DB>,
-    >,
-    <R::Filter as BuildFilter<DB>>::Ret: AppearsOnTable<T>,
-    DB: HasSqlType<SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>>,
+    DB: HasSqlType<SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T>>,
     <T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output:
         AppearsOnTable<T> + NonAggregate + QueryFragment<DB>,
 {
-    type Update = U;
-
     fn handle_update(
         executor: &Executor<Ctx, WundergraphScalarValue>,
-        change_set: &Self::Update,
+        change_set: &U,
     ) -> ExecutionResult<WundergraphScalarValue> {
         let ctx = executor.context();
         let conn = ctx.get_connection();
@@ -144,12 +100,12 @@ where
             }
             u.execute(conn)?;
             let f = FilterDsl::filter(
-                R::build_query(&look_ahead)?,
+                L::build_query(&look_ahead)?,
                 T::table().primary_key().eq_all(change_set.id()),
             );
             // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(f, 1);
-            let items = R::load(&look_ahead, conn, q)?;
+            let items = L::load(&look_ahead, conn, q)?;
             Ok(items.into_iter().next().unwrap_or(Value::Null))
         })
     }

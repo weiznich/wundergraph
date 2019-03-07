@@ -1,6 +1,13 @@
+use diesel::backend::Backend;
+use diesel::query_builder::QueryFragment;
+use diesel::QuerySource;
+use graphql_type::GraphqlOrderWrapper;
 use helper::FromLookAheadValue;
 use juniper::LookAheadValue;
+use juniper::{meta, FromInputValue, GraphQLType, Registry, ToInputValue};
 use scalar::WundergraphScalarValue;
+use std::marker::PhantomData;
+use LoadingHandler;
 
 #[derive(Debug, GraphQLEnum, Copy, Clone, PartialEq)]
 pub enum Order {
@@ -22,34 +29,67 @@ impl FromLookAheadValue for Order {
     }
 }
 
-#[derive(Debug, GraphQLInputObject)]
-pub struct OrderBy {
-    pub column: String,
-    pub direction: Order,
+#[derive(Debug)]
+pub struct OrderBy<L, DB>(PhantomData<(L, DB)>);
+
+#[derive(Debug)]
+pub struct OrderByTypeInfo<L, DB>(String, PhantomData<(L, DB)>);
+
+impl<L, DB> Default for OrderByTypeInfo<L, DB>
+where
+    DB: Backend + 'static,
+    L::Table: 'static,
+    <L::Table as QuerySource>::FromClause: QueryFragment<DB>,
+    L: LoadingHandler<DB>,
+    DB::QueryBuilder: Default,
+{
+    fn default() -> Self {
+        OrderByTypeInfo(format!("{}OrderBy", L::TYPE_NAME), PhantomData)
+    }
 }
 
-impl FromLookAheadValue for OrderBy {
-    fn from_look_ahead(v: &LookAheadValue<WundergraphScalarValue>) -> Option<Self> {
-        if let LookAheadValue::Object(ref obj) = *v {
-            let column = obj
-                .iter()
-                .find(|o| o.0 == "column")
-                .and_then(|o| String::from_look_ahead(&o.1));
-            let column = match column {
-                Some(column) => column,
-                None => return None,
-            };
-            let direction = obj
-                .iter()
-                .find(|o| o.0 == "direction")
-                .and_then(|o| Order::from_look_ahead(&o.1));
-            let direction = match direction {
-                Some(direction) => direction,
-                None => return None,
-            };
-            Some(Self { column, direction })
-        } else {
-            None
-        }
+impl<T, DB> FromInputValue<WundergraphScalarValue> for OrderBy<T, DB> {
+    fn from_input_value(_: &juniper::InputValue<WundergraphScalarValue>) -> Option<Self> {
+        Some(Self(PhantomData))
+    }
+}
+
+impl<T, DB> ToInputValue<WundergraphScalarValue> for OrderBy<T, DB> {
+    fn to_input_value(&self) -> juniper::InputValue<WundergraphScalarValue> {
+        unimplemented!("That should not been called")
+    }
+}
+
+impl<T, DB> GraphQLType<WundergraphScalarValue> for OrderBy<T, DB>
+where
+    DB: Backend + 'static,
+    T::Table: 'static,
+    <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
+    T: LoadingHandler<DB>,
+    DB::QueryBuilder: Default,
+    GraphqlOrderWrapper<T, DB>: GraphQLType<WundergraphScalarValue>,
+    <GraphqlOrderWrapper<T, DB> as GraphQLType<WundergraphScalarValue>>::TypeInfo: Default,
+{
+    type Context = ();
+    type TypeInfo = OrderByTypeInfo<T, DB>;
+
+    fn name(info: &Self::TypeInfo) -> Option<&str> {
+        Some(&info.0)
+    }
+
+    fn meta<'r>(
+        info: &Self::TypeInfo,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> meta::MetaType<'r, WundergraphScalarValue>
+    where
+        WundergraphScalarValue: 'r,
+    {
+        let args = &[
+            registry.arg::<GraphqlOrderWrapper<T, DB>>("column", &Default::default()),
+            registry.arg_with_default("direction", &Order::Asc, &()),
+        ];
+
+        let obj = registry.build_input_object_type::<Self>(info, args);
+        meta::MetaType::InputObject(obj)
     }
 }

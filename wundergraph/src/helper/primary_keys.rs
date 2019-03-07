@@ -6,6 +6,7 @@ use indexmap::IndexMap;
 use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 use scalar::WundergraphScalarValue;
+use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::marker::PhantomData;
 
@@ -99,7 +100,13 @@ where
     }
 
     fn from_input_value(value: &InputValue<WundergraphScalarValue>) -> Option<V1> {
-        V1::from_input_value(value)
+        if let InputValue::Object(ref o) = *value {
+            o.iter()
+                .find(|&(n, _)| n.item == Self::NAME)
+                .and_then(|(_, v)| V1::from_input_value(&v.item))
+        } else {
+            None
+        }
     }
 
     fn from_look_ahead(value: &LookAheadValue<WundergraphScalarValue>) -> Option<V1> {
@@ -146,10 +153,16 @@ macro_rules! primary_key_input_object_impl {
                 fn from_input_value(value: &InputValue<WundergraphScalarValue>)
                     -> Option<($($ST,)+)>
                 {
-                    $(
-                        let $ST = $ST::from_input_value(value)?;
-                    ) +
-                    Some(($($ST,)+))
+                    if let InputValue::Object(ref o) = *value {
+                        $(
+
+                            let $ST = o.iter().find(|&(ref n, _)| n.item == $T::NAME)
+                                .and_then(|&(_, ref v)| $ST::from_input_value(&v.item))?;
+                        )+
+                        Some(($($ST,)*))
+                    } else {
+                        None
+                    }
                 }
 
                 fn from_look_ahead(value: &LookAheadValue<WundergraphScalarValue>)
@@ -192,13 +205,24 @@ impl PrimaryKeyInfo {
     }
 }
 
-#[derive(Debug)]
 pub struct PrimaryKeyArgument<'a, T: 'a, Ctx, V>
 where
     V: UnRef<'a>,
 {
     pub values: V::UnRefed,
     _marker: PhantomData<(&'a T, Ctx)>,
+}
+
+impl<'a, T, Ctx, V> Debug for PrimaryKeyArgument<'a, T, Ctx, V>
+where
+    V: UnRef<'a>,
+    V::UnRefed: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("PrimaryKeyArgument")
+            .field("primary_key", &self.values)
+            .finish()
+    }
 }
 
 impl<'a, T, Ctx, V> GraphQLType<WundergraphScalarValue> for PrimaryKeyArgument<'a, T, Ctx, V>

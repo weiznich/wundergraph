@@ -5,8 +5,8 @@ authors = ["Georg Semmler <georg_semmler_05@web.de>"]
 
 [dependencies]
 wundergraph = {path = "../wundergraph", default-features = false, features = ["postgres", "chrono"]}
-diesel = {version = "=1.3.3", features = ["r2d2", "sqlite", "chrono", "postgres"]}
-juniper = "=0.10.0"
+diesel = {version = "1.4", features = ["r2d2", "sqlite", "chrono", "postgres"]}
+juniper = "0.11.0"
 actix = "0.7"
 actix-web = "0.7"
 failure = "0.1"

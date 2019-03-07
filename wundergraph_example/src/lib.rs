@@ -50,14 +50,12 @@ extern crate indexmap;
 extern crate wundergraph;
 extern crate failure;
 
-use diesel::associations::HasTable;
 use diesel::backend::{Backend, UsesAnsiSavepointSyntax};
 use diesel::connection::AnsiTransactionManager;
 use diesel::deserialize::{self, FromSql};
-use diesel::query_builder::BoxedSelectStatement;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::serialize::{self, ToSql};
-use diesel::sql_types::{Bool, Integer, Nullable, SmallInt, Text};
+use diesel::sql_types::SmallInt;
 use diesel::{Connection, Identifiable};
 
 use juniper::LookAheadSelection;
