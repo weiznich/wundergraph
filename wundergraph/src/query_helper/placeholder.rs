@@ -1,3 +1,9 @@
+use crate::error::WundergraphError;
+use crate::filter::build_filter::BuildFilter;
+use crate::query_helper::tuple::TupleIndex;
+use crate::query_helper::{HasMany, HasOne};
+use crate::scalar::WundergraphScalarValue;
+use crate::{LoadingHandler, WundergraphContext};
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
 use diesel::connection::Connection;
@@ -16,15 +22,11 @@ use diesel::{
     QuerySource, Queryable, SelectableExpression, Table,
 };
 use failure::Error;
-use crate::filter::build_filter::BuildFilter;
-use crate::query_helper::tuple::TupleIndex;
-use crate::query_helper::{HasMany, HasOne};
-use crate::scalar::WundergraphScalarValue;
+use juniper::{Executor, FromContext, GraphQLType};
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use crate::LoadingHandler;
 #[cfg(feature = "chrono")]
 extern crate chrono;
 
@@ -59,6 +61,12 @@ impl<T> Into<Option<T>> for PlaceHolder<T> {
     }
 }
 
+impl<T> Into<Option<Option<T>>> for PlaceHolder<T> {
+    fn into(self) -> Option<Option<T>> {
+        Some(self.0)
+    }
+}
+
 impl<'a, T> Into<Option<&'a T>> for &'a PlaceHolder<T> {
     fn into(self) -> Option<&'a T> {
         self.0.as_ref()
@@ -73,17 +81,17 @@ where
 {
     fn from_sql(bytes: Option<&DB::RawValue>) -> deserialize::Result<Self> {
         if bytes.is_some() {
-            let r = T::from_sql(bytes).map(Some).map(PlaceHolder);
-            r
+            T::from_sql(bytes).map(Some).map(Self)
         } else {
-            Ok(PlaceHolder(None))
+            Ok(Self(None))
         }
     }
 }
 
-pub type SqlTypeOfPlaceholder<T, DB, K, Table> = <T as WundergraphFieldList<DB, K, Table>>::SqlType;
+pub type SqlTypeOfPlaceholder<T, DB, K, Table, Ctx> =
+    <T as WundergraphFieldList<DB, K, Table, Ctx>>::SqlType;
 
-pub trait FieldValueResolver<T, DB>
+pub trait FieldValueResolver<T, DB, Ctx>
 where
     T: WundergraphValue,
     DB: Backend,
@@ -94,51 +102,63 @@ where
         &mut self,
         value: T::PlaceHolder,
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error>;
 
     fn finalize(
         self,
-        conn: &impl Connection<Backend = DB>,
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
 }
 
-//#[derive(Debug)]
-#[allow(missing_debug_implementations)]
-pub struct DirectResolver<T>(PhantomData<T>);
+#[derive(Debug, Clone, Copy)]
+pub struct DirectResolver;
 
-impl<T, DB> FieldValueResolver<T, DB> for DirectResolver<T>
+impl<T, DB, Ctx> FieldValueResolver<T, DB, Ctx> for DirectResolver
 where
-    T: IntoValue,
     DB: Backend,
+    T: GraphQLType<WundergraphScalarValue, TypeInfo = ()> + WundergraphValue,
+    T::PlaceHolder: Into<Option<T>>,
+    <T as GraphQLType<WundergraphScalarValue>>::Context: FromContext<Ctx>,
 {
     fn new(_elements: usize) -> Self {
-        Self(PhantomData)
+        Self
     }
 
     fn resolve_value(
         &mut self,
         value: T::PlaceHolder,
         _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
-        Ok(Some(T::resolve(value)))
+        Ok(Some(
+            executor
+                .resolve_with_ctx(&(), &value.into().expect("Loading should not fail"))
+                .map_err(|inner| WundergraphError::JuniperError { inner })?,
+        ))
     }
 
     fn finalize(
         self,
-        _conn: &impl Connection<Backend = DB>,
         _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
+        _executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
         Ok(None)
     }
 }
 
-pub trait ResolveWundergraphFieldValue<DB: Backend>: WundergraphValue + Sized {
-    type Resolver: FieldValueResolver<Self, DB>;
+pub trait ResolveWundergraphFieldValue<DB: Backend, Ctx>: WundergraphValue + Sized {
+    type Resolver: FieldValueResolver<Self, DB, Ctx>;
 }
 
-pub trait IntoValue: WundergraphValue {
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue>;
+impl<T, DB, Ctx> ResolveWundergraphFieldValue<DB, Ctx> for T
+where
+    DB: Backend,
+    T: GraphQLType<WundergraphScalarValue> + WundergraphValue,
+    DirectResolver: FieldValueResolver<T, DB, Ctx>,
+{
+    type Resolver = DirectResolver;
 }
 
 pub trait WundergraphValue {
@@ -151,29 +171,9 @@ impl WundergraphValue for i16 {
     type SqlType = Nullable<SmallInt>;
 }
 
-impl<DB: Backend> ResolveWundergraphFieldValue<DB> for i16 {
-    type Resolver = DirectResolver<Self>;
-}
-
-impl IntoValue for i16 {
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        juniper::Value::scalar(placeholder.0.expect("Value is there"))
-    }
-}
-
 impl WundergraphValue for i32 {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Integer>;
-}
-
-impl<DB: Backend> ResolveWundergraphFieldValue<DB> for i32 {
-    type Resolver = DirectResolver<Self>;
-}
-
-impl IntoValue for i32 {
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        juniper::Value::scalar(placeholder.0.expect("Value is there"))
-    }
 }
 
 impl WundergraphValue for i64 {
@@ -181,29 +181,9 @@ impl WundergraphValue for i64 {
     type SqlType = Nullable<BigInt>;
 }
 
-impl<DB: Backend> ResolveWundergraphFieldValue<DB> for i64 {
-    type Resolver = DirectResolver<Self>;
-}
-
-impl IntoValue for i64 {
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        juniper::Value::scalar(placeholder.0.expect("Value is there"))
-    }
-}
-
 impl WundergraphValue for bool {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Bool>;
-}
-
-impl<DB: Backend> ResolveWundergraphFieldValue<DB> for bool {
-    type Resolver = DirectResolver<Self>;
-}
-
-impl IntoValue for bool {
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        juniper::Value::scalar(placeholder.0.expect("Value is there"))
-    }
 }
 
 impl WundergraphValue for String {
@@ -211,44 +191,14 @@ impl WundergraphValue for String {
     type SqlType = Nullable<Text>;
 }
 
-impl<DB: Backend> ResolveWundergraphFieldValue<DB> for String {
-    type Resolver = DirectResolver<Self>;
-}
-
-impl IntoValue for String {
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        juniper::Value::scalar(placeholder.0.expect("Value is there"))
-    }
-}
-
 impl WundergraphValue for f32 {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Float4>;
 }
 
-impl<DB: Backend> ResolveWundergraphFieldValue<DB> for f32 {
-    type Resolver = DirectResolver<Self>;
-}
-
-impl IntoValue for f32 {
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        juniper::Value::scalar(placeholder.0.expect("Value is there"))
-    }
-}
-
 impl WundergraphValue for f64 {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Float8>;
-}
-
-impl<DB: Backend> ResolveWundergraphFieldValue<DB> for f64 {
-    type Resolver = DirectResolver<Self>;
-}
-
-impl IntoValue for f64 {
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        juniper::Value::scalar(placeholder.0.expect("Value is there"))
-    }
 }
 
 #[cfg(feature = "chrono")]
@@ -257,49 +207,13 @@ impl WundergraphValue for chrono::NaiveDateTime {
     type SqlType = Nullable<::diesel::sql_types::Timestamp>;
 }
 
-#[cfg(feature = "chrono")]
-impl<DB: Backend> ResolveWundergraphFieldValue<DB> for chrono::NaiveDateTime {
-    type Resolver = DirectResolver<Self>;
-}
-
-#[cfg(feature = "chrono")]
-impl IntoValue for chrono::NaiveDateTime {
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        juniper::Value::scalar(placeholder.0.expect("Value is there").timestamp() as f64)
-    }
-}
-
 impl<T, Inner> WundergraphValue for Vec<T>
 where
     T: WundergraphValue<SqlType = Nullable<Inner>> + 'static,
     Inner: NotNull + 'static,
 {
-    type PlaceHolder = PlaceHolder<Vec<T>>;
+    type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<::diesel::sql_types::Array<Inner>>;
-}
-
-#[cfg(feature = "postgres")]
-impl<T> ResolveWundergraphFieldValue<::diesel::pg::Pg> for Vec<T>
-where
-    T: 'static,
-    Self: WundergraphValue<PlaceHolder = PlaceHolder<Vec<T>>> + IntoValue,
-{
-    type Resolver = DirectResolver<Self>;
-}
-
-impl<T> IntoValue for Vec<T>
-where
-    Self: WundergraphValue<PlaceHolder = PlaceHolder<Vec<T>>>,
-    T: IntoValue + WundergraphValue<PlaceHolder = PlaceHolder<T>> + 'static,
-{
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        let v = placeholder.0.expect("Value is there");
-        let list = v
-            .into_iter()
-            .map(|v| T::resolve(PlaceHolder(Some(v))))
-            .collect();
-        juniper::Value::List(list)
-    }
 }
 
 impl<T> WundergraphValue for Option<T>
@@ -308,44 +222,6 @@ where
 {
     type PlaceHolder = T::PlaceHolder;
     type SqlType = T::SqlType;
-}
-
-impl<T, DB> ResolveWundergraphFieldValue<DB> for Option<T>
-where
-    DB: Backend,
-    Self: WundergraphValue<PlaceHolder = PlaceHolder<T>> + IntoValue,
-    T: 'static,
-{
-    type Resolver = DirectResolver<Self>;
-}
-
-impl<T> IntoValue for Option<T>
-where
-    Self: WundergraphValue<PlaceHolder = PlaceHolder<T>>,
-    T: Into<WundergraphScalarValue> + 'static,
-{
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        placeholder
-            .0
-            .map(Into::into)
-            .map(juniper::Value::Scalar)
-            .unwrap_or(juniper::Value::Null)
-    }
-}
-
-impl<T> IntoValue for Option<Vec<T>>
-where
-    T: 'static,
-    Vec<T>: IntoValue + WundergraphValue<PlaceHolder = PlaceHolder<Vec<T>>>,
-    Self: WundergraphValue<PlaceHolder = PlaceHolder<Vec<T>>>,
-{
-    fn resolve(placeholder: Self::PlaceHolder) -> juniper::Value<WundergraphScalarValue> {
-        if placeholder.0.is_some() {
-            <Vec<T> as IntoValue>::resolve(placeholder)
-        } else {
-            juniper::Value::Null
-        }
-    }
 }
 
 impl<R, T> WundergraphValue for HasOne<R, T>
@@ -358,12 +234,15 @@ where
 }
 
 #[allow(missing_debug_implementations)]
-pub struct HasOneResolver<R, T>(PhantomData<T>, Vec<Option<R>>);
+pub struct HasOneResolver<R, T, Ctx> {
+    values: Vec<Option<R>>,
+    p: PhantomData<(T, Ctx)>,
+}
 
-impl<R, T, DB> FieldValueResolver<HasOne<R, T>, DB> for HasOneResolver<R, T>
+impl<'a, R, T, DB, Ctx> FieldValueResolver<HasOne<R, T>, DB, Ctx> for HasOneResolver<R, T, Ctx>
 where
     DB: Backend
-        + HasSqlType<SqlTypeOfPlaceholder<T::FieldList, DB, T::PrimaryKeyIndex, T::Table>>
+        + HasSqlType<SqlTypeOfPlaceholder<T::FieldList, DB, T::PrimaryKeyIndex, T::Table, Ctx>>
         + HasSqlType<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>>
         + 'static,
     Option<R>: Queryable<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>, DB>
@@ -371,8 +250,8 @@ where
     HasOne<R, T>: WundergraphValue,
     <HasOne<R, T> as WundergraphValue>::PlaceHolder: Into<Option<R>>,
     R: WundergraphValue + Clone + Eq + Hash,
-    for<'a> &'a T: Identifiable<Id = &'a R>,
-    T: LoadingHandler<DB>,
+    for<'b> &'b T: Identifiable<Id = &'b R>,
+    T: LoadingHandler<DB, Ctx>,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
     T::Table: BoxedDsl<
             'static,
@@ -386,42 +265,49 @@ where
         > + 'static,
     NullableExpression<<T::Table as Table>::PrimaryKey>: ExpressionMethods,
     <T::Filter as BuildFilter<DB>>::Ret: AppearsOnTable<T::Table>,
-    for<'a> &'a Option<R>: AsExpression<
+    for<'b> &'b Option<R>: AsExpression<
         SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>,
         Expression = Bound<
             SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>,
-            &'a Option<R>,
+            &'b Option<R>,
         >,
     >,
     <T::Table as Table>::PrimaryKey: QueryFragment<DB>,
     SqlTypeOf<<T::Table as Table>::PrimaryKey>: NotNull,
     DB::QueryBuilder: Default,
+    Ctx: WundergraphContext,
+    Ctx::Connection: Connection<Backend = DB>,
 {
     fn new(elements: usize) -> Self {
-        Self(PhantomData, Vec::with_capacity(elements))
+        Self {
+            values: Vec::with_capacity(elements),
+            p: PhantomData,
+        }
     }
 
     fn resolve_value(
         &mut self,
         value: <HasOne<R, T> as WundergraphValue>::PlaceHolder,
         _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
+        _executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
-        self.1.push(value.into());
+        self.values.push(value.into());
         Ok(None)
     }
 
     fn finalize(
         self,
-        conn: &impl Connection<Backend = DB>,
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
         use diesel::RunQueryDsl;
+        let conn = executor.context().get_connection();
 
         let q = T::build_query(selection)?
             .filter(
                 <T::Table as Table>::primary_key(&<T as HasTable>::table())
                     .nullable()
-                    .eq_any(&self.1),
+                    .eq_any(&self.values),
             )
             .select((
                 <T::Table as Table>::primary_key(&<T as HasTable>::table()).nullable(),
@@ -430,12 +316,12 @@ where
 
         let items = q.load::<(
             Option<R>,
-            <T::FieldList as WundergraphFieldList<_, _, _>>::PlaceHolder,
+            <T::FieldList as WundergraphFieldList<_, _, _, Ctx>>::PlaceHolder,
         )>(conn)?;
 
         let (keys, placeholder): (Vec<_>, Vec<_>) = items.into_iter().unzip();
 
-        let values = T::FieldList::resolve(placeholder, selection, T::FIELD_NAMES, conn)?;
+        let values = T::FieldList::resolve(placeholder, selection, T::FIELD_NAMES, executor)?;
 
         let map = keys
             .into_iter()
@@ -443,7 +329,7 @@ where
             .collect::<HashMap<_, _>>();
 
         Ok(Some(
-            self.1
+            self.values
                 .iter()
                 .map(|key| map.get(key).cloned().unwrap_or(juniper::Value::Null))
                 .collect(),
@@ -451,57 +337,61 @@ where
     }
 }
 
-impl<R, T, DB> FieldValueResolver<Option<HasOne<R, T>>, DB> for HasOneResolver<R, T>
+impl<R, T, DB, Ctx> FieldValueResolver<Option<HasOne<R, T>>, DB, Ctx> for HasOneResolver<R, T, Ctx>
 where
     DB: Backend,
     R: WundergraphValue + Clone + Hash + Eq,
-    Self: FieldValueResolver<HasOne<R, T>, DB>,
-    for<'a> &'a T: Identifiable<Id = &'a R>,
+    Self: FieldValueResolver<HasOne<R, T>, DB, Ctx>,
+    for<'b> &'b T: Identifiable<Id = &'b R>,
     R::PlaceHolder: Into<Option<R>>,
 {
     fn new(elements: usize) -> Self {
-        Self(PhantomData, Vec::with_capacity(elements))
+        Self {
+            values: Vec::with_capacity(elements),
+            p: PhantomData,
+        }
     }
 
     fn resolve_value(
         &mut self,
         value: <Option<HasOne<R, T>> as WundergraphValue>::PlaceHolder,
         _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
+        _executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
-        self.1.push(value.into());
+        self.values.push(value.into());
         Ok(None)
     }
 
     fn finalize(
         self,
-        conn: &impl Connection<Backend = DB>,
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
-        <Self as FieldValueResolver<HasOne<R, T>, DB>>::finalize(self, conn, selection)
+        <Self as FieldValueResolver<HasOne<R, T>, DB, Ctx>>::finalize(self, selection, executor)
     }
 }
 
-impl<R, T, DB> ResolveWundergraphFieldValue<DB> for Option<HasOne<R, T>>
+impl<R, T, DB, Ctx> ResolveWundergraphFieldValue<DB, Ctx> for Option<HasOne<R, T>>
 where
-    HasOneResolver<R, T>:
-        FieldValueResolver<HasOne<R, T>, DB> + FieldValueResolver<Option<HasOne<R, T>>, DB>,
+    HasOneResolver<R, T, Ctx>: FieldValueResolver<HasOne<R, T>, DB, Ctx>
+        + FieldValueResolver<Option<HasOne<R, T>>, DB, Ctx>,
     R: WundergraphValue + Clone + Eq + Hash,
     <HasOne<R, T> as WundergraphValue>::PlaceHolder: Into<Option<R>>,
     HasOne<R, T>: WundergraphValue,
     DB: Backend,
 {
-    type Resolver = HasOneResolver<R, T>;
+    type Resolver = HasOneResolver<R, T, Ctx>;
 }
 
-impl<R, T, DB> ResolveWundergraphFieldValue<DB> for HasOne<R, T>
+impl<R, T, DB, Ctx> ResolveWundergraphFieldValue<DB, Ctx> for HasOne<R, T>
 where
-    HasOneResolver<R, T>: FieldValueResolver<HasOne<R, T>, DB>,
+    HasOneResolver<R, T, Ctx>: FieldValueResolver<HasOne<R, T>, DB, Ctx>,
     R: WundergraphValue + Clone + Eq + Hash,
     Self::PlaceHolder: Into<Option<R>>,
     Self: WundergraphValue,
     DB: Backend,
 {
-    type Resolver = HasOneResolver<R, T>;
+    type Resolver = HasOneResolver<R, T, Ctx>;
 }
 
 pub trait AppendToTuple<T> {
@@ -621,16 +511,16 @@ impl<T> NonTableFieldCollector<HasMany<T>> for () {
     }
 }
 
-pub trait WundergraphResolvePlaceHolderList<R, DB: Backend> {
+pub trait WundergraphResolvePlaceHolderList<R, DB: Backend, Ctx> {
     fn resolve(
         self,
         get_name: impl Fn(usize) -> &'static str,
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
-        conn: &impl Connection<Backend = DB>,
+        executor: &Executor<Ctx, WundergraphScalarValue>,
     ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>, Error>;
 }
 
-pub trait WundergraphFieldList<DB: Backend, Key, Table> {
+pub trait WundergraphFieldList<DB: Backend, Key, Table, Ctx> {
     type PlaceHolder: Queryable<Self::SqlType, DB> + 'static;
     type SqlType: 'static;
 
@@ -641,7 +531,7 @@ pub trait WundergraphFieldList<DB: Backend, Key, Table> {
         placeholder: Vec<Self::PlaceHolder>,
         select: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         name_list: &'static [&'static str],
-        conn: &impl Connection<Backend = DB>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error>;
 
     fn map_table_field<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
@@ -673,18 +563,17 @@ impl<K: Eq + Hash> AssociationsReturn<K> {
         }
     }
 
-    fn push_field<T, O, DB, C>(
+    fn push_field<T, O, DB, Ctx>(
         &mut self,
         field: &'static str,
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
-        conn: &C,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<(), Error>
     where
         DB: Backend,
-        T: WundergraphResolveAssociation<K, O, DB>,
-        C: Connection<Backend = DB>,
+        T: WundergraphResolveAssociation<K, O, DB, Ctx>,
     {
-        let values = T::resolve(selection, &self.keys, conn)?;
+        let values = T::resolve(selection, &self.keys, executor)?;
 
         let len = self.fields.len();
         self.fields.push(field);
@@ -715,7 +604,7 @@ impl<K: Eq + Hash> AssociationsReturn<K> {
                         let mut value_iter = values.iter().peekable();
                         for (idx, field_name) in fields.iter().enumerate() {
                             match value_iter.peek() {
-                                Some((field_idx, _value)) if idx == *field_idx => {
+                                Some((field_idx, _)) if idx == *field_idx => {
                                     let value = value_iter
                                         .next()
                                         .expect("It's there because peekable")
@@ -747,7 +636,7 @@ impl<K: Eq + Hash> AssociationsReturn<K> {
     }
 }
 
-pub trait WundergraphResolveAssociations<K, Other, DB>
+pub trait WundergraphResolveAssociations<K, Other, DB, Ctx>
 where
     K: Eq + Hash,
     DB: Backend,
@@ -756,11 +645,11 @@ where
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         get_name: impl Fn(usize) -> &'static str,
         get_keys: impl Fn() -> Vec<Option<K>>,
-        conn: &impl Connection<Backend = DB>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<AssociationsReturn<K>, Error>;
 }
 
-impl<K, Other, DB> WundergraphResolveAssociations<K, Other, DB> for ()
+impl<K, Other, DB, Ctx> WundergraphResolveAssociations<K, Other, DB, Ctx> for ()
 where
     K: Eq + Hash,
     DB: Backend,
@@ -769,21 +658,21 @@ where
         _selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         _get_name: impl Fn(usize) -> &'static str,
         _get_keys: impl Fn() -> Vec<Option<K>>,
-        _conn: &impl Connection<Backend = DB>,
+        _executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<AssociationsReturn<K>, Error> {
         Ok(AssociationsReturn::empty())
     }
 }
 
-pub trait WundergraphResolveAssociation<K, Other, DB: Backend> {
+pub trait WundergraphResolveAssociation<K, Other, DB: Backend, Ctx> {
     fn resolve(
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         primary_keys: &[Option<K>],
-        conn: &impl Connection<Backend = DB>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<HashMap<Option<K>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
 }
 
-pub trait WundergraphBelongsTo<Other, DB>: LoadingHandler<DB>
+pub trait WundergraphBelongsTo<Other, DB, Ctx>: LoadingHandler<DB, Ctx>
 where
     DB: Backend + 'static,
     Self::Table: 'static,
@@ -800,25 +689,34 @@ where
     fn resolve(
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         keys: &[Option<Self::Key>],
-        conn: &impl Connection<Backend = DB>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<HashMap<Option<Self::Key>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
 
     fn build_response(
-        res: Vec<(Option<Self::Key>, <Self::FieldList as WundergraphFieldList<DB, Self::PrimaryKeyIndex, Self::Table>>::PlaceHolder)>,
+        res: Vec<(
+            Option<Self::Key>,
+            <Self::FieldList as WundergraphFieldList<
+                DB,
+                Self::PrimaryKeyIndex,
+                Self::Table,
+                Ctx,
+            >>::PlaceHolder,
+        )>,
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
-        conn: &impl Connection<Backend = DB>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<HashMap<Option<Self::Key>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>
     {
         let (keys, vals): (Vec<_>, Vec<_>) = res.into_iter().unzip();
-        let vals = <<Self as LoadingHandler<DB>>::FieldList as WundergraphFieldList<
+        let vals = <<Self as LoadingHandler<DB, Ctx>>::FieldList as WundergraphFieldList<
             DB,
-            <Self as LoadingHandler<DB>>::PrimaryKeyIndex,
+            <Self as LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
             <Self as HasTable>::Table,
+            Ctx,
         >>::resolve(
             vals,
             selection,
-            <Self as LoadingHandler<DB>>::FIELD_NAMES,
-            conn,
+            <Self as LoadingHandler<DB, Ctx>>::FIELD_NAMES,
+            executor,
         )?;
         Ok(keys
             .into_iter()
@@ -830,10 +728,10 @@ where
     }
 }
 
-impl<T, K, Other, DB> WundergraphResolveAssociation<K, Other, DB> for HasMany<T>
+impl<T, K, Other, DB, Ctx> WundergraphResolveAssociation<K, Other, DB, Ctx> for HasMany<T>
 where
     DB: Backend + 'static,
-    T: WundergraphBelongsTo<Other, DB, Key = K>,
+    T: WundergraphBelongsTo<Other, DB, Ctx, Key = K>,
     K: Eq + Hash,
     T::Table: 'static,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -842,9 +740,9 @@ where
     fn resolve(
         selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         primary_keys: &[Option<K>],
-        conn: &impl Connection<Backend = DB>,
+        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<HashMap<Option<K>, Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
-        T::resolve(selection, primary_keys, conn)
+        T::resolve(selection, primary_keys, executor)
     }
 }
 
@@ -918,9 +816,10 @@ macro_rules! wundergraph_value_impl {
             }
 
 
-            impl<Back, $($T,)+ $($ST,)+> WundergraphResolvePlaceHolderList<($($ST,)*), Back> for Vec<($(PlaceHolder<$T>,)+)>
+            #[allow(clippy::use_self)]
+            impl<Back, $($T,)+ $($ST,)+ Ctx> WundergraphResolvePlaceHolderList<($($ST,)*), Back, Ctx> for Vec<($(PlaceHolder<$T>,)+)>
             where $($ST: WundergraphValue<PlaceHolder = PlaceHolder<$T>> +
-                    ResolveWundergraphFieldValue<Back> ,)*
+                    ResolveWundergraphFieldValue<Back, Ctx> ,)*
                   $($T: 'static,)*
                   Back: Backend,
             {
@@ -928,36 +827,35 @@ macro_rules! wundergraph_value_impl {
                     self,
                     get_name: impl Fn(usize) -> &'static str,
                     selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
-                    conn: &impl Connection<Backend = Back>,
+                    executor: &Executor<Ctx, WundergraphScalarValue>,
                 ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>, Error>
                 {
                     let mut resolver = (
-                        $(<$ST as ResolveWundergraphFieldValue<Back>>::Resolver::new(self.len()),)*
+                        $(<$ST as ResolveWundergraphFieldValue<Back, Ctx>>::Resolver::new(self.len()),)*
                     );
                     let mut objs: Vec<juniper::Object<WundergraphScalarValue>>
                         = vec![juniper::Object::with_capacity(wundergraph_add_one_to_index!($($idx)*)-1); self.len()];
 
                     self.into_iter().zip(objs.iter_mut()).map(|(placeholder, obj)|{
                         $(
-                            let name = get_name($idx);
-                            if let Some(selection) = selection.select_child(name) {
+                            if let Some(selection) = selection.select_child(get_name($idx)) {
                                 if let Some(value) = resolver.$idx.resolve_value(
                                     placeholder.$idx,
                                     selection,
+                                    executor
                                 )? {
-                                    obj.add_field(name, value);
+                                    obj.add_field(get_name($idx), value);
                                 }
                             }
                         )*
                         Ok(())
                     }).collect::<Result<Vec<_>, Error>>()?;
                     $(
-                        let name = get_name($idx);
-                        if let Some(selection) = selection.select_child(name) {
-                            let vals = resolver.$idx.finalize(conn, selection)?;
+                        if let Some(selection) = selection.select_child(get_name($idx)) {
+                            let vals = resolver.$idx.finalize(selection, executor)?;
                             if let Some(vals) = vals {
                                 for (obj, val) in objs.iter_mut().zip(vals.into_iter()) {
-                                    obj.add_field(name, val);
+                                    obj.add_field(get_name($idx), val);
                                 }
                             }
                         }
@@ -967,25 +865,24 @@ macro_rules! wundergraph_value_impl {
 
             }
 
-            impl<Key, Back, Other, $($T,)*> WundergraphResolveAssociations<Key, Other, Back> for ($($T,)*)
+            impl<Key, Back, Other, Ctx, $($T,)*> WundergraphResolveAssociations<Key, Other, Back, Ctx> for ($($T,)*)
             where Back: Backend,
                   Key: Eq + Hash,
-                $($T: WundergraphResolveAssociation<Key, Other, Back>,)*
+                $($T: WundergraphResolveAssociation<Key, Other, Back, Ctx>,)*
 
             {
                 fn resolve(
                     selection: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
                     get_name: impl Fn(usize) -> &'static str,
                     get_keys: impl Fn() -> Vec<Option<Key>>,
-                    conn: &impl Connection<Backend = Back>
+                    executor: &Executor<'_, Ctx, WundergraphScalarValue>,
                 ) -> Result<AssociationsReturn<Key>, Error>
                 {
                     let mut ret = AssociationsReturn::empty();
                     $(
-                        let name = get_name($idx);
-                        if let Some(selection) = selection.select_child(name) {
+                        if let Some(selection) = selection.select_child(get_name($idx)) {
                             ret.init(&get_keys);
-                            ret.push_field::<$T, Other, Back, _>(name, selection, conn)?;
+                            ret.push_field::<$T, Other, Back, Ctx>(get_name($idx), selection, executor)?;
                         }
                     )*
                     Ok(ret)
@@ -1059,17 +956,19 @@ macro_rules! wundergraph_value_impl {
                 }
             }
 
-            impl<Back, Key, Table, $($T,)*> WundergraphFieldList<Back, Key, Table> for ($($T,)*)
+            impl<Back, Key, Table, Ctx, $($T,)*> WundergraphFieldList<Back, Key, Table, Ctx> for ($($T,)*)
             where Back: Backend,
                   ($($T,)*): FieldListExtractor + NonTableFieldExtractor,
                   <($($T,)*) as FieldListExtractor>::Out: WundergraphValue,
                   <<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder: TupleIndex<Key> +
                       Queryable<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::SqlType, Back> + 'static,
             Vec<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder>:
-            WundergraphResolvePlaceHolderList<<($($T,)*) as FieldListExtractor>::Out, Back>,
+            WundergraphResolvePlaceHolderList<<($($T,)*) as FieldListExtractor>::Out, Back, Ctx>,
             <<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value: PlaceHolderMarker,
             <<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType: Eq + Hash + Clone,
-            <($($T,)*) as NonTableFieldExtractor>::Out: WundergraphResolveAssociations<<<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType, Table, Back>,
+            <($($T,)*) as NonTableFieldExtractor>::Out: WundergraphResolveAssociations<<<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType, Table, Back, Ctx>,
+            Ctx: WundergraphContext,
+            Ctx::Connection: Connection<Backend = Back>,
             {
                 type PlaceHolder = <<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder;
                 type SqlType = <<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::SqlType;
@@ -1081,13 +980,13 @@ macro_rules! wundergraph_value_impl {
                     placeholder: Vec<Self::PlaceHolder>,
                     select: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
                     name_list: &'static [&'static str],
-                    conn: &impl Connection<Backend = Back>,
+                    executor: &Executor<'_, Ctx, WundergraphScalarValue>,
                 ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error> {
                     let extern_values = {
                         let keys = ||{
                             placeholder.iter()
                                 .map(TupleIndex::<Key>::get)
-                                .map(|p| <_ as PlaceHolderMarker>::into_inner(p))
+                                .map(<_ as PlaceHolderMarker>::into_inner)
                                 .collect::<Vec<_>>()
                         };
 
@@ -1098,7 +997,7 @@ macro_rules! wundergraph_value_impl {
                             ).expect("Name is there")
                         };
                         <($($T,)*) as NonTableFieldExtractor>::Out::resolve(
-                            select, name, keys, conn
+                            select, name, keys, executor
                         )?
                     };
                     let name = |local_pos| {
@@ -1109,7 +1008,7 @@ macro_rules! wundergraph_value_impl {
                     let objs = placeholder.resolve(
                         name,
                         select,
-                        conn
+                        executor,
                     )?;
 
                      Ok(extern_values.merge_with_object_list(objs))

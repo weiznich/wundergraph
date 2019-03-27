@@ -3,12 +3,12 @@ use crate::filter::collector::{AndCollector, FilterCollector};
 use crate::filter::filter_value::FilterValue;
 use crate::filter::inner_filter::InnerFilter;
 
+use crate::diesel_ext::BoxableFilter;
 use diesel::backend::Backend;
 use diesel::expression::{AsExpression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::sql_types::{Bool, SingleValue};
 use diesel::{AppearsOnTable, Column};
-use crate::diesel_ext::BoxableFilter;
 
 use juniper::meta::Argument;
 use juniper::{FromInputValue, InputValue, LookAheadValue, Registry};

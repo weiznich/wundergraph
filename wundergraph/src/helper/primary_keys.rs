@@ -1,11 +1,11 @@
 use super::FromLookAheadValue;
+use crate::scalar::WundergraphScalarValue;
 use diesel::associations::HasTable;
 use diesel::query_builder::nodes::Identifier;
 use diesel::{Column, Identifiable, QuerySource, Table};
 use indexmap::IndexMap;
 use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
-use crate::scalar::WundergraphScalarValue;
 use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -136,30 +136,26 @@ macro_rules! primary_key_input_object_impl {
             impl<$($T,)+ $($ST,)+ __I> PrimaryKeyInputObject<($($ST,)+), __I> for ($($T,)+)
             where
                 $($T: Column,)+
-                $($ST: GraphQLType<WundergraphScalarValue, TypeInfo = __I>
-                  + FromInputValue<WundergraphScalarValue>
-                  + ToInputValue<WundergraphScalarValue>
-                  + FromLookAheadValue,)+
+                $($T: PrimaryKeyInputObject<$ST, __I>,)+
             {
                 fn register<'r>(
                     registry: &mut Registry<'r, WundergraphScalarValue>,
                     info: &__I
                 ) -> Vec<Argument<'r, WundergraphScalarValue>> {
-                    vec![$(
-                        registry.arg::<$ST>($T::NAME, info),
-                    )+]
+                    let mut ret = Vec::new();
+                    $(
+                        ret.extend($T::register(registry, info));
+                    )*
+                    ret
                 }
 
                 fn from_input_value(value: &InputValue<WundergraphScalarValue>)
                     -> Option<($($ST,)+)>
                 {
-                    if let InputValue::Object(ref o) = *value {
-                        $(
-
-                            let $ST = o.iter().find(|&(ref n, _)| n.item == $T::NAME)
-                                .and_then(|&(_, ref v)| $ST::from_input_value(&v.item))?;
-                        )+
-                        Some(($($ST,)*))
+                    if let InputValue::Object(ref _o) = *value {
+                        Some(($(
+                            $T::from_input_value(value)?,
+                        )*))
                     } else {
                         None
                     }
@@ -168,23 +164,25 @@ macro_rules! primary_key_input_object_impl {
                 fn from_look_ahead(value: &LookAheadValue<'_, WundergraphScalarValue>)
                     -> Option<($($ST, )+)>
                 {
-                    if let LookAheadValue::Object(ref o) = *value {
-                        $(
-                            let $ST = o.iter().find(|&(ref n, _)| *n == $T::NAME)
-                                .and_then(|(_, v)| $ST::from_look_ahead(v))?;
-                        ) +
-                        Some(($($ST,)+))
+                    if let LookAheadValue::Object(ref _o) = *value {
+                        Some(($(
+                            $T::from_look_ahead(value)?,
+                        )*))
                     } else {
                         None
                     }
                 }
 
-                fn to_input_value(values: &($($ST, )+)) -> InputValue<WundergraphScalarValue> {
-                    let mut map = IndexMap::with_capacity($Tuple);
-                    $(
-                        map.insert($T::NAME, values.$idx.to_input_value());
-                    )+
-                    InputValue::object(map)
+                fn to_input_value(_values: &($($ST, )+)) -> InputValue<WundergraphScalarValue> {
+//                    let mut map = IndexMap::with_capacity($Tuple);
+//                    $(
+//                        map.extend($T::to_input_value(values.$idx))
+//                    )
+                    // $(
+                    //     map.insert($T::NAME, values.$idx.to_input_value());
+                    // )+
+                    //                  InputValue::object(map)
+                    unimplemented!()
                 }
             }
         )+
@@ -201,7 +199,7 @@ impl PrimaryKeyInfo {
     where
         T: QuerySource<FromClause = Identifier<'static>>,
     {
-        PrimaryKeyInfo(format!("{}Key", table.from_clause().0))
+        Self(format!("{}Key", table.from_clause().0))
     }
 }
 

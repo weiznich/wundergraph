@@ -1,13 +1,13 @@
+use crate::helper::FromLookAheadValue;
+use crate::order::Order;
+use crate::scalar::WundergraphScalarValue;
+use crate::WundergraphError;
 use diesel::backend::Backend;
 use diesel::expression::NonAggregate;
 use diesel::query_builder::QueryFragment;
 use diesel::{BoxableExpression, Column, ExpressionMethods, SelectableExpression};
 use failure::Error;
-use crate::helper::FromLookAheadValue;
 use juniper::LookAheadValue;
-use crate::order::Order;
-use crate::scalar::WundergraphScalarValue;
-use crate::WundergraphError;
 
 pub trait BuildOrder<T, DB> {
     fn build_order(

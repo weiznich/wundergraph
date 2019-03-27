@@ -14,8 +14,9 @@ mod helper;
 mod query;
 mod query_nested;
 mod simple;
-//mod order;
+mod order;
 mod limit_offset;
+mod type_checking;
 
 #[cfg(feature = "postgres")]
 type DbConnection = diesel::pg::PgConnection;

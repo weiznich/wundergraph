@@ -3,13 +3,13 @@ use std::marker::PhantomData;
 use crate::filter::build_filter::BuildFilter;
 use crate::scalar::WundergraphScalarValue;
 
+use crate::diesel_ext::BoxableFilter;
 use diesel::backend::Backend;
 use diesel::expression::{operators, AsExpression, Expression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::serialize::ToSql;
 use diesel::sql_types::{Bool, HasSqlType};
 use diesel::{AppearsOnTable, Column, ExpressionMethods};
-use crate::diesel_ext::BoxableFilter;
 
 use juniper::{InputValue, ToInputValue};
 
@@ -18,7 +18,7 @@ pub struct Eq<T, C>(Option<T>, PhantomData<C>);
 
 impl<T, C> Eq<T, C> {
     pub(super) fn new(v: Option<T>) -> Self {
-        Eq(v, PhantomData)
+        Self(v, PhantomData)
     }
 }
 
@@ -27,7 +27,7 @@ where
     T: Clone,
 {
     fn clone(&self) -> Self {
-        Eq(self.0.clone(), PhantomData)
+        Self(self.0.clone(), PhantomData)
     }
 }
 
@@ -44,7 +44,7 @@ where
     type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret> {
-        let Eq(filter, _) = self;
+        let Self(filter, _) = self;
         filter.map(|v| Box::new(C::default().eq(v)) as Box<_>)
     }
 }

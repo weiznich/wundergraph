@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use crate::DbConnection;
 use diesel::r2d2::CustomizeConnection;
 use diesel::r2d2::*;
 use diesel::Connection;
@@ -12,7 +13,6 @@ use wundergraph_bench::api::{Mutation as BenchMutation, Query as BenchQuery};
 use wundergraph_bench::Schema as BenchSchema;
 use wundergraph_example::mutations::Mutation as ExampleMutation;
 use wundergraph_example::{Query as ExampleQuery, Schema as ExampleSchema};
-use DbConnection;
 
 lazy_static! {
     static ref MIGRATION_LOCK: Mutex<()> = Mutex::new(());

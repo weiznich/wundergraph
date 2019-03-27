@@ -1,8 +1,8 @@
+use crate::diesel_ext::BoxableFilter;
 use diesel::backend::Backend;
 use diesel::expression::{Expression, NonAggregate, SqlLiteral};
 use diesel::query_builder::QueryFragment;
 use diesel::sql_types::Bool;
-use crate::diesel_ext::BoxableFilter;
 
 /// A trait that indicates that some type could be converted into a sql filter
 /// operation.
@@ -37,7 +37,7 @@ where
     type Ret = T::Ret;
 
     fn into_filter(self) -> Option<Self::Ret> {
-        self.and_then(|i| i.into_filter())
+        self.and_then(BuildFilter::into_filter)
     }
 }
 

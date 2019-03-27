@@ -1,5 +1,7 @@
 //! This module contains all error handling related functionality in wundergraph
 
+use crate::scalar::WundergraphScalarValue;
+
 /// The main error type of wundergraph
 #[derive(Debug, Fail)]
 pub enum WundergraphError {
@@ -16,4 +18,8 @@ pub enum WundergraphError {
     },
     #[fail(display = "Could not build primary key filter from arguments")]
     NoPrimaryKeyArgumentFound,
+    #[fail(display = "Failed to build a return value")]
+    JuniperError {
+        inner: juniper::FieldError<WundergraphScalarValue>,
+    },
 }

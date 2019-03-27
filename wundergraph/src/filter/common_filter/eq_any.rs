@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use crate::filter::build_filter::BuildFilter;
 use crate::scalar::WundergraphScalarValue;
 
+use crate::diesel_ext::BoxableFilter;
 use diesel::backend::Backend;
 use diesel::expression::array_comparison::{In, Many};
 use diesel::expression::{AsExpression, Expression, NonAggregate};
@@ -10,7 +11,6 @@ use diesel::query_builder::QueryFragment;
 use diesel::serialize::ToSql;
 use diesel::sql_types::{Bool, HasSqlType};
 use diesel::{AppearsOnTable, Column, ExpressionMethods};
-use crate::diesel_ext::BoxableFilter;
 
 use juniper::{InputValue, ToInputValue};
 
@@ -19,7 +19,7 @@ pub struct EqAny<T, C>(Option<Vec<T>>, PhantomData<C>);
 
 impl<T, C> EqAny<T, C> {
     pub(super) fn new(v: Option<Vec<T>>) -> Self {
-        EqAny(v, PhantomData)
+        Self(v, PhantomData)
     }
 }
 
@@ -28,7 +28,7 @@ where
     T: Clone,
 {
     fn clone(&self) -> Self {
-        EqAny(self.0.clone(), PhantomData)
+        Self(self.0.clone(), PhantomData)
     }
 }
 
@@ -45,7 +45,7 @@ where
     type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret> {
-        let EqAny(filter, _) = self;
+        let Self(filter, _) = self;
         filter.map(|v| Box::new(C::default().eq_any(v)) as Box<_>)
     }
 }

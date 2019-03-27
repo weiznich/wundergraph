@@ -1,8 +1,8 @@
 use crate::filter::nullable_filter::NullableFilter;
 use crate::filter::string_filter::StringFilter;
 use crate::helper::FromLookAheadValue;
-use juniper::{FromInputValue, ToInputValue};
 use crate::scalar::WundergraphScalarValue;
+use juniper::{FromInputValue, ToInputValue};
 
 /// A fundamental trait marking that a filter could be constructed for a given type
 ///

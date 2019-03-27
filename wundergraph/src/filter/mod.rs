@@ -11,13 +11,13 @@ use juniper::LookAheadValue;
 use juniper::Registry;
 use juniper::ToInputValue;
 
+use crate::diesel_ext::BoxableFilter;
 use diesel::backend::Backend;
 use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
 use diesel::sql_types::Bool;
 use diesel::AppearsOnTable;
 use diesel::QueryDsl;
 use diesel::Table;
-use crate::diesel_ext::BoxableFilter;
 use indexmap::IndexMap;
 
 use crate::helper::{FromLookAheadValue, NameBuilder, Nameable};
@@ -37,7 +37,6 @@ pub mod inner_filter;
 
 pub use self::common_filter::FilterOption;
 pub use self::not::Not;
-pub use self::nullable_filter::{NullableReferenceFilter, ReverseNullableReferenceFilter};
 pub use self::reference_filter::ReferenceFilter;
 
 use self::build_filter::BuildFilter;
@@ -63,22 +62,6 @@ where
 {
     fn name() -> String {
         F::name()
-    }
-}
-
-impl<F, T> Clone for Filter<F, T>
-where
-    F: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            and: self.and.clone(),
-            or: self.or.clone(),
-            inner: self.inner.clone(),
-            // TODO
-            not: None,
-            p: PhantomData,
-        }
     }
 }
 
@@ -297,8 +280,11 @@ where
     ) -> Vec<Argument<'r, WundergraphScalarValue>> {
         let and = registry.arg_with_default::<Option<Vec<Self>>>("and", &None, info);
         let or = registry.arg_with_default::<Option<Vec<Self>>>("or", &None, info);
-        let not =
-            registry.arg_with_default::<Option<Box<Not<Self>>>>("not", &None, &Default::default());
+        let not = registry.arg_with_default::<Option<Box<Not<Self>>>>(
+            "not",
+            &None,
+            &NameBuilder::default(),
+        );
         let mut fields = vec![and, or, not];
         fields.extend(F::register_fields(&NameBuilder::default(), registry));
         fields

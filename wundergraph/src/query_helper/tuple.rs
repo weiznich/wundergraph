@@ -8,6 +8,10 @@ pub trait TupleIndex<N> {
     fn get(&self) -> Self::Value;
 }
 
+pub trait ConcatTuples<Other> {
+    type Out;
+}
+
 macro_rules! name_from_tuple {
     (1, $callback: ident, $($params: tt)*) => { $callback!(TupleIndex0, $($params)*); };
     (2, $callback: ident, $($params: tt)*) => { $callback!(TupleIndex1, $($params)*); };
@@ -196,6 +200,40 @@ macro_rules! create_tuple_index {
     }
 }
 
+macro_rules! expand_concat_tuple{
+    (@impl first = [($($T:ident,)*)], second = [($($ST:ident,)*)]) => {
+        impl<$($T,)* $($ST,)*> ConcatTuples<($($ST,)*)> for ($($T,)*) {
+            type Out = ($($T,)* $($ST,)*);
+        }
+    };
+    (@decouple2 first = [$T:tt], second = [($({$ST:tt},)*)]) => {
+        $(
+            expand_concat_tuple!(
+                @impl
+                    first = [$T],
+                second = [$ST]
+            );
+        )*
+    };
+    (@decouple first = [$({$T:tt},)*], second = [$ST:tt]) => {
+        $(
+            expand_concat_tuple!(
+                @decouple2
+                first = [$T],
+                second = [$ST]
+
+            );
+        )*
+    };
+    (pairs = [$({first = [$($T: ident,)*], second =[$($ST: ident,)*]},)*]) => {
+        expand_concat_tuple!(
+            @decouple
+                first = [$({($($T,)*)},)*],
+            second = [($({($($ST,)*)},)*)]
+        );
+    }
+}
+
 macro_rules! impl_tuple_macro_wrapper {
     ($(
         $Tuple:tt {
@@ -219,7 +257,19 @@ macro_rules! impl_tuple_macro_wrapper {
                     false
                 }
             }
+
+            impl<$($T,)*> ConcatTuples<()> for ($($T,)*)
+            {
+                type Out = Self;
+            }
+
+            impl<$($T,)*> ConcatTuples<($($T,)*)> for () {
+                type Out = ($($T,)*);
+
+            }
         )*
+
+        expand_concat_tuple!(pairs = [$({first = [$($T,)*], second = [$($ST,)*]},)*]);
     }
 }
 

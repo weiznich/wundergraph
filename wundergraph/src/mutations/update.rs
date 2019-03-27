@@ -15,8 +15,7 @@ use crate::query_helper::order::BuildOrder;
 use crate::query_helper::placeholder::{SqlTypeOfPlaceholder, WundergraphFieldList};
 use crate::query_helper::select::BuildSelect;
 use crate::scalar::WundergraphScalarValue;
-use crate::LoadingHandler;
-use crate::WundergraphContext;
+use crate::{LoadingHandler, QueryModifier, WundergraphContext};
 
 pub fn handle_update<DB, U, R, Ctx>(
     executor: &Executor<'_, Ctx, WundergraphScalarValue>,
@@ -24,7 +23,7 @@ pub fn handle_update<DB, U, R, Ctx>(
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
-    R: LoadingHandler<DB>,
+    R: LoadingHandler<DB, Ctx>,
     R::Table: HandleUpdate<R, U, DB, Ctx> + 'static,
     DB: Backend + 'static,
     DB::QueryBuilder: Default,
@@ -32,7 +31,7 @@ where
         + BuildSelect<
             R::Table,
             DB,
-            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>,
+            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table, Ctx>,
         >,
     <R::Table as QuerySource>::FromClause: QueryFragment<DB>,
     U: FromInputValue<WundergraphScalarValue>,
@@ -47,7 +46,7 @@ where
 
 pub trait HandleUpdate<L, U, DB, Ctx> {
     fn handle_update(
-        executor: &Executor<'_, Ctx, WundergraphScalarValue>,
+        executor: &Executor<Ctx, WundergraphScalarValue>,
         update: &U,
     ) -> ExecutionResult<WundergraphScalarValue>;
 }
@@ -61,11 +60,16 @@ where
     DB: Backend + 'static,
     DB::QueryBuilder: Default,
     T::FromClause: QueryFragment<DB>,
-    L: LoadingHandler<DB, Table = T>,
+    L: LoadingHandler<DB, Ctx, Table = T>,
     L::Columns: BuildOrder<T, DB>
-        + BuildSelect<T, DB, SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T>>,
-    Ctx: WundergraphContext<DB>,
-    L::FieldList: WundergraphFieldList<DB, L::PrimaryKeyIndex, T>,
+        + BuildSelect<
+            T,
+            DB,
+            SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T, Ctx>,
+        >,
+    Ctx: WundergraphContext + QueryModifier<L, DB>,
+    Ctx::Connection: Connection<Backend = DB>,
+    L::FieldList: WundergraphFieldList<DB, L::PrimaryKeyIndex, T, Ctx>,
     T: BoxedDsl<
         'static,
         DB,
@@ -78,7 +82,7 @@ where
     <Find<T, <&'static U as Identifiable>::Id> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>,
     <&'static U as AsChangeset>::Changeset: QueryFragment<DB>,
     T::PrimaryKey: EqAll<<&'static U as Identifiable>::Id>,
-    DB: HasSqlType<SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T>>,
+    DB: HasSqlType<SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T, Ctx>>,
     <T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output:
         AppearsOnTable<T> + NonAggregate + QueryFragment<DB>,
 {
@@ -101,11 +105,11 @@ where
             u.execute(conn)?;
             let f = FilterDsl::filter(
                 L::build_query(&look_ahead)?,
-                T::table().primary_key().eq_all(change_set.id()),
+                Self::table().primary_key().eq_all(change_set.id()),
             );
             // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(f, 1);
-            let items = L::load(&look_ahead, conn, q)?;
+            let items = L::load(&look_ahead, executor, q)?;
             Ok(items.into_iter().next().unwrap_or(Value::Null))
         })
     }

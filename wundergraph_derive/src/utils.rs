@@ -16,9 +16,6 @@ pub fn wrap_in_dummy_mod(
         #[allow(non_snake_case)]
         const #const_name: () = {
             extern crate std;
-            mod wundergraph {
-                __wundergraph_use_everything!();
-            }
             #item
         };
     }
@@ -26,10 +23,6 @@ pub fn wrap_in_dummy_mod(
 
 pub fn inner_of_option_ty(ty: &Type) -> &Type {
     inner_ty_arg(ty, "Option", 0).unwrap_or(ty)
-}
-
-pub fn is_option_ty(ty: &Type) -> bool {
-    inner_ty_arg(ty, "Option", 0).is_some()
 }
 
 pub fn inner_of_box_ty(ty: &Type) -> &Type {
@@ -42,10 +35,6 @@ pub fn is_box_ty(ty: &Type) -> bool {
 
 pub fn is_has_many(ty: &Type) -> bool {
     inner_ty_arg(inner_of_option_ty(ty), "HasMany", 0).is_some()
-}
-
-pub fn is_has_one(ty: &Type) -> bool {
-    inner_ty_arg(inner_of_option_ty(ty), "HasOne", 0).is_some()
 }
 
 pub fn inner_ty_args<'a>(
@@ -76,21 +65,6 @@ pub fn inner_ty_arg<'a>(ty: &'a Type, type_name: &str, index: usize) -> Option<&
         GenericArgument::Type(ref ty) => Some(ty),
         _ => None,
     })
-}
-
-pub fn ty_name(ty: &Type) -> Option<&Ident> {
-    match *ty {
-        Type::Path(ref ty) => {
-            let last_segment = ty
-                .path
-                .segments
-                .iter()
-                .last()
-                .expect("Path without any segments");
-            Some(&last_segment.ident)
-        }
-        _ => None,
-    }
 }
 
 pub fn fix_span(maybe_bad_span: Span, fallback: Span) -> Span {

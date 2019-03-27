@@ -263,22 +263,22 @@ where
 
 impl<'a> Display for GraphqlData<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        writeln!(f, "#[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, Identifiable, WundergraphEntity, WundergraphFilter, Associations)]")?;
+        writeln!(f, "#[derive(Clone, Debug, Identifiable, WundergraphEntity)]")?;
         writeln!(f, "#[table_name = \"{}\"]", self.table.name.name)?;
         write_primary_key_section(f, self.table)?;
-        for key in self
-            .foreign_keys
-            .iter()
-            .filter(|f| f.child_table == self.table.name)
-        {
-            writeln!(
-                f,
-                "#[belongs_to({parent}, foreign_key = \"{foreign_key}\")]",
-                parent = fix_table_name(&key.parent_table.name),
-                foreign_key = key.foreign_key
-            )?
-        }
-        write!(f, "struct {} {{", fix_table_name(&self.table.name.name))?;
+        // for key in self
+        //     .foreign_keys
+        //     .iter()
+        //     .filter(|f| f.child_table == self.table.name)
+        // {
+        //     writeln!(
+        //         f,
+        //         "#[belongs_to({parent}, foreign_key = \"{foreign_key}\")]",
+        //         parent = fix_table_name(&key.parent_table.name),
+        //         foreign_key = key.foreign_key
+        //     )?
+        // }
+        write!(f, "pub struct {} {{", fix_table_name(&self.table.name.name))?;
         {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
@@ -299,10 +299,6 @@ impl<'a> Display for GraphqlData<'a> {
                 .iter()
                 .filter(|f| f.parent_table == self.table.name)
             {
-                writeln!(out, "#[diesel(default)]")?;
-                if is_reverse_nullable_reference(f, self.table_data) {
-                    writeln!(out, "#[wundergraph(is_nullable_reference = \"true\")]")?;
-                }
                 writeln!(
                     out,
                     "{}: HasMany<{}>,",
@@ -316,19 +312,6 @@ impl<'a> Display for GraphqlData<'a> {
     }
 }
 
-fn is_reverse_nullable_reference(fk: &ForeignKeyConstraint, tables: &[TableData]) -> bool {
-    if let Some(t) = tables.iter().find(|t| {
-        t.name == fk.child_table && t.column_data.iter().any(|c| c.sql_name == fk.foreign_key)
-    }) {
-        if let Some(c) = t.column_data.iter().find(|c| c.sql_name == fk.foreign_key) {
-            c.ty.is_nullable
-        } else {
-            false
-        }
-    } else {
-        false
-    }
-}
 
 struct GraphqlColumn<'a> {
     column: &'a ColumnDefinition,
@@ -490,7 +473,7 @@ impl<'a> Display for GraphqlInsertable<'a> {
             return Ok(());
         }
         writeln!(f, "#[derive(Insertable, GraphQLInputObject, Clone, Debug)]")?;
-        writeln!(f, "#[graphql(scalar = \"WundergraphScalarValue\"]");
+        writeln!(f, "#[graphql(scalar = \"WundergraphScalarValue\")]")?;
         writeln!(f, "#[table_name = \"{}\"]", self.table.name)?;
         write!(f, "struct New{} {{", fix_table_name(&self.table.name.name))?;
         {
@@ -523,7 +506,7 @@ impl<'a> Display for GraphqlChangeSet<'a> {
             f,
             "#[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]"
         )?;
-        writeln!(f, "#[graphql(scalar = \"WundergraphScalarValue\"]");
+        writeln!(f, "#[graphql(scalar = \"WundergraphScalarValue\")]")?;
         writeln!(f, "#[table_name = \"{}\"]", self.table.name)?;
         write_primary_key_section(f, self.table)?;
         write!(

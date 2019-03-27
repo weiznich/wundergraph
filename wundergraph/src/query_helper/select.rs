@@ -1,3 +1,5 @@
+use crate::query_helper::maybe_null::MaybeNull;
+use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::expression::NonAggregate;
 use diesel::query_builder::QueryFragment;
@@ -5,8 +7,6 @@ use diesel::{BoxableExpression, Column, Expression, ExpressionMethods, Selectabl
 use failure::Error;
 use juniper::LookAheadMethods;
 use juniper::LookAheadSelection;
-use crate::query_helper::maybe_null::MaybeNull;
-use crate::scalar::WundergraphScalarValue;
 
 pub trait BuildSelect<T: ::diesel::Table, DB, ST> {
     fn build_select(

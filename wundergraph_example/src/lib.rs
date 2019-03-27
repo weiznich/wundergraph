@@ -1,3 +1,4 @@
+#![feature(trace_macros)]
 #![deny(missing_debug_implementations, missing_copy_implementations)]
 #![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy))]
@@ -45,46 +46,29 @@
 extern crate diesel;
 #[macro_use]
 extern crate juniper;
-extern crate indexmap;
-#[macro_use]
-extern crate wundergraph;
 extern crate failure;
+extern crate indexmap;
+extern crate wundergraph;
 
-use diesel::backend::{Backend, UsesAnsiSavepointSyntax};
-use diesel::connection::AnsiTransactionManager;
+use diesel::backend::Backend;
 use diesel::deserialize::{self, FromSql};
-use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use diesel::r2d2::{ConnectionManager, PooledConnection};
 use diesel::serialize::{self, ToSql};
 use diesel::sql_types::SmallInt;
 use diesel::{Connection, Identifiable};
-
-use juniper::LookAheadSelection;
-
 use failure::Error;
+use juniper::LookAheadSelection;
 use std::io::Write;
-
-use wundergraph::query_helper::{HasMany, HasOne, LazyLoad};
-//use wundergraph::query_modifier::{BuildQueryModifier, QueryModifier};
+use wundergraph::query_helper::{HasMany, HasOne};
 use wundergraph::scalar::WundergraphScalarValue;
 use wundergraph::WundergraphContext;
+use wundergraph::{BoxedQuery, LoadingHandler, QueryModifier};
+use wundergraph::{WundergraphEntity, WundergraphFilter, WundergraphValue};
 
 pub mod mutations;
 use self::mutations::*;
 
-#[derive(
-    Debug,
-    Copy,
-    Clone,
-    AsExpression,
-    FromSqlRow,
-    GraphQLEnum,
-    Hash,
-    Eq,
-    PartialEq,
-    Nameable,
-    FilterValue,
-    FromLookAhead,
-)]
+#[derive(Debug, Copy, Clone, AsExpression, FromSqlRow, GraphQLEnum, WundergraphValue)]
 #[sql_type = "SmallInt"]
 pub enum Episode {
     NEWHOPE = 1,
@@ -156,98 +140,34 @@ table! {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Hash,
-    Eq,
-    PartialEq,
-    Identifiable,
-    Queryable,
-    WundergraphEntity,
-    WundergraphFilter,
-    Copy,
-)]
+#[derive(Clone, Debug, Identifiable, Queryable, WundergraphEntity)]
 #[primary_key(hero_id)]
-//#[belongs_to(Hero)]
 #[table_name = "appears_in"]
-//#[primary_key(hero_id)]
-//#[wundergraph(context = "MyContext<Conn>")]
 pub struct AppearsIn {
-    //#[wundergraph(skip)]
-    hero_id: i32,
-    episode: i16,
+    hero_id: HasOne<i32, Hero>,
+    episode: Episode,
 }
 
 #[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, WundergraphEntity, Identifiable)]
 #[table_name = "friends"]
 #[primary_key(hero_id)]
-//#[wundergraph(context = "MyContext<Conn>")]
 pub struct Friend {
     #[wundergraph(skip)]
     hero_id: i32,
     friend_id: HasOne<i32, Hero>,
 }
 
-// // TODO: make this two impls deriveable
-// impl HasTable for Friend {
-//     type Table = friends::table;
+use wundergraph::filter::FilterOption;
 
-//     fn table() -> Self::Table {
-//         friends::table
-//     }
-// }
-
-// impl<'a> Identifiable for &'a Friend {
-//     type Id = (&'a i32, &'a i32);
-
-//     fn id(self) -> Self::Id {
-//         let friend_id = match self.friend_id {
-//             HasOne::Id(ref id) => id,
-//             HasOne::Item(ref hero) => &hero.id,
-//         };
-//         (&self.hero_id, friend_id)
-//     }
-// }
-
-// #[derive(Debug, Copy, Clone)]
-// pub struct TestModifier;
-
-// impl QueryModifier<<DBConnection as Connection>::Backend> for TestModifier {
-//     type Entity = HomeWorld;
-
-//     fn modify_query<'a>(
-//         &self,
-//         final_query: BoxedSelectStatement<
-//             'a,
-//             (Integer, Nullable<Text>, Nullable<Bool>),
-//             home_worlds::table,
-//             <DBConnection as Connection>::Backend,
-//         >,
-//         _selection: &LookAheadSelection<WundergraphScalarValue>,
-//     ) -> Result<
-//         BoxedSelectStatement<
-//             'a,
-//             (Integer, Nullable<Text>, Nullable<Bool>),
-//             home_worlds::table,
-//             <DBConnection as Connection>::Backend,
-//         >,
-//         Error,
-//     > {
-//         Ok(final_query)
-//     }
-// }
-
-// impl BuildQueryModifier<HomeWorld> for TestModifier {
-//     type Context = MyContext<DBConnection>;
-//     fn from_ctx(_ctx: &Self::Context) -> Result<Self, Error> {
-//         Ok(TestModifier)
-//     }
-// }
-
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Identifiable, WundergraphEntity)]
+#[derive(Clone, Debug, WundergraphFilter)]
 #[table_name = "home_worlds"]
-//#[wundergraph(query_modifier = "TestModifier", context = "MyContext<Conn>")]
+pub struct HomeWorldFilter {
+    name: Option<FilterOption<String, home_worlds::name>>,
+}
+
+#[derive(Clone, Debug, Identifiable, WundergraphEntity)]
+#[table_name = "home_worlds"]
+#[wundergraph(filter = "HomeWorldFilter")]
 /// A world where a hero was born
 pub struct HomeWorld {
     /// Internal id of a world
@@ -261,9 +181,8 @@ pub struct HomeWorld {
 #[allow(deprecated)]
 mod hero {
     use super::*;
-    #[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity)]
+    #[derive(Clone, Debug, Identifiable, Queryable, WundergraphEntity)]
     #[table_name = "heros"]
-    #[wundergraph(context = "MyContext<Conn>")]
     /// A hero from Star Wars
     pub struct Hero {
         /// Internal id of a hero
@@ -280,16 +199,15 @@ mod hero {
         /// On which world a hero was born
         home_world: Option<HasOne<i32, HomeWorld>>,
         //        /// Episodes a hero appears in
-        //        appears_in: HasMany<AppearsIn>,
+        appears_in: HasMany<AppearsIn>,
         /// List of friends of the current hero
         friends: HasMany<Friend>,
     }
 }
 pub use self::hero::Hero;
 
-#[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity)]
+#[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "species"]
-#[wundergraph(context = "MyContext<Conn>")]
 /// A species
 pub struct Species {
     /// Internal id of a species
@@ -300,16 +218,20 @@ pub struct Species {
     heros: HasMany<Hero>,
 }
 
-use diesel::sqlite::Sqlite;
-use wundergraph::graphql_type::*;
-
-wundergraph_query_object! {
-    Query(context = MyContext<Conn>) {
-        Heros(Hero),
-        Species(Species),
-        HomeWorlds(HomeWorld),
+//trace_macros!(true);
+wundergraph::query_object! {
+    /// Glob docs
+    Query {
+        ///Docs
+        #[wundergraph(graphql_name = "NotAnHero")]
+        #[deprecated(note = "Don't use this")]
+        Hero(filter = true),
+        Species,
+        HomeWorld,
     }
 }
+
+trace_macros!(false);
 
 #[derive(Debug)]
 pub struct MyContext<Conn>
@@ -328,12 +250,29 @@ where
     }
 }
 
-impl<Conn> WundergraphContext<Conn::Backend> for MyContext<Conn>
+impl<T, C, DB> QueryModifier<T, DB> for MyContext<C>
 where
-    Conn: Connection<TransactionManager = AnsiTransactionManager> + 'static,
-    Conn::Backend: UsesAnsiSavepointSyntax,
+    C: Connection<Backend = DB>,
+    DB: Backend + 'static,
+    T: LoadingHandler<DB, Self>,
+    Self: WundergraphContext,
+    Self::Connection: Connection<Backend = DB>,
 {
-    type Connection = diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<Conn>>;
+    fn modify_query<'a>(
+        &self,
+        _select: &LookAheadSelection<'_, WundergraphScalarValue>,
+        query: BoxedQuery<'a, T, DB, Self>,
+    ) -> Result<BoxedQuery<'a, T, DB, Self>, Error> {
+        dbg!(T::TYPE_NAME);
+        match T::TYPE_NAME {
+            "Heros" => Err(Error::from_boxed_compat(String::from("Is user").into())),
+            _ => Ok(query),
+        }
+    }
+}
+
+impl WundergraphContext for MyContext<DBConnection> {
+    type Connection = diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<DBConnection>>;
 
     fn get_connection(&self) -> &Self::Connection {
         &self.conn
@@ -346,12 +285,7 @@ pub type DBConnection = ::diesel::PgConnection;
 #[cfg(feature = "sqlite")]
 pub type DBConnection = ::diesel::SqliteConnection;
 
-use juniper::EmptyMutation;
+pub type DbBackend = <DBConnection as Connection>::Backend;
 
-pub type Schema<Conn> = juniper::RootNode<
-    'static,
-    Query<Pool<ConnectionManager<Conn>>>,
-    //    EmptyMutation<MyContext<diesel::SqliteConnection>>,
-    Mutation<Pool<ConnectionManager<Conn>>>,
-    WundergraphScalarValue,
->;
+pub type Schema<Ctx> =
+    juniper::RootNode<'static, Query<Ctx>, Mutation<Ctx>, WundergraphScalarValue>;

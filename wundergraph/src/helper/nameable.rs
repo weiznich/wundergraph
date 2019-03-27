@@ -12,7 +12,7 @@ where
     T: Nameable,
 {
     fn default() -> Self {
-        NameBuilder(T::name(), PhantomData)
+        Self(T::name(), PhantomData)
     }
 }
 
@@ -44,7 +44,7 @@ impl Nameable for String {
 
 impl Nameable for i16 {
     fn name() -> String {
-        String::from("Int")
+        String::from("SmallInt")
     }
 }
 
@@ -54,9 +54,27 @@ impl Nameable for i32 {
     }
 }
 
-impl Nameable for f64 {
+impl Nameable for i64 {
+    fn name() -> String {
+        String::from("BigInt")
+    }
+}
+
+impl Nameable for f32 {
     fn name() -> String {
         String::from("Float")
+    }
+}
+
+impl Nameable for f64 {
+    fn name() -> String {
+        String::from("Double")
+    }
+}
+
+impl Nameable for bool {
+    fn name() -> String {
+        String::from("bool")
     }
 }
 

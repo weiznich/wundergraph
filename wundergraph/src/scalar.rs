@@ -19,8 +19,8 @@ impl ScalarValue for WundergraphScalarValue {
 
     fn as_int(&self) -> Option<i32> {
         match *self {
-            WundergraphScalarValue::SmallInt(ref i) => Some(*i as i32),
-            WundergraphScalarValue::Int(ref i) => Some(*i as i32),
+            WundergraphScalarValue::SmallInt(ref i) => Some(i32::from(*i)),
+            WundergraphScalarValue::Int(ref i) => Some(*i),
             _ => None,
         }
     }
@@ -33,11 +33,11 @@ impl ScalarValue for WundergraphScalarValue {
     }
     fn as_float(&self) -> Option<f64> {
         match *self {
-            WundergraphScalarValue::SmallInt(ref i) => Some(*i as f64),
-            WundergraphScalarValue::Int(ref i) => Some(*i as f64),
-            WundergraphScalarValue::BigInt(ref i) => Some(*i as f64),
-            WundergraphScalarValue::Float(ref f) => Some(*f as f64),
-            WundergraphScalarValue::Double(ref f) => Some(*f as f64),
+            WundergraphScalarValue::SmallInt(ref i) => Some(f64::from(*i)),
+            WundergraphScalarValue::Int(ref i) => Some(f64::from(*i)),
+            WundergraphScalarValue::BigInt(ref i) => Some(*i as _),
+            WundergraphScalarValue::Float(ref f) => Some(f64::from(*f)),
+            WundergraphScalarValue::Double(ref f) => Some(*f),
             _ => None,
         }
     }
@@ -61,7 +61,6 @@ impl From<chrono::NaiveDateTime> for WundergraphScalarValue {
         WundergraphScalarValue::Double(n.timestamp() as _)
     }
 }
-
 
 #[doc(hidden)]
 #[derive(Default, Debug, Clone, Copy)]
@@ -89,7 +88,7 @@ impl<'de> de::Visitor<'de> for WundergraphScalarVisitor {
     where
         E: de::Error,
     {
-        if value <= i16::max_value() as i32 {
+        if value <= i32::from(i16::max_value()) {
             self.visit_i16(value as i16)
         } else {
             Ok(WundergraphScalarValue::Int(value))
@@ -100,7 +99,7 @@ impl<'de> de::Visitor<'de> for WundergraphScalarVisitor {
     where
         E: de::Error,
     {
-        if value <= i32::max_value() as i64 {
+        if value <= i64::from(i32::max_value()) {
             self.visit_i32(value as i32)
         } else {
             Ok(WundergraphScalarValue::BigInt(value))
@@ -170,9 +169,9 @@ graphql_scalar!(i64 as "BigInt" where Scalar = WundergraphScalarValue {
 
     from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, WundergraphScalarValue> {
         if let ScalarToken::Int(v) = value {
-                v.parse()
-                    .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
-                    .map(|s: i64| s.into())
+            v.parse::<i64>()
+                .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
+                .map(Into::into)
         } else {
                 Err(ParseError::UnexpectedToken(Token::Scalar(value)))
         }
@@ -193,9 +192,9 @@ graphql_scalar!(i16 as "SmallInt" where Scalar = WundergraphScalarValue {
 
     from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, WundergraphScalarValue> {
         if let ScalarToken::Int(v) = value {
-                v.parse()
+                v.parse::<i16>()
                     .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
-                    .map(|s: i16| s.into())
+                    .map(Into::into)
         } else {
                 Err(ParseError::UnexpectedToken(Token::Scalar(value)))
         }
@@ -217,9 +216,9 @@ graphql_scalar!(f32 as "SmallFloat" where Scalar = WundergraphScalarValue {
 
     from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, WundergraphScalarValue> {
         if let ScalarToken::Int(v) = value {
-                v.parse()
+                v.parse::<f32>()
                     .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
-                    .map(|s: f32| s.into())
+                    .map(Into::into)
         } else {
                 Err(ParseError::UnexpectedToken(Token::Scalar(value)))
         }

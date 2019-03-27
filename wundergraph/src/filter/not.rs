@@ -1,12 +1,12 @@
 use super::BuildFilter;
+use crate::helper::FromLookAheadValue;
+use crate::helper::{NameBuilder, Nameable};
+use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::dsl;
 use diesel::helper_types;
-use crate::helper::{NameBuilder, Nameable};
-use crate::helper::FromLookAheadValue;
 use juniper::meta::MetaType;
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
-use crate::scalar::WundergraphScalarValue;
 
 #[derive(Debug)]
 pub struct Not<I>(I);
@@ -37,7 +37,7 @@ where
     I: FromInputValue<WundergraphScalarValue>,
 {
     fn from_input_value(v: &InputValue<WundergraphScalarValue>) -> Option<Self> {
-        I::from_input_value(v).map(Not)
+        I::from_input_value(v).map(Self)
     }
 }
 
@@ -46,7 +46,7 @@ where
     I: FromLookAheadValue,
 {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
-        I::from_look_ahead(v).map(Not)
+        I::from_look_ahead(v).map(Self)
     }
 }
 

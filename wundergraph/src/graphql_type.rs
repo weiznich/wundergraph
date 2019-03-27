@@ -1,25 +1,25 @@
+use crate::query_helper::placeholder::FieldListExtractor;
+use crate::scalar::WundergraphScalarValue;
+use crate::LoadingHandler;
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
 use diesel::QuerySource;
 use juniper::{meta, FromInputValue, GraphQLType, Registry};
-use crate::query_helper::placeholder::FieldListExtractor;
-use crate::scalar::WundergraphScalarValue;
 use std::marker::PhantomData;
-use crate::LoadingHandler;
 
 #[derive(Debug)]
-pub struct GraphqlWrapper<T, DB>(T, PhantomData<DB>);
+pub struct GraphqlWrapper<T, DB, Ctx>(T, PhantomData<(DB, Ctx)>);
 
 #[derive(Debug)]
-pub struct GraphqlOrderWrapper<T, DB>(PhantomData<(T,DB)>);
+pub struct GraphqlOrderWrapper<T, DB, Ctx>(PhantomData<(T, DB, Ctx)>);
 
-impl<T, DB> GraphQLType<WundergraphScalarValue> for GraphqlWrapper<T, DB>
+impl<T, DB, Ctx> GraphQLType<WundergraphScalarValue> for GraphqlWrapper<T, DB, Ctx>
 where
     DB: Backend + 'static,
     T::Table: 'static,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
-    T: LoadingHandler<DB>,
-    T::FieldList: WundergraphGraphqlHelper<DB>,
+    T: LoadingHandler<DB, Ctx>,
+    T::FieldList: WundergraphGraphqlHelper<T, DB, Ctx>,
     DB::QueryBuilder: Default,
 {
     type Context = ();
@@ -36,7 +36,7 @@ where
     where
         WundergraphScalarValue: 'r,
     {
-        <T::FieldList as WundergraphGraphqlHelper<DB>>::object_meta::<Self>(
+        <T::FieldList as WundergraphGraphqlHelper<T, DB, Ctx>>::object_meta::<Self>(
             T::FIELD_NAMES,
             registry,
         )
@@ -44,33 +44,33 @@ where
 }
 
 #[derive(Debug)]
-pub struct OrderTypeInfo<L, DB>(String, PhantomData<(L, DB)>);
+pub struct OrderTypeInfo<L, DB, Ctx>(String, PhantomData<(L, DB, Ctx)>);
 
-impl<L, DB> Default for OrderTypeInfo<L, DB>
+impl<L, DB, Ctx> Default for OrderTypeInfo<L, DB, Ctx>
 where
     DB: Backend + 'static,
     L::Table: 'static,
     <L::Table as QuerySource>::FromClause: QueryFragment<DB>,
-    L: LoadingHandler<DB>,
+    L: LoadingHandler<DB, Ctx>,
     DB::QueryBuilder: Default,
 {
     fn default() -> Self {
-        OrderTypeInfo(format!("{}Columns", L::TYPE_NAME), PhantomData)
+        Self(format!("{}Columns", L::TYPE_NAME), PhantomData)
     }
 }
 
-impl<T, DB> GraphQLType<WundergraphScalarValue> for GraphqlOrderWrapper<T, DB>
+impl<T, DB, Ctx> GraphQLType<WundergraphScalarValue> for GraphqlOrderWrapper<T, DB, Ctx>
 where
     DB: Backend + 'static,
     T::Table: 'static,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
-    T: LoadingHandler<DB>,
+    T: LoadingHandler<DB, Ctx>,
     T::FieldList: FieldListExtractor,
-    <T::FieldList as FieldListExtractor>::Out: WundergraphGraphqlHelper<DB>,
+    <T::FieldList as FieldListExtractor>::Out: WundergraphGraphqlHelper<T, DB, Ctx>,
     DB::QueryBuilder: Default,
 {
     type Context = ();
-    type TypeInfo = OrderTypeInfo<T, DB>;
+    type TypeInfo = OrderTypeInfo<T, DB, Ctx>;
 
     fn name(info: &Self::TypeInfo) -> Option<&str> {
         Some(&info.0)
@@ -85,7 +85,7 @@ where
     {
         use crate::query_helper::placeholder::WundergraphFieldList;
 
-        <<T::FieldList as FieldListExtractor>::Out as WundergraphGraphqlHelper<DB>>::order_meta::<
+        <<T::FieldList as FieldListExtractor>::Out as WundergraphGraphqlHelper<T, DB, Ctx>>::order_meta::<
             Self,
             _,
         >(
@@ -99,24 +99,24 @@ where
     }
 }
 
-impl<T, DB> FromInputValue<WundergraphScalarValue> for GraphqlOrderWrapper<T, DB> {
+impl<T, DB, Ctx> FromInputValue<WundergraphScalarValue> for GraphqlOrderWrapper<T, DB, Ctx> {
     fn from_input_value(_: &juniper::InputValue<WundergraphScalarValue>) -> Option<Self> {
         Some(Self(PhantomData))
     }
 }
 
-pub trait WundergraphGraphqlMapper<DB> {
+pub trait WundergraphGraphqlMapper<DB, Ctx> {
     type GraphQLType: GraphQLType<WundergraphScalarValue, TypeInfo = ()>;
 }
 
-impl<T, DB> WundergraphGraphqlMapper<DB> for T
+impl<T, DB, Ctx> WundergraphGraphqlMapper<DB, Ctx> for T
 where
     T: GraphQLType<WundergraphScalarValue, TypeInfo = ()>,
 {
-    type GraphQLType = T;
+    type GraphQLType = Self;
 }
 
-pub trait WundergraphGraphqlHelper<DB> {
+pub trait WundergraphGraphqlHelper<L, DB, Ctx> {
     fn object_meta<'r, T>(
         names: &[&str],
         registry: &mut Registry<'r, WundergraphScalarValue>,
@@ -141,24 +141,39 @@ macro_rules! wundergraph_graphql_helper_impl {
         }
     )+) => {
         $(
-            impl<$($T,)* Backend> WundergraphGraphqlHelper<Backend> for ($($T,)*)
-            where $($T: WundergraphGraphqlMapper<Backend>,)* {
+            impl<$($T,)* Loading, Back, Ctx> WundergraphGraphqlHelper<Loading, Back, Ctx> for ($($T,)*)
+            where $($T: WundergraphGraphqlMapper<Back, Ctx>,)*
+                  Back: Backend + 'static,
+                  Loading::Table: 'static,
+                  <Loading::Table as QuerySource>::FromClause: QueryFragment<Back>,
+                  Loading: LoadingHandler<Back, Ctx>,
+                  Back::QueryBuilder: Default,
+            {
                 fn object_meta<'r, Type>(
                     names: &[&str],
                     registry: &mut Registry<'r, WundergraphScalarValue>,
                 ) -> meta::MetaType<'r, WundergraphScalarValue>
                     where Type: GraphQLType<WundergraphScalarValue, TypeInfo = ()>
                 {
-                    // TODO: get docs and deprecated from somewhere!!
                     let fields  = [
-                        $(
-                            registry.field::<<$T as WundergraphGraphqlMapper<Backend>>::GraphQLType>(names[$idx], &()),
-                        )*
+                        $({
+                            let mut field = registry.field::<<$T as WundergraphGraphqlMapper<Back, Ctx>>::GraphQLType>(names[$idx], &());
+                            if let Some(doc) = Loading::field_description($idx) {
+                                field = field.description(doc);
+                            }
+                            if let Some(deprecated) = Loading::field_deprecation($idx) {
+                                field = field.deprecated(deprecated);
+                            }
+                            field
+                        },)*
                     ];
-                    let ty = registry.build_object_type::<Type>(
+                    let mut ty = registry.build_object_type::<Type>(
                         &(),
                         &fields,
                     );
+                    if let Some(doc) = Loading::type_description() {
+                        ty = ty.description(doc);
+                    }
                     meta::MetaType::Object(ty)
                 }
 

@@ -53,50 +53,26 @@ mod model;
 mod resolved_at_shim;
 mod utils;
 
-mod build_filter;
-mod filter;
-mod filter_value;
-mod from_lookahead;
-mod inner_filter;
-mod nameable;
 mod wundergraph_entity;
+mod wundergraph_filter;
+pub(crate) mod wundergraph_value;
 
 use self::diagnostic_shim::Diagnostic;
 use proc_macro::TokenStream;
-
-#[proc_macro_derive(Nameable)]
-pub fn derive_nameable(input: TokenStream) -> TokenStream {
-    expand_derive(input, nameable::derive)
-}
-
-#[proc_macro_derive(FilterValue)]
-pub fn derive_filter_value(input: TokenStream) -> TokenStream {
-    expand_derive(input, filter_value::derive)
-}
-
-#[proc_macro_derive(InnerFilter)]
-pub fn derive_inner_filter(input: TokenStream) -> TokenStream {
-    expand_derive(input, inner_filter::derive)
-}
-
-#[proc_macro_derive(BuildFilter, attributes(wundergraph))]
-pub fn derive_build_filter(input: TokenStream) -> TokenStream {
-    expand_derive(input, build_filter::derive)
-}
 
 #[proc_macro_derive(WundergraphEntity, attributes(wundergraph, table_name, primary_key))]
 pub fn derive_wundergraph_entity(input: TokenStream) -> TokenStream {
     expand_derive(input, wundergraph_entity::derive)
 }
 
-#[proc_macro_derive(WundergraphFilter, attributes(wundergraph, table_name))]
-pub fn derive_wundergraph_filter(input: TokenStream) -> TokenStream {
-    expand_derive(input, filter::derive)
+#[proc_macro_derive(WundergraphValue, attributes(sql_type, graphql))]
+pub fn derive_wundergraph_value(input: TokenStream) -> TokenStream {
+    expand_derive(input, wundergraph_value::derive)
 }
 
-#[proc_macro_derive(FromLookAhead)]
-pub fn derive_from_lookahead(input: TokenStream) -> TokenStream {
-    expand_derive(input, from_lookahead::derive)
+#[proc_macro_derive(WundergraphFilter, attributes(wundergraph, table_name))]
+pub fn derive_wundergraph_filter(input: TokenStream) -> TokenStream {
+    expand_derive(input, wundergraph_filter::derive)
 }
 
 fn expand_derive(

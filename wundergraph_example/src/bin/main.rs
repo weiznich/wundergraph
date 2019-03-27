@@ -93,13 +93,13 @@ impl Message for GraphQLData {
 
 #[allow(missing_debug_implementations)]
 pub struct GraphQLExecutor {
-    schema: Arc<Schema<DBConnection>>,
+    schema: Arc<Schema<MyContext<DBConnection>>>,
     pool: Arc<Pool<ConnectionManager<DBConnection>>>,
 }
 
 impl GraphQLExecutor {
     fn new(
-        schema: Arc<Schema<DBConnection>>,
+        schema: Arc<Schema<MyContext<DBConnection>>>,
         pool: Arc<Pool<ConnectionManager<DBConnection>>>,
     ) -> Self {
         Self { schema, pool }
@@ -159,9 +159,9 @@ fn main() {
     //    ::diesel_migrations::run_pending_migrations(&pool.get().expect("Failed to get db connection"))
     //        .expect("Failed to run migrations");
 
-    let query = Query::<Pool<ConnectionManager<DBConnection>>>::default();
+    let query = Query::<MyContext<DBConnection>>::default();
     //    let mutation = juniper::EmptyMutation::new();
-    let mutation = Mutation::<Pool<ConnectionManager<DBConnection>>>::default();
+    let mutation = Mutation::<MyContext<DBConnection>>::default();
     let schema = Schema::new(query, mutation);
 
     let sys = actix::System::new("wundergraph-example");

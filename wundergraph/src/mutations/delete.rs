@@ -4,7 +4,7 @@ use diesel::dsl::Filter;
 use diesel::query_builder::{IntoUpdateTarget, QueryFragment, QueryId};
 use diesel::query_dsl::methods::FilterDsl;
 use diesel::Identifiable;
-use diesel::{Connection, EqAll, RunQueryDsl, Table, QuerySource};
+use diesel::{Connection, EqAll, QuerySource, RunQueryDsl, Table};
 
 use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Value};
 
@@ -28,7 +28,7 @@ pub fn handle_delete<DB, D, R, Ctx>(
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
-    R: LoadingHandler<DB>,
+    R: LoadingHandler<DB, Ctx>,
     R::Table: HandleDelete<R, D, DB, Ctx> + 'static,
     DB: Backend + 'static,
     DB::QueryBuilder: Default,
@@ -36,7 +36,7 @@ where
         + BuildSelect<
             R::Table,
             DB,
-            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table>,
+            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table, Ctx>,
         >,
     <R::Table as QuerySource>::FromClause: QueryFragment<DB>,
     D: FromInputValue<WundergraphScalarValue>,
@@ -65,11 +65,12 @@ where
     DB: Backend + 'static,
     DB::QueryBuilder: Default,
     T::FromClause: QueryFragment<DB>,
-    L: LoadingHandler<DB, Table = T>,
+    L: LoadingHandler<DB, Ctx, Table = T>,
     L::Columns: BuildOrder<T, DB>
-        + BuildSelect<T, DB, SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T>>,
-    Ctx: WundergraphContext<DB>,
-    L::FieldList: WundergraphFieldList<DB, L::PrimaryKeyIndex, T>,
+        + BuildSelect<T, DB, SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T, Ctx>>,
+    Ctx: WundergraphContext,
+    Ctx::Connection: Connection<Backend = DB>,
+    L::FieldList: WundergraphFieldList<DB, L::PrimaryKeyIndex, T, Ctx>,
     K: 'static,
     &'static K: Identifiable<Table = T>,
     T::PrimaryKey: EqAll<<&'static K as Identifiable>::Id>,
@@ -87,8 +88,8 @@ where
         conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             // this is safe becuse we do not leak to_delete out of this function
             let static_to_delete: &'static K = unsafe { &*(to_delete as *const K) };
-            let filter = T::table().primary_key().eq_all(static_to_delete.id());
-            let d = ::diesel::delete(FilterDsl::filter(T::table(), filter));
+            let filter = Self::table().primary_key().eq_all(static_to_delete.id());
+            let d = ::diesel::delete(FilterDsl::filter(Self::table(), filter));
             if cfg!(feature = "debug") {
                 debug!("{}", ::diesel::debug_query(&d));
             }

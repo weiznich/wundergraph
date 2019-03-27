@@ -1,8 +1,8 @@
+use crate::filter::filter_value::FilterValue;
+use crate::helper::{FromLookAheadValue, Nameable};
 use diesel::backend::Backend;
 use diesel::sql_types::{NotNull, Nullable};
 use diesel::Queryable;
-use crate::filter::filter_value::FilterValue;
-use crate::helper::{FromLookAheadValue, Nameable};
 use juniper::meta::MetaType;
 use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLType, InputValue,

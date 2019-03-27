@@ -3,13 +3,13 @@ use std::marker::PhantomData;
 use crate::filter::build_filter::BuildFilter;
 use crate::scalar::WundergraphScalarValue;
 
+use crate::diesel_ext::BoxableFilter;
 use diesel::backend::Backend;
 use diesel::expression::{operators, AsExpression, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::serialize::ToSql;
 use diesel::sql_types::{Bool, HasSqlType, Text};
 use diesel::{AppearsOnTable, Column, TextExpressionMethods};
-use crate::diesel_ext::BoxableFilter;
 
 use juniper::{InputValue, ToInputValue};
 
@@ -18,13 +18,13 @@ pub struct Like<C>(Option<String>, ::std::marker::PhantomData<C>);
 
 impl<C> Like<C> {
     pub(super) fn new(v: Option<String>) -> Self {
-        Like(v, PhantomData)
+        Self(v, PhantomData)
     }
 }
 
 impl<C> Clone for Like<C> where {
     fn clone(&self) -> Self {
-        Like(self.0.clone(), PhantomData)
+        Self(self.0.clone(), PhantomData)
     }
 }
 
@@ -43,7 +43,7 @@ where
     type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret> {
-        let Like(filter, _) = self;
+        let Self(filter, _) = self;
         filter.map(|v| Box::new(C::default().like(v)) as Box<_>)
     }
 }

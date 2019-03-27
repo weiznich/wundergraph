@@ -1,21 +1,57 @@
+use crate::graphql_type::WundergraphGraphqlMapper;
+use crate::helper::primary_keys::*;
+use crate::helper::FromLookAheadValue;
+use crate::scalar::WundergraphScalarValue;
 use diesel::associations::Identifiable;
 use diesel::backend::Backend;
 use diesel::deserialize::{self, FromSql};
 use diesel::expression::bound::Bound;
 use diesel::expression::AsExpression;
 use diesel::Queryable;
-use crate::helper::FromLookAheadValue;
-use juniper::{FromInputValue, InputValue, LookAheadValue, ToInputValue};
+use juniper::meta::Argument;
+use juniper::{FromInputValue, InputValue, LookAheadValue, Registry};
+use std::hash::{Hash, Hasher};
 
-use crate::graphql_type::WundergraphGraphqlMapper;
-use std::hash::Hash;
-
-use crate::scalar::WundergraphScalarValue;
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum HasOne<R, T> {
     Id(R),
     Item(T),
+}
+
+impl<R, T> PartialEq for HasOne<R, T>
+where
+    R: PartialEq + Hash + Eq,
+    for<'a> &'a T: Identifiable<Id = &'a R>,
+{
+    fn eq(&self, other: &Self) -> bool {
+        let k = match self {
+            HasOne::Id(ref i) => i,
+            HasOne::Item(ref i) => i.id(),
+        };
+        let other = match other {
+            HasOne::Id(ref i) => i,
+            HasOne::Item(ref i) => i.id(),
+        };
+        <_ as PartialEq>::eq(k, other)
+    }
+}
+
+impl<R, T> Eq for HasOne<R, T> where Self: PartialEq {}
+
+impl<R, T> Hash for HasOne<R, T>
+where
+    R: Hash + Eq,
+    for<'a> &'a T: Identifiable<Id = &'a R>,
+{
+    fn hash<H>(&self, hasher: &mut H)
+    where
+        H: Hasher,
+    {
+        match self {
+            HasOne::Id(ref i) => i.hash(hasher),
+            HasOne::Item(ref i) => i.id().hash(hasher),
+        }
+    }
 }
 
 impl<'a, K, I> Into<Option<&'a K>> for &'a HasOne<K, I>
@@ -63,18 +99,18 @@ where
     }
 }
 
-impl<R, T> ToInputValue for HasOne<R, T>
-where
-    R: ToInputValue,
-    T: ToInputValue,
-{
-    fn to_input_value(&self) -> InputValue {
-        match *self {
-            HasOne::Id(ref i) => i.to_input_value(),
-            HasOne::Item(ref i) => i.to_input_value(),
-        }
-    }
-}
+// impl<R, T> ToInputValue<WundergraphScalarValue> for HasOne<R, T>
+// where
+//     R: ToInputValue<WundergraphScalarValue>,
+//     T: ToInputValue<WundergraphScalarValue>,
+// {
+//     fn to_input_value(&self) -> InputValue {
+//         match *self {
+//             HasOne::Id(ref i) => i.to_input_value(),
+//             HasOne::Item(ref i) => i.to_input_value(),
+//         }
+//     }
+// }
 
 impl<R, T, DB, ST> FromSql<ST, DB> for HasOne<R, T>
 where
@@ -83,6 +119,24 @@ where
 {
     fn from_sql(bytes: Option<&DB::RawValue>) -> deserialize::Result<Self> {
         <R as FromSql<ST, DB>>::from_sql(bytes).map(HasOne::Id)
+    }
+}
+
+use diesel::serialize::{self, ToSql};
+use std::io::Write;
+
+impl<R, T, DB, ST> ToSql<ST, DB> for HasOne<R, T>
+where
+    DB: Backend,
+    R: ToSql<ST, DB> + Eq + Hash,
+    for<'a> &'a T: Identifiable<Id = &'a R>,
+    T: std::fmt::Debug,
+{
+    fn to_sql<W: Write>(&self, out: &mut serialize::Output<W, DB>) -> serialize::Result {
+        match self {
+            HasOne::Id(ref i) => i.to_sql(out),
+            HasOne::Item(ref i) => i.id().to_sql(out),
+        }
     }
 }
 
@@ -128,6 +182,17 @@ where
     }
 }
 
+impl<ST, R, T> AsExpression<ST> for HasOne<R, T>
+where
+    R: AsExpression<ST>,
+{
+    type Expression = Bound<ST, Self>;
+
+    fn as_expression(self) -> Self::Expression {
+        Bound::new(self)
+    }
+}
+
 impl<'expr2, 'expr, R, T, ST> AsExpression<ST> for &'expr2 &'expr HasOne<R, T>
 where
     &'expr2 &'expr R: AsExpression<ST>,
@@ -139,87 +204,42 @@ where
     }
 }
 
-impl<R, T, DB> WundergraphGraphqlMapper<DB> for HasOne<R, T>
+impl<R, T, DB, Ctx> WundergraphGraphqlMapper<DB, Ctx> for HasOne<R, T>
 where
-    T: WundergraphGraphqlMapper<DB>,
+    T: WundergraphGraphqlMapper<DB, Ctx>,
 {
     type GraphQLType = T::GraphQLType;
 }
 
-impl<R, T, DB> WundergraphGraphqlMapper<DB> for Option<HasOne<R, T>>
+#[allow(clippy::use_self)]
+impl<R, T, DB, Ctx> WundergraphGraphqlMapper<DB, Ctx> for Option<HasOne<R, T>>
 where
-    T: WundergraphGraphqlMapper<DB>,
+    T: WundergraphGraphqlMapper<DB, Ctx>,
 {
     type GraphQLType = Option<T::GraphQLType>;
 }
 
-// impl<R, T> GraphQLType<WundergraphScalarValue> for HasOne<R, T>
-// where
-//     GraphqlWrapper<T>: GraphQLType<WundergraphScalarValue>,
-// {
-//     type Context = <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::Context;
-//     type TypeInfo = <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::TypeInfo;
+impl<R, T, C, I> PrimaryKeyInputObject<HasOne<R, T>, I> for C
+where
+    C: PrimaryKeyInputObject<R, I>,
+    for<'a> &'a T: Identifiable<Id = &'a R>,
+{
+    fn register<'r>(
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+        info: &I,
+    ) -> Vec<Argument<'r, WundergraphScalarValue>> {
+        C::register(registry, info)
+    }
 
-//     fn name(info: &Self::TypeInfo) -> Option<&str> {
-//         <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::name(info)
-//     }
-
-//     fn meta<'r>(
-//         info: &Self::TypeInfo,
-//         registry: &mut Registry<'r, WundergraphScalarValue>,
-//     ) -> MetaType<'r, WundergraphScalarValue>
-//     where
-//         WundergraphScalarValue: 'r,
-//     {
-//         <GraphqlWrapper<T> as GraphQLType<WundergraphScalarValue>>::meta(info, registry)
-//     }
-
-//     fn resolve_field(
-//         &self,
-//         info: &Self::TypeInfo,
-//         field_name: &str,
-//         arguments: &Arguments<WundergraphScalarValue>,
-//         executor: &Executor<Self::Context, WundergraphScalarValue>,
-//     ) -> ExecutionResult<WundergraphScalarValue> {
-//         match *self {
-//             HasOne::Id(_) => Err(FieldError::new("HasOne relation not loaded", Value::Null)),
-//             HasOne::Item(ref i) => {
-//                 GraphqlWrapper::new(i).resolve_field(info, field_name, arguments, executor)
-//             }
-//         }
-//     }
-
-//     fn resolve_into_type(
-//         &self,
-//         info: &Self::TypeInfo,
-//         type_name: &str,
-//         selection_set: Option<&[Selection<WundergraphScalarValue>]>,
-//         executor: &Executor<Self::Context, WundergraphScalarValue>,
-//     ) -> ExecutionResult<WundergraphScalarValue> {
-//         match *self {
-//             HasOne::Id(_) => Err(FieldError::new("HasOne relation not loaded", Value::Null)),
-//             HasOne::Item(ref i) => {
-//                 GraphqlWrapper::new(i).resolve_into_type(info, type_name, selection_set, executor)
-//             }
-//         }
-//     }
-
-//     fn concrete_type_name(&self, context: &Self::Context, info: &Self::TypeInfo) -> String {
-//         match *self {
-//             HasOne::Id(_) => unreachable!(),
-//             HasOne::Item(ref i) => GraphqlWrapper::new(i).concrete_type_name(context, info),
-//         }
-//     }
-
-//     fn resolve(
-//         &self,
-//         info: &Self::TypeInfo,
-//         selection_set: Option<&[Selection<WundergraphScalarValue>]>,
-//         executor: &Executor<Self::Context, WundergraphScalarValue>,
-//     ) -> Value<WundergraphScalarValue> {
-//         match *self {
-//             HasOne::Id(_) => unreachable!(),
-//             HasOne::Item(ref i) => GraphqlWrapper::new(i).resolve(info, selection_set, executor),
-//         }
-//     }
-// }
+    fn from_input_value(value: &InputValue<WundergraphScalarValue>) -> Option<HasOne<R, T>> {
+        C::from_input_value(value).map(HasOne::Id)
+    }
+    fn from_look_ahead(
+        look_ahead: &LookAheadValue<'_, WundergraphScalarValue>,
+    ) -> Option<HasOne<R, T>> {
+        C::from_look_ahead(look_ahead).map(HasOne::Id)
+    }
+    fn to_input_value(_values: &HasOne<R, T>) -> InputValue<WundergraphScalarValue> {
+        unimplemented!()
+    }
+}

@@ -1,4 +1,4 @@
-use helper::*;
+use crate::helper::*;
 use serde_json::Value;
 use wundergraph_example::MyContext;
 

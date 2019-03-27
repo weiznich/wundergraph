@@ -1,10 +1,10 @@
 use crate::filter::build_filter::BuildFilter;
 use crate::filter::inner_filter::InnerFilter;
 
+use crate::diesel_ext::BoxableFilter;
 use diesel::backend::Backend;
 use diesel::sql_types::Bool;
 use diesel::Column;
-use crate::diesel_ext::BoxableFilter;
 
 use juniper::meta::Argument;
 use juniper::{FromInputValue, InputValue, LookAheadValue, Registry, ToInputValue};

@@ -1,29 +1,34 @@
 use std::marker::PhantomData;
 
 use crate::filter::build_filter::BuildFilter;
+use crate::filter::inner_filter::InnerFilter;
+use crate::helper::{FromLookAheadValue, NameBuilder, Nameable};
 use crate::scalar::WundergraphScalarValue;
 
+use crate::diesel_ext::BoxableFilter;
 use diesel::backend::Backend;
 use diesel::expression::{operators, NonAggregate};
 use diesel::query_builder::QueryFragment;
 use diesel::sql_types::Bool;
 use diesel::{AppearsOnTable, Column, ExpressionMethods};
-use crate::diesel_ext::BoxableFilter;
 
-use juniper::{InputValue, ToInputValue};
+use indexmap::IndexMap;
+
+use juniper::meta::Argument;
+use juniper::{FromInputValue, InputValue, LookAheadValue, Registry, ToInputValue};
 
 #[derive(Debug)]
 pub struct IsNull<C>(bool, PhantomData<C>);
 
 impl<C> IsNull<C> {
     pub(crate) fn new(v: bool) -> Self {
-        IsNull(v, PhantomData)
+        Self(v, PhantomData)
     }
 }
 
 impl<C> Clone for IsNull<C> {
     fn clone(&self) -> Self {
-        IsNull(self.0, PhantomData)
+        Self(self.0, PhantomData)
     }
 }
 
@@ -49,5 +54,48 @@ where
 impl<C> ToInputValue<WundergraphScalarValue> for IsNull<C> {
     fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
         self.0.to_input_value()
+    }
+}
+
+impl<C> Nameable for IsNull<C> {
+    fn name() -> String {
+        String::from("is_null")
+    }
+}
+
+//That's a false positive by clippy
+#[allow(clippy::use_self)]
+impl<C> InnerFilter for Option<IsNull<C>> {
+    type Context = ();
+
+    const FIELD_COUNT: usize = 1;
+    fn from_inner_input_value(
+        obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
+    ) -> Option<Self> {
+        let is_null = obj.get("is_null").map(|v| bool::from_input_value(v));
+        match is_null {
+            Some(Some(b)) => Some(Some(IsNull::new(b))),
+            Some(None) => None,
+            None => Some(None),
+        }
+    }
+
+    fn from_inner_look_ahead(obj: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
+        obj.iter()
+            .find(|o| o.0 == "is_null")
+            .and_then(|o| bool::from_look_ahead(&o.1))
+            .map(IsNull::new)
+    }
+
+    fn to_inner_input_value(&self, v: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
+        v.insert("is_null", self.to_input_value());
+    }
+
+    fn register_fields<'r>(
+        _info: &NameBuilder<Self>,
+        registry: &mut Registry<'r, WundergraphScalarValue>,
+    ) -> Vec<Argument<'r, WundergraphScalarValue>> {
+        let is_null = registry.arg_with_default::<Option<bool>>("is_null", &None, &());
+        vec![is_null]
     }
 }

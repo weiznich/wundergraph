@@ -1,4 +1,4 @@
-use helper::*;
+use crate::helper::*;
 use wundergraph_example::MyContext;
 
 #[test]

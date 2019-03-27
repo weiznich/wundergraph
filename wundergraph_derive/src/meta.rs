@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, Span, TokenTree};
+use proc_macro2::{Ident, Span};
 use syn;
 use syn::fold::Fold;
 use syn::spanned::Spanned;
@@ -18,14 +18,16 @@ impl MetaItem {
             .iter()
             .filter_map(|attr| {
                 attr.interpret_meta()
-                    .map(|m| FixSpan(attr.pound_token.0[0]).fold_meta(m))
-            }).filter_map(|meta| {
+                    .map(|m| FixSpan(attr.pound_token.spans[0]).fold_meta(m))
+            })
+            .filter_map(|meta| {
                 if meta.name() == name {
                     Some(Self { meta })
                 } else {
                     None
                 }
-            }).collect()
+            })
+            .collect()
     }
 
     pub fn get_deprecated(attrs: &[syn::Attribute]) -> Option<String> {
@@ -37,24 +39,27 @@ impl MetaItem {
         attrs
             .iter()
             .filter_map(|a| {
-                if a.is_sugared_doc {
-                    let mut i = a.tts.clone().into_iter();
-                    let doc = i.next().and_then(|_| i.next());
-                    doc.and_then(|t| match t {
-                        TokenTree::Literal(l) => Some(l.to_string()),
-                        _ => None,
-                    }).map(|s| {
+                let meta = a.parse_meta().unwrap();
+                if meta.name() == "doc" {
+                    if let syn::Meta::NameValue(value) = meta {
+                        let s = match value.lit {
+                            syn::Lit::Str(v) => v.value(),
+                            _ => return None,
+                        };
                         let s = s.replace("\"", "");
                         let mut s = s.trim();
                         if s.starts_with("///") {
                             s = &s[3..];
                         }
-                        s.trim().to_owned()
-                    })
+                        Some(s.trim().to_owned())
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
-            }).fold(None, |acc, s| {
+            })
+            .fold(None, |acc, s| {
                 if let Some(acc) = acc {
                     Some(format!("{}\n{}", acc, s))
                 } else {
@@ -86,16 +91,6 @@ impl MetaItem {
         })
     }
 
-    pub fn bool_value(&self) -> Result<bool, Diagnostic> {
-        match self.str_value().as_ref().map(|s| s.as_str()) {
-            Ok("true") => Ok(true),
-            Ok("false") => Ok(false),
-            _ => Err(self.span().error(format!(
-                "`{0}` must be in the form `{0} = \"true\"`",
-                self.name()
-            ))),
-        }
-    }
 
     pub fn expect_ident_value(&self) -> syn::Ident {
         self.ident_value().unwrap_or_else(|e| {
@@ -113,7 +108,8 @@ impl MetaItem {
                     .warning(format!(
                         "The form `{0}(value)` is deprecated. Use `{0} = \"value\"` instead",
                         self.name(),
-                    )).emit();
+                    ))
+                    .emit();
                 Ok(x.clone())
             }
             _ => Ok(syn::Ident::new(
@@ -149,15 +145,6 @@ impl MetaItem {
 
     pub fn name(&self) -> syn::Ident {
         self.meta.name()
-    }
-
-    pub fn has_flag(&self, flag: &str) -> bool {
-        self.nested()
-            .map(|mut n| n.any(|m| m.word().map(|w| w == flag).unwrap_or(false)))
-            .unwrap_or_else(|e| {
-                e.emit();
-                false
-            })
     }
 
     pub fn str_value(&self) -> Result<String, Diagnostic> {
@@ -220,7 +207,7 @@ impl MetaItem {
 
     pub fn get_flag<T>(&self, name: &str) -> Result<T, Diagnostic>
     where
-        T: syn::synom::Synom,
+        T: syn::parse::Parse,
     {
         self.nested_item(name)
             .and_then(|s| s.str_value())

@@ -1,19 +1,19 @@
 use super::appears_in;
-use super::friends;
+//use super::friends;
 use super::heros;
 use super::home_worlds;
 use super::species;
-use super::AppearsIn;
+//use super::AppearsIn;
 use super::Episode;
 //use super::Friend;
-use super::DBConnection;
+//use super::DBConnection;
 use super::Hero;
 use super::HomeWorld;
-use super::MyContext;
+//use super::MyContext;
 use super::Species;
-use diesel::sqlite::Sqlite;
+//use diesel::sqlite::Sqlite;
 use juniper::*;
-use wundergraph::scalar::WundergraphScalarValue;
+//use wundergraph::scalar::WundergraphScalarValue;
 
 #[derive(Insertable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "heros"]
@@ -74,8 +74,10 @@ pub struct NewAppearsIn {
     episode: Episode,
 }
 
-wundergraph_mutation_object! {
-    Mutation(context = super::MyContext<Conn>) {
+//trace_macros!(true);
+wundergraph::mutation_object! {
+    /// Mutations docs
+    Mutation {
         Hero(insert = NewHero, update = HeroChangeset,),
         Species(insert = NewSpecies, update = SpeciesChangeset,),
         HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset,),
@@ -83,3 +85,4 @@ wundergraph_mutation_object! {
 //        AppearsIn(insert = NewAppearsIn,),
     }
 }
+trace_macros!(false);

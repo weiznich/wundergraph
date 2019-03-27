@@ -3,6 +3,7 @@ use crate::filter::collector::{AndCollector, FilterCollector};
 use crate::filter::filter_value::FilterValue;
 use crate::filter::inner_filter::InnerFilter;
 
+use crate::diesel_ext::BoxableFilter;
 use diesel::backend::Backend;
 use diesel::expression::array_comparison::{In, Many};
 use diesel::expression::{operators, AppearsOnTable, AsExpression, NonAggregate};
@@ -10,14 +11,13 @@ use diesel::query_builder::QueryFragment;
 use diesel::serialize::ToSql;
 use diesel::sql_types::{Bool, HasSqlType, SingleValue};
 use diesel::Column;
-use crate::diesel_ext::BoxableFilter;
 
 use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
 use crate::helper::{FromLookAheadValue, NameBuilder, Nameable};
-use indexmap::IndexMap;
 use crate::scalar::WundergraphScalarValue;
+use indexmap::IndexMap;
 
 mod eq;
 mod eq_any;

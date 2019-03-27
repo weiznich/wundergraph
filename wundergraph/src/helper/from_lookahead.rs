@@ -1,5 +1,5 @@
-use juniper::{LookAheadValue, ID};
 use crate::scalar::WundergraphScalarValue;
+use juniper::{LookAheadValue, ID};
 
 /// A helper trait marking how to convert a `LookAheadValue` into a specific type
 pub trait FromLookAheadValue: Sized {
@@ -22,7 +22,7 @@ impl FromLookAheadValue for i16 {
 impl FromLookAheadValue for i32 {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         match *v {
-            LookAheadValue::Scalar(WundergraphScalarValue::SmallInt(ref i)) => Some(*i as _),
+            LookAheadValue::Scalar(WundergraphScalarValue::SmallInt(ref i)) => Some(Self::from(*i)),
             LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) => Some(*i),
             _ => None,
         }
@@ -32,8 +32,8 @@ impl FromLookAheadValue for i32 {
 impl FromLookAheadValue for i64 {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         match *v {
-            LookAheadValue::Scalar(WundergraphScalarValue::SmallInt(ref i)) => Some(*i as _),
-            LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) => Some(*i as _),
+            LookAheadValue::Scalar(WundergraphScalarValue::SmallInt(ref i)) => Some(Self::from(*i)),
+            LookAheadValue::Scalar(WundergraphScalarValue::Int(ref i)) => Some(Self::from(*i)),
             LookAheadValue::Scalar(WundergraphScalarValue::BigInt(ref i)) => Some(*i),
             _ => None,
         }
@@ -73,7 +73,7 @@ impl FromLookAheadValue for f32 {
 impl FromLookAheadValue for f64 {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         match *v {
-            LookAheadValue::Scalar(WundergraphScalarValue::Float(ref i)) => Some(*i as _),
+            LookAheadValue::Scalar(WundergraphScalarValue::Float(ref i)) => Some(Self::from(*i)),
             LookAheadValue::Scalar(WundergraphScalarValue::Double(ref i)) => Some(*i),
             _ => None,
         }
@@ -107,6 +107,7 @@ where
     }
 }
 
+#[allow(clippy::use_self)]
 impl<T> FromLookAheadValue for Box<T>
 where
     T: FromLookAheadValue,

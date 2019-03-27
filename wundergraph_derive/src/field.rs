@@ -70,52 +70,6 @@ impl Field {
             deprecated,
         })
     }
-
-    pub fn has_flag(&self, flag: &str) -> bool {
-        self.flags.has_flag(flag)
-    }
-
-    pub fn foreign_key(&self) -> Result<syn::Path, Diagnostic> {
-        self.flags.get_flag("foreign_key")
-    }
-
-    pub fn remote_table(&self) -> Result<syn::Type, Diagnostic> {
-        self.flags.get_flag("remote_table")
-    }
-
-    pub fn filter(&self) -> Option<syn::Path> {
-        let filter_name = if let Some(n) = inner_ty_arg(inner_of_option_ty(&self.ty), "HasMany", 0)
-        {
-            format!(
-                "{}Filter",
-                ty_name(inner_of_option_ty(n)).expect("Invalid type")
-            )
-        } else if let Some(n) = inner_ty_arg(inner_of_option_ty(&self.ty), "HasOne", 1) {
-            format!(
-                "{}Filter",
-                ty_name(inner_of_option_ty(n)).expect("Invalid type")
-            )
-        } else {
-            return None;
-        };
-        if let Ok(filter) = self.flags.nested_item("filter") {
-            match filter.bool_value() {
-                Ok(true) => syn::parse_str(&filter_name).ok(),
-                Ok(false) => return None,
-                Err(_) => self.flags.get_flag("filter").ok(),
-            }
-        } else {
-            syn::parse_str(&filter_name).ok()
-        }
-    }
-
-    pub fn is_nullable_reference(&self) -> bool {
-        self.flags
-            .nested_item("is_nullable_reference")
-            .and_then(|m| m.bool_value())
-            .unwrap_or(false)
-    }
-
     pub fn rust_name(&self) -> &FieldName {
         &self.rust_name
     }
