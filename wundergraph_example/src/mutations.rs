@@ -1,19 +1,15 @@
 use super::appears_in;
-//use super::friends;
+use super::friends;
 use super::heros;
 use super::home_worlds;
 use super::species;
-//use super::AppearsIn;
+use super::AppearsIn;
 use super::Episode;
-//use super::Friend;
-//use super::DBConnection;
+use super::Friend;
 use super::Hero;
 use super::HomeWorld;
-//use super::MyContext;
 use super::Species;
-//use diesel::sqlite::Sqlite;
 use juniper::*;
-//use wundergraph::scalar::WundergraphScalarValue;
 
 #[derive(Insertable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "heros"]
@@ -60,12 +56,12 @@ pub struct HomeWorldChangeset {
     name: Option<String>,
 }
 
-// #[derive(Insertable, GraphQLInputObject, Debug, Copy, Clone)]
-// #[table_name = "friends"]
-// pub struct NewFriend {
-//     hero_id: i32,
-//     friend_id: i32,
-// }
+#[derive(Insertable, GraphQLInputObject, Debug, Copy, Clone)]
+#[table_name = "friends"]
+pub struct NewFriend {
+    hero_id: i32,
+    friend_id: i32,
+}
 
 #[derive(Insertable, GraphQLInputObject, Debug, Copy, Clone)]
 #[table_name = "appears_in"]
@@ -74,15 +70,13 @@ pub struct NewAppearsIn {
     episode: Episode,
 }
 
-//trace_macros!(true);
 wundergraph::mutation_object! {
-    /// Mutations docs
+    /// Global mutation object for the schema
     Mutation {
         Hero(insert = NewHero, update = HeroChangeset,),
         Species(insert = NewSpecies, update = SpeciesChangeset,),
         HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset,),
-//        Friend( insert = NewFriend,),
-//        AppearsIn(insert = NewAppearsIn,),
+        Friend( insert = NewFriend,),
+        AppearsIn(insert = NewAppearsIn,),
     }
 }
-trace_macros!(false);

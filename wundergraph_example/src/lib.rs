@@ -1,54 +1,41 @@
-#![feature(trace_macros)]
 #![deny(missing_debug_implementations, missing_copy_implementations)]
-#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy))]
-// Clippy lints
-#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
-#![cfg_attr(
-    feature = "cargo-clippy",
-    warn(
-        wrong_pub_self_convention,
-        used_underscore_binding,
-        use_self,
-        use_debug,
-        unseparated_literal_suffix,
-        unnecessary_unwrap,
-        unimplemented,
-        single_match_else,
-        shadow_unrelated,
-        option_map_unwrap_or_else,
-        option_map_unwrap_or,
-        needless_continue,
-        mutex_integer,
-        needless_borrow,
-        items_after_statements,
-        filter_map,
-        expl_impl_clone_on_copy,
-        else_if_without_else,
-        doc_markdown,
-        default_trait_access,
-        option_unwrap_used,
-        result_unwrap_used,
-        print_stdout,
-        wrong_pub_self_convention,
-        mut_mut,
-        non_ascii_literal,
-        similar_names,
-        unicode_not_nfc,
-        enum_glob_use,
-        if_not_else,
-        items_after_statements,
-        used_underscore_binding
-    )
+#![warn(
+    clippy::option_unwrap_used,
+    clippy::result_unwrap_used,
+    clippy::print_stdout,
+    clippy::wrong_pub_self_convention,
+    clippy::mut_mut,
+    clippy::non_ascii_literal,
+    clippy::similar_names,
+    clippy::unicode_not_nfc,
+    clippy::enum_glob_use,
+    clippy::if_not_else,
+    clippy::items_after_statements,
+    clippy::used_underscore_binding,
+    clippy::cargo_common_metadata,
+    clippy::dbg_macro,
+    clippy::doc_markdown,
+    clippy::filter_map,
+    clippy::map_flatten,
+    clippy::match_same_arms,
+    clippy::needless_borrow,
+    clippy::needless_pass_by_value,
+    clippy::option_map_unwrap_or,
+    clippy::option_map_unwrap_or_else,
+    clippy::redundant_clone,
+    clippy::result_map_unwrap_or_else,
+    clippy::unnecessary_unwrap,
+    clippy::unseparated_literal_suffix,
+    clippy::wildcard_dependencies
+
 )]
 
 #[macro_use]
 extern crate diesel;
 #[macro_use]
 extern crate juniper;
-extern crate failure;
-extern crate indexmap;
-extern crate wundergraph;
+
+use wundergraph;
 
 use diesel::backend::Backend;
 use diesel::deserialize::{self, FromSql};
@@ -62,13 +49,13 @@ use std::io::Write;
 use wundergraph::query_helper::{HasMany, HasOne};
 use wundergraph::scalar::WundergraphScalarValue;
 use wundergraph::WundergraphContext;
-use wundergraph::{BoxedQuery, LoadingHandler, QueryModifier, ApplyOffset};
+use wundergraph::{ApplyOffset, BoxedQuery, LoadingHandler, QueryModifier};
 use wundergraph::{WundergraphEntity, WundergraphValue};
 
 pub mod mutations;
 use self::mutations::*;
 
-#[derive(Debug, Copy, Clone, AsExpression, FromSqlRow, GraphQLEnum, WundergraphValue)]
+#[derive(Debug, Copy, Clone, AsExpression, FromSqlRow, GraphQLEnum, WundergraphValue, Eq, PartialEq, Hash)]
 #[sql_type = "SmallInt"]
 pub enum Episode {
     NEWHOPE = 1,
@@ -81,7 +68,7 @@ where
     DB: Backend,
     i16: ToSql<SmallInt, DB>,
 {
-    fn to_sql<W: Write>(&self, out: &mut serialize::Output<W, DB>) -> serialize::Result {
+    fn to_sql<W: Write>(&self, out: &mut serialize::Output<'_, W, DB>) -> serialize::Result {
         (*self as i16).to_sql(out)
     }
 }
@@ -141,7 +128,7 @@ table! {
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable, WundergraphEntity)]
-#[primary_key(hero_id)]
+#[primary_key(hero_id, episode)]
 #[table_name = "appears_in"]
 pub struct AppearsIn {
     hero_id: HasOne<i32, Hero>,
@@ -150,7 +137,7 @@ pub struct AppearsIn {
 
 #[derive(Clone, Debug, Queryable, Eq, PartialEq, Hash, WundergraphEntity, Identifiable)]
 #[table_name = "friends"]
-#[primary_key(hero_id)]
+#[primary_key(hero_id, friend_id)]
 pub struct Friend {
     #[wundergraph(skip)]
     hero_id: i32,
@@ -210,9 +197,13 @@ pub struct Species {
 }
 
 wundergraph::query_object! {
+    /// Global query object for the schema
     Query {
+        /// Access to Heros
         Hero,
+        /// Access to Species
         Species,
+        /// Access to HomeWorlds
         HomeWorld,
     }
 }
@@ -247,9 +238,8 @@ where
         _select: &LookAheadSelection<'_, WundergraphScalarValue>,
         query: BoxedQuery<'a, T, DB, Self>,
     ) -> Result<BoxedQuery<'a, T, DB, Self>, Error> {
-        dbg!(T::TYPE_NAME);
         match T::TYPE_NAME {
-//            "Heros" => Err(Error::from_boxed_compat(String::from("Is user").into())),
+            //            "Heros" => Err(Error::from_boxed_compat(String::from("Is user").into())),
             _ => Ok(query),
         }
     }
