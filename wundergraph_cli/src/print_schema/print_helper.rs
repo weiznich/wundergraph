@@ -183,7 +183,7 @@ impl<'a> Display for GraphqlDefinition<'a> {
         }
         writeln!(f)?;
         writeln!(f)?;
-        write!(f, "wundergraph_query_object!{{")?;
+        write!(f, "wundergraph::query_object!{{")?;
         {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
@@ -192,14 +192,8 @@ impl<'a> Display for GraphqlDefinition<'a> {
                 let mut out = PadAdapter::new(&mut out);
                 writeln!(out)?;
                 for t in self.tables {
-                    let uppercase = uppercase_table_name(&t.name.name);
                     let single = fix_table_name(&t.name.name);
-                    writeln!(
-                        out,
-                        "{upper}({single}, filter = {single}Filter),",
-                        upper = uppercase,
-                        single = single
-                    )?;
+                    writeln!(out, "{},", single)?;
                 }
             }
             writeln!(out, "}}")?;
@@ -228,7 +222,8 @@ fn uppercase_table_name(name: &str) -> String {
             } else {
                 Some(c.to_string())
             }
-        }).fold(String::new(), |acc, s| acc + &s)
+        })
+        .fold(String::new(), |acc, s| acc + &s)
 }
 
 fn fix_table_name(name: &str) -> String {
@@ -261,21 +256,12 @@ where
 
 impl<'a> Display for GraphqlData<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "#[derive(Clone, Debug, Identifiable, WundergraphEntity)]")?;
+        writeln!(
+            f,
+            "#[derive(Clone, Debug, Identifiable, WundergraphEntity)]"
+        )?;
         writeln!(f, "#[table_name = \"{}\"]", self.table.name.name)?;
         write_primary_key_section(f, self.table)?;
-        // for key in self
-        //     .foreign_keys
-        //     .iter()
-        //     .filter(|f| f.child_table == self.table.name)
-        // {
-        //     writeln!(
-        //         f,
-        //         "#[belongs_to({parent}, foreign_key = \"{foreign_key}\")]",
-        //         parent = fix_table_name(&key.parent_table.name),
-        //         foreign_key = key.foreign_key
-        //     )?
-        // }
         write!(f, "pub struct {} {{", fix_table_name(&self.table.name.name))?;
         {
             let mut out = PadAdapter::new(f);
@@ -309,7 +295,6 @@ impl<'a> Display for GraphqlData<'a> {
         Ok(())
     }
 }
-
 
 struct GraphqlColumn<'a> {
     column: &'a ColumnDefinition,
@@ -354,9 +339,7 @@ impl<'a> Display for GraphqlType<'a> {
         match *self.sql_type {
             ColumnType {
                 is_nullable: true, ..
-            }
-                if self.allow_option =>
-            {
+            } if self.allow_option => {
                 let mut t = self.clone();
                 t.allow_option = false;
                 write!(f, "Option<{}>", t)?;
@@ -433,7 +416,7 @@ impl<'a> Display for GraphqlMutations<'a> {
             writeln!(f, "{}", GraphqlChangeSet { table: t })?;
         }
 
-        write!(f, "wundergraph_mutation_object!{{")?;
+        write!(f, "wundergraph::mutation_object!{{")?;
         {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
@@ -473,7 +456,7 @@ impl<'a> Display for GraphqlInsertable<'a> {
         writeln!(f, "#[derive(Insertable, GraphQLInputObject, Clone, Debug)]")?;
         writeln!(f, "#[graphql(scalar = \"WundergraphScalarValue\")]")?;
         writeln!(f, "#[table_name = \"{}\"]", self.table.name)?;
-        write!(f, "struct New{} {{", fix_table_name(&self.table.name.name))?;
+        write!(f, "pub struct New{} {{", fix_table_name(&self.table.name.name))?;
         {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
@@ -509,7 +492,7 @@ impl<'a> Display for GraphqlChangeSet<'a> {
         write_primary_key_section(f, self.table)?;
         write!(
             f,
-            "struct {}Changeset {{",
+            "pub struct {}Changeset {{",
             fix_table_name(&self.table.name.name)
         )?;
         {

@@ -27,7 +27,10 @@ pub fn print(database_url: &str, schema_name: Option<&str>) -> Result<(), Box<dy
     let mutations = GraphqlMutations {
         tables: &table_data,
     };
-
+    println!("use wundergraph::query_helper::{{HasMany, HasOne}};");
+    println!("use wundergraph::scalar::WundergraphScalarValue;");
+    println!("use wundergraph::WundergraphEntity;");
+    println!();
     println!("{}", definitions);
     println!();
     println!("{}", graphql);
