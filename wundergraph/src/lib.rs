@@ -1,48 +1,36 @@
-//#![feature(trace_macros)]
 #![deny(missing_debug_implementations, missing_copy_implementations)]
-#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy))]
-// Clippy lints
-#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
-#![cfg_attr(
-    feature = "cargo-clippy",
-    warn(
-        wrong_pub_self_convention,
-        used_underscore_binding,
-        use_self,
-        use_debug,
-        unseparated_literal_suffix,
-        unnecessary_unwrap,
-        unimplemented,
-        single_match_else,
-        shadow_unrelated,
-        option_map_unwrap_or_else,
-        option_map_unwrap_or,
-        needless_continue,
-        mutex_integer,
-        needless_borrow,
-        items_after_statements,
-        filter_map,
-        expl_impl_clone_on_copy,
-        else_if_without_else,
-        doc_markdown,
-        default_trait_access,
-        option_unwrap_used,
-        result_unwrap_used,
-        print_stdout,
-        wrong_pub_self_convention,
-        mut_mut,
-        non_ascii_literal,
-        similar_names,
-        unicode_not_nfc,
-        enum_glob_use,
-        if_not_else,
-        items_after_statements,
-        used_underscore_binding
-    )
-)]
+#![warn(
+    clippy::option_unwrap_used,
+    clippy::result_unwrap_used,
+    clippy::print_stdout,
+    clippy::wrong_pub_self_convention,
+    clippy::mut_mut,
+    clippy::non_ascii_literal,
+    clippy::similar_names,
+    clippy::unicode_not_nfc,
+    clippy::enum_glob_use,
+    clippy::if_not_else,
+    clippy::items_after_statements,
+    clippy::used_underscore_binding,
+    clippy::cargo_common_metadata,
+    clippy::dbg_macro,
+    clippy::doc_markdown,
+    clippy::filter_map,
+    clippy::map_flatten,
+    clippy::match_same_arms,
+    clippy::needless_borrow,
+    clippy::needless_pass_by_value,
+    clippy::option_map_unwrap_or,
+    clippy::option_map_unwrap_or_else,
+    clippy::redundant_clone,
+    clippy::result_map_unwrap_or_else,
+    clippy::unnecessary_unwrap,
+    clippy::unseparated_literal_suffix,
+    clippy::wildcard_dependencies
 
-//#![warn(missing_docs)]
+)]
+#![allow(clippy::type_complexity)]
+
 #[doc(hidden)]
 #[macro_use]
 pub extern crate diesel;
@@ -80,7 +68,6 @@ pub mod graphql_type;
 
 use self::error::WundergraphError;
 use self::helper::FromLookAheadValue;
-//use self::query_modifier::{BuildQueryModifier, QueryModifier};
 use self::scalar::WundergraphScalarValue;
 
 use crate::helper::primary_keys::{PrimaryKeyArgument, UnRef};
@@ -98,8 +85,7 @@ use diesel::Identifiable;
 use diesel::QuerySource;
 use diesel::{AppearsOnTable, Connection, QueryDsl, Table};
 use failure::Error;
-
-use juniper::{Executor, LookAheadSelection};
+use juniper::{Executor, LookAheadSelection, Selection};
 
 pub trait WundergraphContext {
     type Connection: Connection + 'static;
@@ -134,7 +120,7 @@ pub type BoxedQuery<'a, L, DB, Ctx> = BoxedSelectStatement<
 pub trait QueryModifier<L, DB>: WundergraphContext + Sized
 where
     L: LoadingHandler<DB, Self>,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
 {
     fn modify_query<'a>(
         &self,
@@ -148,7 +134,7 @@ where
     T: LoadingHandler<DB, Self>,
     Conn: Connection<Backend = DB> + 'static,
     Self: Connection<Backend = DB> + 'static,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     T::Table: 'static,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
     DB::QueryBuilder: Default,
@@ -189,7 +175,7 @@ use juniper::LookAheadValue;
 
 pub trait LoadingHandler<DB, Ctx>: HasTable + Sized
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
 {
     type Columns: BuildOrder<Self::Table, DB>
         + BuildSelect<
@@ -207,6 +193,7 @@ where
 
     fn load<'a>(
         select: &LookAheadSelection<'_, WundergraphScalarValue>,
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         query: BoxedQuery<'a, Self, DB, Ctx>,
     ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error>
@@ -221,8 +208,8 @@ where
     {
         use diesel::RunQueryDsl;
         let ctx = executor.context();
-        let query = ctx.modify_query(select, query)?;
         let conn = ctx.get_connection();
+        let query = ctx.modify_query(select, query)?;
         if cfg!(feature = "debug") {
             #[allow(clippy::use_debug, clippy::print_stdout)]
             {
@@ -233,6 +220,7 @@ where
         Ok(Self::FieldList::resolve(
             placeholder,
             select,
+            selection,
             Self::FIELD_NAMES,
             executor,
         )?)
@@ -240,6 +228,7 @@ where
 
     fn load_by_primary_key<'a>(
         select: &LookAheadSelection<'_, WundergraphScalarValue>,
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         mut query: BoxedQuery<'a, Self, DB, Ctx>,
     ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error>
@@ -274,7 +263,7 @@ where
             .ok_or(WundergraphError::NoPrimaryKeyArgumentFound)?;
         query = <_ as QueryDsl>::filter(query, Self::table().primary_key().eq_all(key.values));
         query = <_ as QueryDsl>::limit(query, 1);
-        let res = Self::load(select, executor, query)?;
+        let res = Self::load(select, selection, executor, query)?;
         Ok(res.into_iter().next())
     }
 
@@ -305,7 +294,7 @@ where
         Ok(query)
     }
 
-    fn get_select<'a>(
+    fn get_select(
         select: &LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<
         Box<
@@ -422,16 +411,7 @@ where
         query: BoxedQuery<'a, Self, DB, Ctx>,
         select: &LookAheadSelection<'_, WundergraphScalarValue>,
     ) -> Result<BoxedQuery<'a, Self, DB, Ctx>, Error> {
-        use juniper::LookAheadMethods;
-        if let Some(offset) = select.argument("offset") {
-            Ok(<_ as OffsetDsl>::offset(
-                query,
-                i64::from_look_ahead(offset.value())
-                    .ok_or(WundergraphError::CouldNotBuildFilterArgument)?,
-            ))
-        } else {
-            Ok(query)
-        }
+        <DB as ApplyOffset>::apply_offset::<Self, Ctx>(query, select)
     }
 
     fn field_description(_idx: usize) -> Option<&'static str> {
@@ -445,6 +425,64 @@ where
     #[allow(clippy::option_option)]
     fn field_deprecation(_idx: usize) -> Option<Option<&'static str>> {
         None
+    }
+}
+
+pub trait ApplyOffset: Backend {
+    fn apply_offset<'a, L, Ctx>(
+        query: BoxedQuery<'a, L, Self, Ctx>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
+    ) -> Result<BoxedQuery<'a, L, Self, Ctx>, Error>
+    where
+        L: LoadingHandler<Self, Ctx>;
+}
+
+#[cfg(feature = "postgres")]
+impl ApplyOffset for diesel::pg::Pg {
+    fn apply_offset<'a, L, Ctx>(
+        query: BoxedQuery<'a, L, Self, Ctx>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
+    ) -> Result<BoxedQuery<'a, L, Self, Ctx>, Error>
+    where
+        L: LoadingHandler<Self, Ctx>,
+    {
+        use juniper::LookAheadMethods;
+        if let Some(offset) = select.argument("offset") {
+            Ok(<_ as OffsetDsl>::offset(
+                query,
+                i64::from_look_ahead(offset.value())
+                    .ok_or(WundergraphError::CouldNotBuildFilterArgument)?,
+            ))
+        } else {
+            Ok(query)
+        }
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl ApplyOffset for diesel::sqlite::Sqlite {
+    fn apply_offset<'a, L, Ctx>(
+        query: BoxedQuery<'a, L, Self, Ctx>,
+        select: &LookAheadSelection<'_, WundergraphScalarValue>,
+    ) -> Result<BoxedQuery<'a, L, Self, Ctx>, Error>
+    where
+        L: LoadingHandler<Self, Ctx>,
+    {
+        use juniper::LookAheadMethods;
+        if let Some(offset) = select.argument("offset") {
+            let q = <_ as OffsetDsl>::offset(
+                query,
+                i64::from_look_ahead(offset.value())
+                    .ok_or(WundergraphError::CouldNotBuildFilterArgument)?,
+            );
+            if select.argument("limit").is_some() {
+                Ok(q)
+            } else {
+                Ok(<_ as LimitDsl>::limit(q, -1))
+            }
+        } else {
+            Ok(query)
+        }
     }
 }
 

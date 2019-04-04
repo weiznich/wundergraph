@@ -62,8 +62,8 @@ use std::io::Write;
 use wundergraph::query_helper::{HasMany, HasOne};
 use wundergraph::scalar::WundergraphScalarValue;
 use wundergraph::WundergraphContext;
-use wundergraph::{BoxedQuery, LoadingHandler, QueryModifier};
-use wundergraph::{WundergraphEntity, WundergraphFilter, WundergraphValue};
+use wundergraph::{BoxedQuery, LoadingHandler, QueryModifier, ApplyOffset};
+use wundergraph::{WundergraphEntity, WundergraphValue};
 
 pub mod mutations;
 use self::mutations::*;
@@ -157,17 +157,8 @@ pub struct Friend {
     friend_id: HasOne<i32, Hero>,
 }
 
-use wundergraph::filter::FilterOption;
-
-#[derive(Clone, Debug, WundergraphFilter)]
-#[table_name = "home_worlds"]
-pub struct HomeWorldFilter {
-    name: Option<FilterOption<String, home_worlds::name>>,
-}
-
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "home_worlds"]
-#[wundergraph(filter = "HomeWorldFilter")]
 /// A world where a hero was born
 pub struct HomeWorld {
     /// Internal id of a world
@@ -218,20 +209,13 @@ pub struct Species {
     heros: HasMany<Hero>,
 }
 
-//trace_macros!(true);
 wundergraph::query_object! {
-    /// Glob docs
     Query {
-        ///Docs
-        #[wundergraph(graphql_name = "NotAnHero")]
-        #[deprecated(note = "Don't use this")]
-        Hero(filter = true),
+        Hero,
         Species,
         HomeWorld,
     }
 }
-
-trace_macros!(false);
 
 #[derive(Debug)]
 pub struct MyContext<Conn>
@@ -253,7 +237,7 @@ where
 impl<T, C, DB> QueryModifier<T, DB> for MyContext<C>
 where
     C: Connection<Backend = DB>,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     T: LoadingHandler<DB, Self>,
     Self: WundergraphContext,
     Self::Connection: Connection<Backend = DB>,
@@ -265,7 +249,7 @@ where
     ) -> Result<BoxedQuery<'a, T, DB, Self>, Error> {
         dbg!(T::TYPE_NAME);
         match T::TYPE_NAME {
-            "Heros" => Err(Error::from_boxed_compat(String::from("Is user").into())),
+//            "Heros" => Err(Error::from_boxed_compat(String::from("Is user").into())),
             _ => Ok(query),
         }
     }

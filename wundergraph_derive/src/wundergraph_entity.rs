@@ -208,6 +208,23 @@ fn derive_loading_handler(
             #where_clause
         {
             type GraphQLType = wundergraph::graphql_type::GraphqlWrapper<#struct_type, #backend, __Ctx>;
+
+            fn register_arguments<'r>(
+                registry: &mut wundergraph::juniper::Registry<'r, wundergraph::scalar::WundergraphScalarValue>,
+                field: wundergraph::juniper::meta::Field<'r, wundergraph::scalar::WundergraphScalarValue>
+            ) -> wundergraph::juniper::meta::Field<'r, wundergraph::scalar::WundergraphScalarValue> {
+                let arg = registry.arg_with_default::<
+                    std::option::Option<wundergraph::filter::Filter<
+                    <Self as LoadingHandler<#backend, __Ctx>>::Filter,
+                <Self as wundergraph::diesel::associations::HasTable>::Table
+                    >>
+                    >(
+                        "filter",
+                        &std::option::Option::None,
+                        &std::default::Default::default(),
+                    );
+                field.argument(arg)
+            }
         }
 
         impl #impl_generics LoadingHandler<#backend, __Ctx> for #struct_type #ty_generics
@@ -223,11 +240,10 @@ fn derive_loading_handler(
             const TYPE_NAME: &'static str = stringify!(#struct_type);
 
             fn field_description(idx: usize) -> std::option::Option<&'static str> {
-                dbg!(idx);
-                dbg!(match idx {
+                match idx {
                     #(#description,)*
                     _ => std::option::Option::None,
-                })
+                }
             }
 
             fn type_description() -> std::option::Option<&'static str> {
@@ -280,23 +296,23 @@ fn derive_belongs_to(
             type Key = #key_ty;
 
             fn resolve(
-                selection: &wundergraph::juniper::LookAheadSelection<wundergraph::scalar::WundergraphScalarValue>,
+                look_ahead: &wundergraph::juniper::LookAheadSelection<wundergraph::scalar::WundergraphScalarValue>,
+                selection: std::option::Option<&[wundergraph::juniper::Selection<wundergraph::scalar::WundergraphScalarValue>]>,
                 keys: &[std::option::Option<#key_ty>],
-                executor: &wundergraph::juniper::Executor<__Ctx, wundergraph::scalar::WundergraphScalarValue>
+                executor: &wundergraph::juniper::Executor<__Ctx, wundergraph::scalar::WundergraphScalarValue>,
             ) -> std::result::Result<std::collections::HashMap<
                     std::option::Option<#key_ty>,
                     std::vec::Vec<juniper::Value<WundergraphScalarValue>>
                 >, wundergraph::failure::Error> {
                     use wundergraph::diesel::{ExpressionMethods, RunQueryDsl, QueryDsl, NullableExpressionMethods};
                     use wundergraph::{WundergraphContext, LoadingHandler, BoxedQuery};
-                    let conn: &__Ctx::Connection = executor.context().get_connection();
-
+                    let conn = executor.context().get_connection();
                     let query = <_ as QueryDsl>::filter(
                         <BoxedQuery<Self, #backend, __Ctx> as QueryDsl>::select(
-                           <Self as LoadingHandler<#backend, __Ctx>>::build_query(selection)?,
+                           <Self as LoadingHandler<#backend, __Ctx>>::build_query(look_ahead)?,
                             (
                                 Self::ForeignKeyColumn::default().nullable(),
-                                <Self as LoadingHandler<#backend, __Ctx>>::get_select(selection)?,
+                                <Self as LoadingHandler<#backend, __Ctx>>::get_select(look_ahead)?,
                             )
                        ),
                         Self::ForeignKeyColumn::default().nullable().eq_any(keys),
@@ -305,7 +321,7 @@ fn derive_belongs_to(
                         <#other as wundergraph::diesel::associations::HasTable>::Table,
                     #backend,
                     __Ctx,
-                    >>::build_response(query.load(conn)?, selection, executor)
+                    >>::build_response(query.load(conn)?, look_ahead, selection, executor)
             }
         }
     })
@@ -359,6 +375,22 @@ fn derive_non_table_filter(
             ) -> #filter {
                 use wundergraph::filter::inner_filter::InnerFilter;
                 wundergraph::filter::filter_helper::FilterBuildHelper::<#filter, #struct_type #ty_generics, #backend, __Ctx>::from_inner_look_ahead(objs).0
+            }
+
+            fn from_inner_input_value(
+                obj: wundergraph::indexmap::IndexMap<&str, &wundergraph::juniper::InputValue<wundergraph::scalar::WundergraphScalarValue>>,
+            ) -> std::option::Option<#filter> {
+                use wundergraph::filter::inner_filter::InnerFilter;
+                std::option::Option::Some(
+                    wundergraph::filter::filter_helper::FilterBuildHelper::<#filter, #struct_type #ty_generics, #backend, __Ctx>::from_inner_input_value(obj)?.0
+                )
+            }
+
+            fn to_inner_input_value(
+                _f: &#filter,
+                _v: &mut wundergraph::indexmap::IndexMap<&str, wundergraph::juniper::InputValue<wundergraph::scalar::WundergraphScalarValue>>
+            ) {
+
             }
 
             fn register_fields<'__r>(

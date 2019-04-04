@@ -2,6 +2,12 @@
 authors = ["Georg Semmler <georg_semmler_05@web.de>"]
 name = "wundergraph_cli"
 version = "0.1.0"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/weiznich/wundergraph"
+readme = "../README.md"
+keywords = ["GraphQL", "ORM", "PostgreSQL", "SQLite"]
+categories = ["database", "web-programming"]
+description = "A helper tool to generate some code for using wundergraph with existing databases"
 
 [dependencies]
 structopt = "0.2"

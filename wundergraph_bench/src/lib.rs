@@ -52,7 +52,7 @@ extern crate failure;
 extern crate serde;
 extern crate serde_json;
 
-use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::r2d2::{ConnectionManager, PooledConnection};
 
 use wundergraph::scalar::WundergraphScalarValue;
 
@@ -60,7 +60,7 @@ pub mod api;
 
 pub type Schema<Connection> = juniper::RootNode<
     'static,
-    self::api::Query<Pool<ConnectionManager<Connection>>>,
-    self::api::Mutation<Pool<ConnectionManager<Connection>>>,
+    self::api::Query<PooledConnection<ConnectionManager<Connection>>>,
+    self::api::Mutation<PooledConnection<ConnectionManager<Connection>>>,
     WundergraphScalarValue,
 >;

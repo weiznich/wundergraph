@@ -173,16 +173,12 @@ macro_rules! primary_key_input_object_impl {
                     }
                 }
 
-                fn to_input_value(_values: &($($ST, )+)) -> InputValue<WundergraphScalarValue> {
-//                    let mut map = IndexMap::with_capacity($Tuple);
-//                    $(
-//                        map.extend($T::to_input_value(values.$idx))
-//                    )
-                    // $(
-                    //     map.insert($T::NAME, values.$idx.to_input_value());
-                    // )+
-                    //                  InputValue::object(map)
-                    unimplemented!()
+                fn to_input_value(values: &($($ST, )+)) -> InputValue<WundergraphScalarValue> {
+                   let mut map = IndexMap::with_capacity($Tuple);
+                   $(
+                       map.insert($T::NAME, $T::to_input_value(&values.$idx));
+                   )+
+                   InputValue::object(map)
                 }
             }
         )+

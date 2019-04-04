@@ -1,7 +1,7 @@
 use crate::graphql_type::GraphqlOrderWrapper;
 use crate::helper::FromLookAheadValue;
 use crate::scalar::WundergraphScalarValue;
-use crate::LoadingHandler;
+use crate::{LoadingHandler, ApplyOffset};
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
 use diesel::QuerySource;
@@ -37,7 +37,7 @@ pub struct OrderByTypeInfo<L, DB, Ctx>(String, PhantomData<(L, DB, Ctx)>);
 
 impl<L, DB, Ctx> Default for OrderByTypeInfo<L, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     L::Table: 'static,
     <L::Table as QuerySource>::FromClause: QueryFragment<DB>,
     L: LoadingHandler<DB, Ctx>,
@@ -56,13 +56,13 @@ impl<T, DB, Ctx> FromInputValue<WundergraphScalarValue> for OrderBy<T, DB, Ctx> 
 
 impl<T, DB, Ctx> ToInputValue<WundergraphScalarValue> for OrderBy<T, DB, Ctx> {
     fn to_input_value(&self) -> juniper::InputValue<WundergraphScalarValue> {
-        unimplemented!("That should not been called")
+        juniper::InputValue::Null
     }
 }
 
 impl<T, DB, Ctx> GraphQLType<WundergraphScalarValue> for OrderBy<T, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     T::Table: 'static,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
     T: LoadingHandler<DB, Ctx>,

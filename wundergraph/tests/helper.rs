@@ -12,7 +12,7 @@ use wundergraph::scalar::WundergraphScalarValue;
 use wundergraph_bench::api::{Mutation as BenchMutation, Query as BenchQuery};
 use wundergraph_bench::Schema as BenchSchema;
 use wundergraph_example::mutations::Mutation as ExampleMutation;
-use wundergraph_example::{Query as ExampleQuery, Schema as ExampleSchema};
+use wundergraph_example::{Query as ExampleQuery, Schema as ExampleSchema, MyContext};
 
 lazy_static! {
     static ref MIGRATION_LOCK: Mutex<()> = Mutex::new(());
@@ -32,7 +32,7 @@ impl CustomizeConnection<DbConnection, ::diesel::r2d2::Error> for TestTransactio
 }
 
 pub fn get_example_schema() -> (
-    ExampleSchema<DbConnection>,
+    ExampleSchema<MyContext<DbConnection>>,
     Pool<ConnectionManager<DbConnection>>,
 ) {
     let db_url = ::std::env::var("DATABASE_URL")
@@ -49,8 +49,8 @@ pub fn get_example_schema() -> (
         .build(manager)
         .expect("Failed to init pool");
 
-    let query = ExampleQuery::<Pool<ConnectionManager<DbConnection>>>::default();
-    let mutation = ExampleMutation::<Pool<ConnectionManager<DbConnection>>>::default();
+    let query = ExampleQuery::<MyContext<DbConnection>>::default();
+    let mutation = ExampleMutation::<MyContext<DbConnection>>::default();
     (ExampleSchema::new(query, mutation), pool)
 }
 
@@ -72,8 +72,8 @@ pub fn get_bench_schema() -> (
         .expect("Failed to init pool");
 
     run_migrations(&*pool.get().unwrap(), "wundergraph_bench");
-    let query = BenchQuery::<Pool<ConnectionManager<DbConnection>>>::default();
-    let mutation = BenchMutation::<Pool<ConnectionManager<DbConnection>>>::default();
+    let query = BenchQuery::default();
+    let mutation = BenchMutation::default();
     (BenchSchema::new(query, mutation), pool)
 }
 

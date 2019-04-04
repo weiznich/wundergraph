@@ -12,7 +12,7 @@ use crate::query_helper::placeholder::{FieldListExtractor, NonTableFieldExtracto
 use crate::query_helper::tuple::ConcatTuples;
 use crate::query_helper::{HasMany, HasOne};
 use crate::scalar::WundergraphScalarValue;
-use crate::LoadingHandler;
+use crate::{ApplyOffset, LoadingHandler};
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
 use diesel::expression::NonAggregate;
@@ -73,7 +73,7 @@ pub trait CreateFilter {
 
 impl<L, DB, Ctx> CreateFilter for FilterConverter<L, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
     L::Table: 'static,
     <L::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -109,7 +109,7 @@ where
     L: HasTable,
     O: WundergraphBelongsTo<L::Table, DB, Ctx>,
     O::Table: 'static,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     <O::Table as QuerySource>::FromClause: QueryFragment<DB>,
     DB::QueryBuilder: Default,
 {
@@ -179,7 +179,7 @@ where
 
 impl<C, K, I, DB, Ctx> AsColumnFilter<C, DB, Ctx> for HasOne<K, I>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     I::Table: 'static,
     I: LoadingHandler<DB, Ctx>,
     <I::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -193,7 +193,7 @@ where
 #[allow(clippy::use_self)]
 impl<C, K, I, DB, Ctx> AsColumnFilter<C, DB, Ctx> for Option<HasOne<K, I>>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     I::Table: 'static,
     I: LoadingHandler<DB, Ctx>,
     <I::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -209,7 +209,7 @@ where
 
 impl<L, DB, Ctx> Nameable for FilterWrapper<L, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     L::Table: 'static,
     L: LoadingHandler<DB, Ctx>,
     <L::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -231,6 +231,11 @@ where
     fn into_filter(f: F) -> Option<Self::Ret>;
 
     fn from_inner_look_ahead(objs: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> F;
+    fn from_inner_input_value(
+        obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
+    ) -> Option<F>;
+
+    fn to_inner_input_value(f: &F, _v: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>);
 
     fn register_fields<'r>(
         _info: &NameBuilder<()>,
@@ -240,7 +245,7 @@ where
 
 impl<L, DB, Ctx> BuildFilter<DB> for FilterWrapper<L, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     L::Table: 'static,
     L: LoadingHandler<DB, Ctx>,
     <L::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -248,8 +253,11 @@ where
     FilterConverter<L, DB, Ctx>: CreateFilter,
     L::Table: BuildFilterHelper<DB, <FilterConverter<L, DB, Ctx> as CreateFilter>::Filter, Ctx>,
 {
-    type Ret =
-        <L::Table as BuildFilterHelper<DB, <FilterConverter<L, DB, Ctx> as CreateFilter>::Filter, Ctx>>::Ret;
+    type Ret = <L::Table as BuildFilterHelper<
+        DB,
+        <FilterConverter<L, DB, Ctx> as CreateFilter>::Filter,
+        Ctx,
+    >>::Ret;
 
     fn into_filter(self) -> Option<Self::Ret> {
         <L::Table as BuildFilterHelper<DB, _, Ctx>>::into_filter(self.filter)
@@ -261,7 +269,7 @@ pub struct FilterBuildHelper<F, L, DB, Ctx>(pub F, PhantomData<(L, DB, Ctx)>);
 
 impl<F, L, DB, Ctx> Nameable for FilterBuildHelper<F, L, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     L::Table: 'static,
     L: LoadingHandler<DB, Ctx>,
     <L::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -274,7 +282,7 @@ where
 
 impl<L, DB, Ctx> InnerFilter for FilterWrapper<L, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     L::Table: 'static,
     L: LoadingHandler<DB, Ctx>,
     <L::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -287,9 +295,11 @@ where
     const FIELD_COUNT: usize = L::Table::FIELD_COUNT;
 
     fn from_inner_input_value(
-        _obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
+        obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>,
     ) -> Option<Self> {
-        unimplemented!()
+        Some(Self {
+            filter: L::Table::from_inner_input_value(obj)?,
+        })
     }
 
     fn from_inner_look_ahead(objs: &[(&str, LookAheadValue<'_, WundergraphScalarValue>)]) -> Self {
@@ -298,8 +308,8 @@ where
         }
     }
 
-    fn to_inner_input_value(&self, _v: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
-        unimplemented!()
+    fn to_inner_input_value(&self, v: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>) {
+        L::Table::to_inner_input_value(&self.filter, v)
     }
 
     fn register_fields<'r>(
@@ -336,9 +346,8 @@ macro_rules! __impl_build_filter_for_tuples {
                 }
             }
 
-
             impl<$($T,)* Loading, Back, Ctx> InnerFilter for FilterBuildHelper<($(Option<$T>,)*), Loading, Back, Ctx>
-            where Back: Backend + 'static,
+            where Back: Backend + ApplyOffset + 'static,
                 Loading::Table: 'static,
                 Loading: LoadingHandler<Back, Ctx>,
                 <Loading::Table as QuerySource>::FromClause: QueryFragment<Back>,
@@ -352,8 +361,18 @@ macro_rules! __impl_build_filter_for_tuples {
                 fn from_inner_input_value(
                     obj: IndexMap<&str, &InputValue<WundergraphScalarValue>>
                 ) -> Option<Self> {
-                    dbg!(obj);
-                    unimplemented!()
+                    let mut values = ($(Option::<$T>::default(),)*);
+                    for (name, value) in obj {
+                        match name {
+                            $(
+                                n if n == Loading::FIELD_NAMES[$idx] => {
+                                    values.$idx = <$T as FromInputValue<WundergraphScalarValue>>::from_input_value(value);
+                                }
+                            )*
+                                _  => {}
+                        }
+                    }
+                    Some(FilterBuildHelper(values, PhantomData))
                 }
 
                 fn from_inner_look_ahead(
@@ -376,8 +395,11 @@ macro_rules! __impl_build_filter_for_tuples {
                 fn to_inner_input_value(
                     &self, v: &mut IndexMap<&str, InputValue<WundergraphScalarValue>>
                 ) {
-                    dbg!(v);
-                    unimplemented!()
+                    let inner = &self.0;
+                    $(
+                        let value = <Option<$T> as ToInputValue<WundergraphScalarValue>>::to_input_value(&inner.$idx);
+                        v.insert(Loading::FIELD_NAMES[$idx], value);
+                    )*
                 }
 
                 fn register_fields<'r>(

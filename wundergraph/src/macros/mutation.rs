@@ -81,34 +81,24 @@ macro_rules! mutation_object {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __impl_mutation_object {
+macro_rules! __impl_graphql_obj_for_mutation {
     (
-        $(#[doc = $glob_doc: expr])*
-        $mutation_name: ident {
-            $($entity_name: ident (
-                $(insert = $insert: ident,)?
-                $(update = $update: ident,)?
-                $(delete = ($($delete:tt)*))?
-                $(,)?
-            ),)*
+        mutation_name = {$($mutation_name:tt)*},
+        structs = [$($entity_name: ident(
+            $(insert = $insert: ident,)?
+            $(update = $update: ident,)?
+            $(delete = ($($delete:tt)*))?
+        ),)*],
+        $(lt = $lt: tt,)?
+        body = {
+            $($inner: tt)*
         }
     ) => {
-        // Use Arc<Mutex<C>> here to force make this Sync
-        #[derive(Debug)]
-        $(#[doc = $glob_doc])*
-        pub struct $mutation_name<C>(::std::marker::PhantomData<std::sync::Arc<std::sync::Mutex<C>>>);
-
-        impl<P> Default for $mutation_name<P> {
-            fn default() -> Self {
-                $mutation_name(::std::marker::PhantomData)
-            }
-        }
-
         $crate::paste::item! {
-            impl<Ctx, DB, $([<$entity_name _table>],)* $([<$entity_name _id>],)*> $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
-                for $mutation_name<Ctx>
+            impl<$($lt,)? Ctx, DB, $([<$entity_name _table>],)* $([<$entity_name _id>],)*> $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
+                for $($mutation_name)*<$($lt,)? Ctx>
             where Ctx: $crate::WundergraphContext,
-                  DB: $crate::diesel::backend::Backend + 'static,
+                  DB: $crate::diesel::backend::Backend + $crate::ApplyOffset + 'static,
                   DB::QueryBuilder: std::default::Default,
                   Ctx::Connection: $crate::diesel::Connection<Backend = DB>,
                   $($entity_name: $crate::LoadingHandler<DB, Ctx> + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
@@ -146,136 +136,301 @@ macro_rules! __impl_mutation_object {
                   $($([<$entity_name _table>]: $crate::mutations::HandleUpdate<$entity_name, $update, DB, Ctx>,)*)*
                   $($([<$entity_name _table>]: $crate::mutations::HandleDelete<$entity_name, $($delete)*, DB, Ctx>,)*)*
             {
-                type Context = Ctx;
-                type TypeInfo = ();
+                $($inner)*
+            }
+        }
+    }
+}
 
-                fn name(_info: &Self::TypeInfo) -> Option<&str> {
-                    Some(stringify!($mutation_name))
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_mutation_object {
+    (
+        $(#[doc = $glob_doc: expr])*
+        $mutation_name: ident {
+            $($entity_name: ident (
+                $(insert = $insert: ident,)?
+                $(update = $update: ident,)?
+                $(delete = ($($delete:tt)*))?
+                $(,)?
+            ),)*
+        }
+    ) => {
+        // Use Arc<Mutex<C>> here to force make this Sync
+        #[derive(Debug)]
+        $(#[doc = $glob_doc])*
+        pub struct $mutation_name<C>(::std::marker::PhantomData<std::sync::Arc<std::sync::Mutex<C>>>);
+
+
+        impl<P> Default for $mutation_name<P> {
+            fn default() -> Self {
+                $mutation_name(::std::marker::PhantomData)
+            }
+        }
+
+        $crate::paste::item! {
+            $crate::__impl_graphql_obj_for_mutation! {
+                mutation_name = {$mutation_name},
+                structs = [$($entity_name(
+                    $(insert = $insert,)?
+                    $(update = $update,)?
+                    $(delete = ($($delete)*))?
+                ),)*],
+                body = {
+                    type Context = Ctx;
+
+                    type TypeInfo = ();
+
+                    fn name(info: &Self::TypeInfo) -> ::std::option::Option<&str> {
+                        <[<$mutation_name _inner>]<Ctx> as $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>>::name(info)
+                    }
+
+                    fn meta<'r>(
+                        info: &Self::TypeInfo,
+                        registry: &mut $crate::juniper::Registry<'r, $crate::scalar::WundergraphScalarValue>
+                    ) -> $crate::juniper::meta::MetaType<'r, $crate::scalar::WundergraphScalarValue>
+                    where
+                        $crate::scalar::WundergraphScalarValue: 'r
+                    {
+                        <[<$mutation_name _inner>]<Ctx> as $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>>::meta(info, registry)
+                    }
+
+                    fn resolve_field(
+                        &self,
+                        info: &Self::TypeInfo,
+                        field_name: &str,
+                        arguments: &$crate::juniper::Arguments<$crate::scalar::WundergraphScalarValue>,
+                        executor: &$crate::juniper::Executor<Self::Context, $crate::scalar::WundergraphScalarValue>,
+                    ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue> {
+                        let wrapper = [<$mutation_name _wrapper>](
+                            ::std::marker::PhantomData,
+                            field_name,
+                            arguments,
+                        );
+                        executor.resolve(info, &wrapper)
+                    }
                 }
+            }
 
-                #[allow(non_snake_case)]
-                fn meta<'r>(
-                    info: &Self::TypeInfo,
-                    registry: &mut $crate::juniper::Registry<'r, $crate::scalar::WundergraphScalarValue>
-                ) -> $crate::juniper::meta::MetaType<'r, $crate::scalar::WundergraphScalarValue>
-                where $crate::scalar::WundergraphScalarValue: 'r
-                {
-                    let mut fields = Vec::new();
-                    $(
-                        $(
-                            let new = registry.arg::<$insert>(concat!("New", stringify!($entity_name)), info);
-                            let new = registry.field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
-                                concat!("Create", stringify!($entity_name)),
-                                info
-                            ).argument(new);
-                            fields.push(new);
-                            let new = registry.arg::<Vec<$insert>>(concat!("New", stringify!($entity_name), "s"), info);
-                            let new = registry.field::<Vec<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
-                                concat!("Create", stringify!($entity_name), "s"),
-                                info
-                            )
-                                .argument(new);
-                            fields.push(new);
-                        )*
-                    )*
+            #[derive(Debug)]
+            #[doc(hidden)]
+            /// An internal helper type
+            pub struct [<$mutation_name _wrapper>]<'a, C>(
+                // Use Arc<Mutex<C>> here to force make this Sync
+                ::std::marker::PhantomData<std::sync::Arc<std::sync::Mutex<C>>>,
+                &'a str,
+                &'a $crate::juniper::Arguments<'a, $crate::scalar::WundergraphScalarValue>,
+            );
+
+            $crate::__impl_graphql_obj_for_mutation! {
+                mutation_name = {[<$mutation_name _wrapper>]},
+                structs = [$($entity_name(
+                    $(insert = $insert,)?
+                    $(update = $update,)?
+                    $(delete = ($($delete)*))?
+                ),)*],
+                lt = 'a,
+                body = {
+                    type Context = Ctx;
+
+                    type TypeInfo = ();
+
+                    fn name(info: &Self::TypeInfo) -> ::std::option::Option<&str> {
+                        <[<$mutation_name _inner>]<Ctx> as $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>>::name(info)
+                    }
+
+                    fn meta<'r>(
+                        info: &Self::TypeInfo,
+                        registry: &mut $crate::juniper::Registry<'r, $crate::scalar::WundergraphScalarValue>
+                    ) -> $crate::juniper::meta::MetaType<'r, $crate::scalar::WundergraphScalarValue>
+                    where
+                        $crate::scalar::WundergraphScalarValue: 'r
+                    {
+                        <[<$mutation_name _inner>]<Ctx> as $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>>::meta(info, registry)
+                    }
+
+                    fn resolve(
+                        &self,
+                        info: &Self::TypeInfo,
+                        selection_set: ::std::option::Option<&[$crate::juniper::Selection<$crate::scalar::WundergraphScalarValue>]>,
+                        executor: &$crate::juniper::Executor<Self::Context, $crate::scalar::WundergraphScalarValue>,
+                    ) -> $crate::juniper::Value<$crate::scalar::WundergraphScalarValue> {
+                        let inner = [<$mutation_name _inner>] (
+                            ::std::marker::PhantomData,
+                            selection_set
+                        );
+                        let r = <[<$mutation_name _inner>]<Ctx> as $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>>::resolve_field(
+                            &inner,
+                            info,
+                            self.1,
+                            self.2,
+                            executor
+                        );
+                        match r {
+                            ::std::result::Result::Ok(v) => v,
+                            ::std::result::Result::Err(e) => {
+                                executor.push_error(e);
+                                $crate::juniper::Value::null()
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            #[doc(hidden)]
+            #[derive(Debug)]
+            /// An internal helper type
+            pub struct [<$mutation_name _inner>]<'a, C>(
+                // Use Arc<Mutex<C>> here to force make this Sync
+                ::std::marker::PhantomData<std::sync::Arc<std::sync::Mutex<C>>>,
+                ::std::option::Option<&'a [$crate::juniper::Selection<'a, $crate::scalar::WundergraphScalarValue>]>,
+            );
+
+            $crate::__impl_graphql_obj_for_mutation! {
+                mutation_name = {[<$mutation_name _inner>]},
+                structs = [$($entity_name(
+                    $(insert = $insert,)?
+                    $(update = $update,)?
+                    $(delete = ($($delete)*))?
+                ),)*],
+                lt = 'a,
+                body = {
+                    type Context = Ctx;
+                    type TypeInfo = ();
+
+                    fn name(_info: &Self::TypeInfo) -> Option<&str> {
+                        Some(stringify!($mutation_name))
+                    }
+
+                    #[allow(non_snake_case)]
+                    fn meta<'r>(
+                        info: &Self::TypeInfo,
+                        registry: &mut $crate::juniper::Registry<'r, $crate::scalar::WundergraphScalarValue>
+                    ) -> $crate::juniper::meta::MetaType<'r, $crate::scalar::WundergraphScalarValue>
+                    where $crate::scalar::WundergraphScalarValue: 'r
+                    {
+                        let mut fields = Vec::new();
                         $(
                             $(
-                                let update = registry.arg::<$update>(concat!("Update", stringify!($entity_name)), info);
-                                let update = registry.field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
-                                    concat!("Update", stringify!($entity_name)),
+                                let new = registry.arg::<$insert>(concat!("New", stringify!($entity_name)), info);
+                                let new = registry.field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
+                                    concat!("Create", stringify!($entity_name)),
                                     info
-                                ).argument(update);
-                                fields.push(update);
+                                ).argument(new);
+                                fields.push(new);
+                                let new = registry.arg::<Vec<$insert>>(concat!("New", stringify!($entity_name), "s"), info);
+                                let new = registry.field::<Vec<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
+                                    concat!("Create", stringify!($entity_name), "s"),
+                                    info
+                                )
+                                    .argument(new);
+                                fields.push(new);
                             )*
                         )*
-                         $(
-                             $(
-                                 let delete = registry.arg::<$($delete)*>(
-                                     concat!("Delete", stringify!($entity_name)),
-                                     &$crate::helper::primary_keys::PrimaryKeyInfo::new(
-                                         &<$entity_name as $crate::diesel::associations::HasTable>::table(),
-                                     )
-                                 );
-                                 let delete = registry.field::<Option<$crate::mutations::DeletedCount>>(
-                                     concat!("Delete", stringify!($entity_name)),
-                                     info
-                                 ).argument(delete);
-                                 fields.push(delete);
-                             )*
-                         )*
-                        let mut mutation = registry.build_object_type::<Self>(info, &fields);
+                            $(
+                                $(
+                                    let update = registry.arg::<$update>(concat!("Update", stringify!($entity_name)), info);
+                                    let update = registry.field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
+                                        concat!("Update", stringify!($entity_name)),
+                                        info
+                                    ).argument(update);
+                                    fields.push(update);
+                                )*
+                            )*
+                            $(
+                                $(
+                                    let delete = registry.arg::<$($delete)*>(
+                                        concat!("Delete", stringify!($entity_name)),
+                                        &$crate::helper::primary_keys::PrimaryKeyInfo::new(
+                                            &<$entity_name as $crate::diesel::associations::HasTable>::table(),
+                                        )
+                                    );
+                                    let delete = registry.field::<Option<$crate::mutations::DeletedCount>>(
+                                        concat!("Delete", stringify!($entity_name)),
+                                        info
+                                    ).argument(delete);
+                                    fields.push(delete);
+                                )*
+                            )*
+                            let mut mutation = registry.build_object_type::<Self>(info, &fields);
                         mutation = mutation.description(concat!($($glob_doc, "\n",)* ""));
                         $crate::juniper::meta::MetaType::Object(mutation)
-                }
+                    }
 
-                fn resolve_field(
-                    &self,
-                    _info: &Self::TypeInfo,
-                    field_name: &str,
-                    arguments: &$crate::juniper::Arguments<$crate::scalar::WundergraphScalarValue>,
-                    executor: &$crate::juniper::Executor<Self::Context, $crate::scalar::WundergraphScalarValue>,
-                ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue> {
-                    match field_name {
-                        $(
+                    fn resolve_field(
+                        &self,
+                        _info: &Self::TypeInfo,
+                        field_name: &str,
+                        arguments: &$crate::juniper::Arguments<$crate::scalar::WundergraphScalarValue>,
+                        executor: &$crate::juniper::Executor<Self::Context, $crate::scalar::WundergraphScalarValue>,
+                    ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue> {
+                        match field_name {
                             $(
-                                concat!("Create", stringify!($entity_name)) => {
-                                    $crate::mutations::handle_insert::<
-                                        DB,
-                                    $insert,
-                                    $entity_name,
-                                    Self::Context>
-                                        (
-                                            executor,
-                                            arguments,
-                                            concat!("New", stringify!($entity_name))
-                                        )
-                                }
-                                concat!("Create", stringify!($entity_name), "s") => {
-                                    $crate::mutations::handle_batch_insert::<
-                                        DB,
-                                    $insert,
-                                    $entity_name,
-                                    Self::Context>
-                                        (
-                                            executor,
-                                            arguments,
-                                            concat!("New", stringify!($entity_name), "s")
-                                        )
-                                }
-                            )*
-                        )*
-                        $(
-                            $(
-                                concat!("Update", stringify!($entity_name)) => {
-                                    $crate::mutations::handle_update::<
-                                        DB,
-                                        $update,
+                                $(
+                                    concat!("Create", stringify!($entity_name)) => {
+                                        $crate::mutations::handle_insert::<
+                                            DB,
+                                        $insert,
                                         $entity_name,
-                                        Self::Context
-                                    >(
-                                        executor,
-                                        arguments,
-                                        concat!("Update", stringify!($entity_name))
-                                    )
-                                }
-                            )*
-                        )*
-                        $(
-                            $(
-                                concat!("Delete", stringify!($entity_name)) => {
-                                    $crate::mutations::handle_delete::<
-                                        DB,
-                                        $($delete)*,
+                                        Self::Context>
+                                            (
+                                                self.1,
+                                                executor,
+                                                arguments,
+                                                concat!("New", stringify!($entity_name))
+                                            )
+                                    }
+                                    concat!("Create", stringify!($entity_name), "s") => {
+                                        $crate::mutations::handle_batch_insert::<
+                                            DB,
+                                        $insert,
                                         $entity_name,
-                                        Self::Context,
-                                    >(executor, arguments, concat!("Delete", stringify!($entity_name)))
-                                }
+                                        Self::Context>
+                                            (
+                                                self.1,
+                                                executor,
+                                                arguments,
+                                                concat!("New", stringify!($entity_name), "s")
+                                            )
+                                    }
+                                )*
                             )*
-                        )*
-                        e => Err($crate::juniper::FieldError::new(
-                            "Unknown field:",
-                            $crate::juniper::Value::scalar(e),
-                        )),
+                                $(
+                                    $(
+                                        concat!("Update", stringify!($entity_name)) => {
+                                            $crate::mutations::handle_update::<
+                                                DB,
+                                            $update,
+                                            $entity_name,
+                                            Self::Context
+                                                >(
+                                                    self.1,
+                                                    executor,
+                                                    arguments,
+                                                    concat!("Update", stringify!($entity_name))
+                                                )
+                                        }
+                                    )*
+                                )*
+                                $(
+                                    $(
+                                        concat!("Delete", stringify!($entity_name)) => {
+                                            $crate::mutations::handle_delete::<
+                                                DB,
+                                            $($delete)*,
+                                            $entity_name,
+                                            Self::Context,
+                                            >(executor, arguments, concat!("Delete", stringify!($entity_name)))
+                                        }
+                                    )*
+                                )*
+                                e => Err($crate::juniper::FieldError::new(
+                                    "Unknown field:",
+                                    $crate::juniper::Value::scalar(e),
+                                )),
+                        }
                     }
                 }
             }

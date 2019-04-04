@@ -34,11 +34,10 @@ macro_rules! impl_order_builder {
                     field_name: impl Fn(usize) -> &'static str,
                 ) -> Result<Vec<Box<dyn BoxableExpression<Table, DB, SqlType = ()>>>, Error>
                 {
-                    dbg!(fields);
                     let mut ret = Vec::with_capacity(fields.len());
                     for f in fields {
                         if let LookAheadValue::Object(o) = f {
-                            let column = dbg!(o.iter().find(|(k, _)| *k == "column"))
+                            let column = o.iter().find(|(k, _)| *k == "column")
                                 .and_then(|(_, v)| if let LookAheadValue::Enum(c) = v {
                                     Some(c)
                                 } else {

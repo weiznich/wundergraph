@@ -1,6 +1,6 @@
 use crate::query_helper::placeholder::FieldListExtractor;
 use crate::scalar::WundergraphScalarValue;
-use crate::LoadingHandler;
+use crate::{LoadingHandler, ApplyOffset};
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
 use diesel::QuerySource;
@@ -15,7 +15,7 @@ pub struct GraphqlOrderWrapper<T, DB, Ctx>(PhantomData<(T, DB, Ctx)>);
 
 impl<T, DB, Ctx> GraphQLType<WundergraphScalarValue> for GraphqlWrapper<T, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     T::Table: 'static,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
     T: LoadingHandler<DB, Ctx>,
@@ -48,7 +48,7 @@ pub struct OrderTypeInfo<L, DB, Ctx>(String, PhantomData<(L, DB, Ctx)>);
 
 impl<L, DB, Ctx> Default for OrderTypeInfo<L, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     L::Table: 'static,
     <L::Table as QuerySource>::FromClause: QueryFragment<DB>,
     L: LoadingHandler<DB, Ctx>,
@@ -61,7 +61,7 @@ where
 
 impl<T, DB, Ctx> GraphQLType<WundergraphScalarValue> for GraphqlOrderWrapper<T, DB, Ctx>
 where
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     T::Table: 'static,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
     T: LoadingHandler<DB, Ctx>,
@@ -107,6 +107,13 @@ impl<T, DB, Ctx> FromInputValue<WundergraphScalarValue> for GraphqlOrderWrapper<
 
 pub trait WundergraphGraphqlMapper<DB, Ctx> {
     type GraphQLType: GraphQLType<WundergraphScalarValue, TypeInfo = ()>;
+
+    fn register_arguments<'r>(
+        _registry: &mut Registry<'r, WundergraphScalarValue>,
+        field: meta::Field<'r, WundergraphScalarValue>,
+    ) -> meta::Field<'r, WundergraphScalarValue> {
+        field
+    }
 }
 
 impl<T, DB, Ctx> WundergraphGraphqlMapper<DB, Ctx> for T
@@ -143,7 +150,7 @@ macro_rules! wundergraph_graphql_helper_impl {
         $(
             impl<$($T,)* Loading, Back, Ctx> WundergraphGraphqlHelper<Loading, Back, Ctx> for ($($T,)*)
             where $($T: WundergraphGraphqlMapper<Back, Ctx>,)*
-                  Back: Backend + 'static,
+                  Back: Backend + ApplyOffset + 'static,
                   Loading::Table: 'static,
                   <Loading::Table as QuerySource>::FromClause: QueryFragment<Back>,
                   Loading: LoadingHandler<Back, Ctx>,
@@ -158,6 +165,7 @@ macro_rules! wundergraph_graphql_helper_impl {
                     let fields  = [
                         $({
                             let mut field = registry.field::<<$T as WundergraphGraphqlMapper<Back, Ctx>>::GraphQLType>(names[$idx], &());
+                            field = <$T as WundergraphGraphqlMapper<Back, Ctx>>::register_arguments(registry, field);
                             if let Some(doc) = Loading::field_description($idx) {
                                 field = field.description(doc);
                             }

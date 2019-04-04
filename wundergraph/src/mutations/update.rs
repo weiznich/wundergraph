@@ -8,16 +8,17 @@ use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl};
 use diesel::sql_types::HasSqlType;
 use diesel::{AppearsOnTable, Connection, EqAll, QuerySource, RunQueryDsl, Table};
 
-use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Value};
+use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Selection, Value};
 
 use crate::filter::build_filter::BuildFilter;
 use crate::query_helper::order::BuildOrder;
 use crate::query_helper::placeholder::{SqlTypeOfPlaceholder, WundergraphFieldList};
 use crate::query_helper::select::BuildSelect;
 use crate::scalar::WundergraphScalarValue;
-use crate::{LoadingHandler, QueryModifier, WundergraphContext};
+use crate::{LoadingHandler, QueryModifier, WundergraphContext, ApplyOffset};
 
 pub fn handle_update<DB, U, R, Ctx>(
+    selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
     executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     arguments: &Arguments<'_, WundergraphScalarValue>,
     field_name: &'static str,
@@ -25,7 +26,7 @@ pub fn handle_update<DB, U, R, Ctx>(
 where
     R: LoadingHandler<DB, Ctx>,
     R::Table: HandleUpdate<R, U, DB, Ctx> + 'static,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
     R::Columns: BuildOrder<R::Table, DB>
         + BuildSelect<
@@ -37,7 +38,7 @@ where
     U: FromInputValue<WundergraphScalarValue>,
 {
     if let Some(n) = arguments.get::<U>(field_name) {
-        <R::Table as HandleUpdate<_, _, _, _>>::handle_update(executor, &n)
+        <R::Table as HandleUpdate<_, _, _, _>>::handle_update(selection, executor, &n)
     } else {
         let msg = format!("Missing argument {:?}", field_name);
         Err(FieldError::new(&msg, Value::Null))
@@ -46,6 +47,7 @@ where
 
 pub trait HandleUpdate<L, U, DB, Ctx> {
     fn handle_update(
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<Ctx, WundergraphScalarValue>,
         update: &U,
     ) -> ExecutionResult<WundergraphScalarValue>;
@@ -57,7 +59,7 @@ pub trait HandleUpdate<L, U, DB, Ctx> {
 impl<L, U, DB, Ctx, T> HandleUpdate<L, U, DB, Ctx> for T
 where
     T: Table + HasTable<Table = T> + FindDsl<<&'static U as Identifiable>::Id> + 'static,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
     T::FromClause: QueryFragment<DB>,
     L: LoadingHandler<DB, Ctx, Table = T>,
@@ -87,6 +89,7 @@ where
         AppearsOnTable<T> + NonAggregate + QueryFragment<DB>,
 {
     fn handle_update(
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         change_set: &U,
     ) -> ExecutionResult<WundergraphScalarValue> {
@@ -109,7 +112,7 @@ where
             );
             // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(f, 1);
-            let items = L::load(&look_ahead, executor, q)?;
+            let items = L::load(&look_ahead, selection, executor, q)?;
             Ok(items.into_iter().next().unwrap_or(Value::Null))
         })
     }

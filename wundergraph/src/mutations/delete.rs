@@ -13,8 +13,7 @@ use crate::query_helper::placeholder::SqlTypeOfPlaceholder;
 use crate::query_helper::placeholder::WundergraphFieldList;
 use crate::query_helper::select::BuildSelect;
 use crate::scalar::WundergraphScalarValue;
-use crate::LoadingHandler;
-use crate::WundergraphContext;
+use crate::{LoadingHandler, WundergraphContext, ApplyOffset};
 
 #[derive(Debug, GraphQLObject, Clone, Copy)]
 #[graphql(scalar = "WundergraphScalarValue")]
@@ -30,7 +29,7 @@ pub fn handle_delete<DB, D, R, Ctx>(
 where
     R: LoadingHandler<DB, Ctx>,
     R::Table: HandleDelete<R, D, DB, Ctx> + 'static,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
     R::Columns: BuildOrder<R::Table, DB>
         + BuildSelect<
@@ -62,7 +61,7 @@ pub trait HandleDelete<L, K, DB, Ctx> {
 impl<L, K, DB, Ctx, T> HandleDelete<L, K, DB, Ctx> for T
 where
     T: Table + HasTable<Table = T> + QueryId + 'static,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
     T::FromClause: QueryFragment<DB>,
     L: LoadingHandler<DB, Ctx, Table = T>,

@@ -57,6 +57,12 @@ fn test_type_decoration() {
                         "deprecationReason": null
                     },
                     {
+                        "name": "appears_in",
+                        "description": null,
+                        "isDeprecated": false,
+                        "deprecationReason": null
+                    },
+                    {
                         "name": "friends",
                         "description": "List of friends of the current hero",
                         "isDeprecated": false,

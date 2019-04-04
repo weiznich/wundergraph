@@ -17,6 +17,8 @@ mod simple;
 mod order;
 mod limit_offset;
 mod type_checking;
+mod alias;
+mod mutations;
 
 #[cfg(feature = "postgres")]
 type DbConnection = diesel::pg::PgConnection;

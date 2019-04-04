@@ -311,3 +311,48 @@ fn query_filter_not() {
         res.as_json()
     );
 }
+
+#[test]
+fn filter_on_field() {
+    let (schema, pool) = get_example_schema();
+    let ctx = MyContext::new(pool.get().unwrap());
+
+    let res = execute_query(
+        &schema,
+        &ctx,
+        r#"
+{
+  Speciess {
+    id
+    name
+    heros(filter: {heroName: {like: "Luke%"}}) {
+      heroName
+    }
+  }
+}
+"#,
+    );
+    println!("{:?}", res);
+    assert!(res.is_ok());
+    assert_eq!(
+        json!([{
+            "Speciess": [
+                {
+                    "id": 1,
+                    "name": "Human",
+                    "heros": [
+                        {
+                            "heroName": "Luke Skywalker"
+                        }
+                    ]
+                },
+                {
+                    "id": 2,
+                    "name": "Robot",
+                    "heros": []
+                }
+            ]
+        }, []]),
+        res.as_json()
+    )
+}

@@ -161,9 +161,9 @@ fn main() {
         .build(manager)
         .expect("Failed to init pool");
 
-    let query = wundergraph_bench::api::Query::<Pool<ConnectionManager<PgConnection>>>::default();
+    let query = wundergraph_bench::api::Query::default();
     let mutation =
-        wundergraph_bench::api::Mutation::<Pool<ConnectionManager<PgConnection>>>::default();
+        wundergraph_bench::api::Mutation::default();
     let schema = wundergraph_bench::Schema::new(query, mutation);
 
     let sys = actix::System::new("wundergraph-bench");

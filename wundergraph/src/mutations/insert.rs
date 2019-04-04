@@ -22,7 +22,7 @@ use diesel::insertable::CanInsertInSingleQuery;
 #[cfg(feature = "postgres")]
 use diesel::pg::Pg;
 #[cfg(feature = "postgres")]
-use diesel::query_dsl::methods::FilterDsl;
+use diesel::query_dsl::methods::{OrFilterDsl, FilterDsl};
 #[cfg(feature = "postgres")]
 use diesel::{EqAll, Identifiable, Queryable};
 
@@ -37,12 +37,13 @@ use diesel::sql_types::Bool;
 #[cfg(feature = "sqlite")]
 use diesel::sqlite::Sqlite;
 
-use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Value};
+use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Selection, Value};
 
 use crate::scalar::WundergraphScalarValue;
-use crate::{LoadingHandler, QueryModifier, WundergraphContext};
+use crate::{LoadingHandler, QueryModifier, WundergraphContext, ApplyOffset};
 
 pub fn handle_insert<DB, I, R, Ctx>(
+    selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
     executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     arguments: &Arguments<'_, WundergraphScalarValue>,
     field_name: &'static str,
@@ -50,7 +51,7 @@ pub fn handle_insert<DB, I, R, Ctx>(
 where
     R: LoadingHandler<DB, Ctx>,
     R::Table: HandleInsert<R, I, DB, Ctx> + 'static,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
     R::Columns: BuildOrder<R::Table, DB>
         + BuildSelect<
@@ -62,7 +63,7 @@ where
     I: FromInputValue<WundergraphScalarValue>,
 {
     if let Some(n) = arguments.get::<I>(field_name) {
-        <R::Table as HandleInsert<_, _, _, _>>::handle_insert(executor, n)
+        <R::Table as HandleInsert<_, _, _, _>>::handle_insert(selection, executor, n)
     } else {
         let msg = format!("Missing argument {}", field_name);
         Err(FieldError::new(&msg, Value::Null))
@@ -70,6 +71,7 @@ where
 }
 
 pub fn handle_batch_insert<DB, I, R, Ctx>(
+    selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
     executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     arguments: &Arguments<'_, WundergraphScalarValue>,
     field_name: &'static str,
@@ -77,7 +79,7 @@ pub fn handle_batch_insert<DB, I, R, Ctx>(
 where
     R: LoadingHandler<DB, Ctx>,
     R::Table: HandleBatchInsert<R, I, DB, Ctx> + 'static,
-    DB: Backend + 'static,
+    DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
     R::Columns: BuildOrder<R::Table, DB>
         + BuildSelect<
@@ -89,7 +91,7 @@ where
     I: FromInputValue<WundergraphScalarValue>,
 {
     if let Some(n) = arguments.get::<Vec<I>>(field_name) {
-        <R::Table as HandleBatchInsert<_, _, _, _>>::handle_batch_insert(executor, n)
+        <R::Table as HandleBatchInsert<_, _, _, _>>::handle_batch_insert(selection, executor, n)
     } else {
         let msg = format!("Missing argument {}", field_name);
         Err(FieldError::new(&msg, Value::Null))
@@ -98,6 +100,7 @@ where
 
 pub trait HandleInsert<L, I, DB, Ctx> {
     fn handle_insert(
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         insertable: I,
     ) -> ExecutionResult<WundergraphScalarValue>;
@@ -105,13 +108,14 @@ pub trait HandleInsert<L, I, DB, Ctx> {
 
 pub trait HandleBatchInsert<L, I, DB, Ctx> {
     fn handle_batch_insert(
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         insertable: Vec<I>,
     ) -> ExecutionResult<WundergraphScalarValue>;
 }
 
 #[cfg(feature = "postgres")]
-impl<I, Ctx, L, T, Id> HandleInsert< L, I, Pg, Ctx> for T
+impl<I, Ctx, L, T, Id> HandleInsert<L, I, Pg, Ctx> for T
 where
     T: Table + HasTable<Table = T> + 'static,
     T::FromClause: QueryFragment<Pg>,
@@ -145,6 +149,7 @@ where
         SelectableExpression<T> + NonAggregate + QueryFragment<Pg> + 'static,
 {
     fn handle_insert(
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         insertable: I,
     ) -> ExecutionResult<WundergraphScalarValue> {
@@ -161,7 +166,7 @@ where
             let inserted: Id = inserted.get_result(conn)?;
             let q = L::build_query(&look_ahead)?;
             let q = FilterDsl::filter(q, Self::table().primary_key().eq_all(inserted));
-            let items = L::load(&look_ahead, executor, q)?;
+            let items = L::load(&look_ahead, selection, executor, q)?;
             Ok(items.into_iter().next().unwrap_or(Value::Null))
         })
     }
@@ -170,6 +175,8 @@ where
 #[cfg(feature = "postgres")]
 impl<I, Ctx, L, T, Id> HandleBatchInsert<L, I, Pg, Ctx> for T
 where
+    I: ::std::fmt::Debug,
+    Id: ::std::fmt::Debug,
     T: Table + HasTable<Table = T> + 'static,
     T::FromClause: QueryFragment<Pg>,
     L: LoadingHandler<Pg, Ctx, Table = T> + 'static,
@@ -202,6 +209,7 @@ where
         SelectableExpression<T> + NonAggregate + QueryFragment<Pg> + 'static,
 {
     fn handle_batch_insert(
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         batch: Vec<I>,
     ) -> ExecutionResult<WundergraphScalarValue> {
@@ -218,9 +226,9 @@ where
             let inserted: Vec<Id> = inserted.get_results(conn)?;
             let mut q = L::build_query(&look_ahead)?;
             for i in inserted {
-                q = FilterDsl::filter(q, Self::table().primary_key().eq_all(i));
+                q = OrFilterDsl::or_filter(q, Self::table().primary_key().eq_all(i));
             }
-            let items = L::load(&look_ahead, executor, q)?;
+            let items = L::load(&look_ahead, selection, executor, q)?;
             Ok(Value::list(items))
         })
     }
@@ -253,6 +261,7 @@ where
     Sqlite: HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Sqlite, L::PrimaryKeyIndex, T, Ctx>>,
 {
     fn handle_insert(
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         insertable: I,
     ) -> ExecutionResult<WundergraphScalarValue> {
@@ -263,7 +272,7 @@ where
             insertable.insert_into(T::table()).execute(conn)?;
             let q = OrderDsl::order(L::build_query(&look_ahead)?, sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, 1);
-            let items = L::load(&look_ahead, executor, q)?;
+            let items = L::load(&look_ahead, selection, executor, q)?;
 
             Ok(items.into_iter().next().unwrap_or(Value::Null))
         })
@@ -297,6 +306,7 @@ where
     Sqlite: HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Sqlite, L::PrimaryKeyIndex, T, Ctx>>,
 {
     fn handle_batch_insert(
+        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         batch: Vec<I>,
     ) -> ExecutionResult<WundergraphScalarValue> {
@@ -312,8 +322,8 @@ where
                 .sum();
             let q = OrderDsl::order(L::build_query(&look_ahead)?, sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, n as i64);
-            let items = L::load(&look_ahead, executor, q)?;
-            Ok(Value::list(items))
+            let items = L::load(&look_ahead, selection, executor, q)?;
+            Ok(Value::list(items.into_iter().rev().collect()))
         })
     }
 }

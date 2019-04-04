@@ -28,7 +28,6 @@ where
     }
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(use_self))]
 impl<T, DB> BuildFilter<DB> for Option<T>
 where
     T: BuildFilter<DB>,
@@ -51,24 +50,3 @@ where
         None
     }
 }
-
-// impl<DB, T> BuildFilter<DB> for Box<T>
-// where
-//     T: BuildFilter<DB> + Sized,
-//     DB: Backend,
-// {
-//     type Ret = T::Ret;
-
-//     fn into_filter(self) -> Option<Self::Ret> {
-//         T::into_filter(*self)
-//     }
-// }
-
-// impl<DB, T> BuildFilter<DB> for T where DB: Backend, T: Expression<SqlType = ::diesel::sql_types::Bool> + NonAggregate + QueryFragment<DB> {
-
-//     type Ret = T;
-
-//     fn into_filter(self) -> Option<Self::Ret> {
-//         Some(self)
-//     }
-// }

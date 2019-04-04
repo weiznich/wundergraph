@@ -2,10 +2,17 @@
 name = "wundergraph_bench"
 version = "0.1.0"
 authors = ["Georg Semmler <georg_semmler_05@web.de>"]
+publish = false
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/weiznich/wundergraph"
+readme = "../README.md"
+keywords = ["GraphQL", "ORM", "PostgreSQL", "SQLite"]
+categories = ["database", "web-programming"]
+description = "A GraphQL ORM build on top of diesel"
 
 [dependencies]
-wundergraph = {path = "../wundergraph", default-features = false, features = ["postgres", "chrono"]}
-diesel = {version = "1.4", features = ["r2d2", "sqlite", "chrono", "postgres"]}
+wundergraph = {path = "../wundergraph", default-features = false, features = ["chrono"]}
+diesel = {version = "1.4", features = ["r2d2", "chrono"]}
 juniper = "0.11.0"
 actix = "0.7"
 actix-web = "0.7"
@@ -17,8 +24,8 @@ env_logger = "0.5"
 chrono = "0.4"
 num_cpus = "1.8"
 structopt = "0.2"
-clippy = { version = "0.0.207", optional = true }
 
 [features]
-default = []
-lint = ["clippy"]
+default = ["postgres"]
+postgres = ["wundergraph/postgres", "diesel/postgres"]
+sqlite = ["wundergraph/sqlite", "diesel/sqlite"]

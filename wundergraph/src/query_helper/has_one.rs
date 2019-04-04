@@ -222,24 +222,28 @@ where
 impl<R, T, C, I> PrimaryKeyInputObject<HasOne<R, T>, I> for C
 where
     C: PrimaryKeyInputObject<R, I>,
+    R: Eq + Hash,
     for<'a> &'a T: Identifiable<Id = &'a R>,
 {
     fn register<'r>(
         registry: &mut Registry<'r, WundergraphScalarValue>,
         info: &I,
     ) -> Vec<Argument<'r, WundergraphScalarValue>> {
-        C::register(registry, info)
+        Self::register(registry, info)
     }
 
     fn from_input_value(value: &InputValue<WundergraphScalarValue>) -> Option<HasOne<R, T>> {
-        C::from_input_value(value).map(HasOne::Id)
+        Self::from_input_value(value).map(HasOne::Id)
     }
     fn from_look_ahead(
         look_ahead: &LookAheadValue<'_, WundergraphScalarValue>,
     ) -> Option<HasOne<R, T>> {
-        C::from_look_ahead(look_ahead).map(HasOne::Id)
+        Self::from_look_ahead(look_ahead).map(HasOne::Id)
     }
-    fn to_input_value(_values: &HasOne<R, T>) -> InputValue<WundergraphScalarValue> {
-        unimplemented!()
+    fn to_input_value(values: &HasOne<R, T>) -> InputValue<WundergraphScalarValue> {
+        match *values {
+            HasOne::Id(ref id) => C::to_input_value(id),
+            HasOne::Item(ref i) => C::to_input_value(i.id()),
+        }
     }
 }

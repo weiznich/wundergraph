@@ -107,7 +107,6 @@ where
     }
 }
 
-#[allow(clippy::use_self)]
 impl<T> FromLookAheadValue for Box<T>
 where
     T: FromLookAheadValue,
@@ -117,7 +116,6 @@ where
     }
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(use_self))]
 impl<T> FromLookAheadValue for Option<T>
 where
     T: FromLookAheadValue,

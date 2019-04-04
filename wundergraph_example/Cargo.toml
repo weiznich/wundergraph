@@ -3,6 +3,12 @@ authors = ["Georg Semmler <georg_semmler_05@web.de>"]
 name = "wundergraph_example"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
+publish = false
+repository = "https://github.com/weiznich/wundergraph"
+readme = "../README.md"
+keywords = ["GraphQL", "ORM", "PostgreSQL", "SQLite"]
+categories = ["database", "web-programming"]
+description = "A GraphQL ORM build on top of diesel"
 
 [dependencies]
 diesel = { version = "1.4.0", features = ["r2d2", "sqlite", "chrono", "postgres"]}
