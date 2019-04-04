@@ -39,7 +39,7 @@ impl MetaItem {
         attrs
             .iter()
             .filter_map(|a| {
-                let meta = a.parse_meta().unwrap();
+                let meta = a.parse_meta().expect("Failed to parse meta");
                 if meta.name() == "doc" {
                     if let syn::Meta::NameValue(value) = meta {
                         let s = match value.lit {
@@ -91,7 +91,6 @@ impl MetaItem {
         })
     }
 
-
     pub fn expect_ident_value(&self) -> syn::Ident {
         self.ident_value().unwrap_or_else(|e| {
             e.emit();
@@ -110,7 +109,7 @@ impl MetaItem {
                         self.name(),
                     ))
                     .emit();
-                Ok(x.clone())
+                Ok(x)
             }
             _ => Ok(syn::Ident::new(
                 &self.str_value()?,
@@ -132,7 +131,7 @@ impl MetaItem {
         }
     }
 
-    pub fn nested(&self) -> Result<Nested, Diagnostic> {
+    pub fn nested(&self) -> Result<Nested<'_>, Diagnostic> {
         use syn::Meta::*;
 
         match self.meta {
@@ -218,7 +217,6 @@ impl MetaItem {
     }
 }
 
-#[cfg_attr(rustfmt, rustfmt_skip)] // https://github.com/rust-lang-nursery/rustfmt/issues/2392
 pub struct Nested<'a>(syn::punctuated::Iter<'a, syn::NestedMeta>);
 
 impl<'a> Iterator for Nested<'a> {

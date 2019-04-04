@@ -1,9 +1,9 @@
-use crate::diagnostic_shim::{Diagnostic, };
+use crate::diagnostic_shim::Diagnostic;
 use crate::field::Field;
 use crate::model::Model;
-use proc_macro2::{TokenStream};
-use syn;
 use crate::utils::{inner_of_box_ty, inner_of_option_ty, is_box_ty, wrap_in_dummy_mod};
+use proc_macro2::TokenStream;
+use syn;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let inner_filter = inner_filter(item)?;
@@ -139,7 +139,7 @@ fn build_from_inner_input_value(model: &Model) -> Result<TokenStream, Diagnostic
             };
         )
     });
-    let fields = model.fields().iter().map(|f| f.rust_name());
+    let fields = model.fields().iter().map(Field::rust_name);
     Ok(quote! {
         #(#build_field)*
 
@@ -165,7 +165,7 @@ fn build_from_look_ahead(model: &Model) -> Result<TokenStream, Diagnostic> {
                 #map_box;
         }
     });
-    let fields = model.fields().iter().map(|f| f.rust_name());
+    let fields = model.fields().iter().map(Field::rust_name);
     Ok(quote! {
         #(#build_field)*
 
@@ -198,7 +198,7 @@ fn build_register_fields(model: &Model) -> Result<TokenStream, Diagnostic> {
             );
         }
     });
-    let fields = model.fields().iter().map(|f| f.graphql_name());
+    let fields = model.fields().iter().map(Field::graphql_name);
     Ok(quote! {
         #(#register_field)*
         vec![#(#fields,)*]

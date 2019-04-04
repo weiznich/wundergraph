@@ -22,9 +22,10 @@ impl Model {
         let flags = MetaItem::with_name(&item.attrs, "wundergraph")
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
         let docs = MetaItem::get_docs(&item.attrs);
-        let primary_keys = MetaItem::with_name(&item.attrs, "primary_key")
-            .map(|m| m.nested()?.map(|m| m.word()).collect())
-            .unwrap_or_else(|| Ok(vec![syn::Ident::new("id", Span::call_site())]))?;
+        let primary_keys = MetaItem::with_name(&item.attrs, "primary_key").map_or_else(
+            || Ok(vec![syn::Ident::new("id", Span::call_site())]),
+            |m| m.nested()?.map(|m| m.word()).collect(),
+        )?;
         Ok(Self {
             name: item.ident.clone(),
             fields,

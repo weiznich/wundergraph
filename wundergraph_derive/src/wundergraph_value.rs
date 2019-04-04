@@ -1,9 +1,9 @@
 use crate::diagnostic_shim::*;
 use crate::meta::MetaItem;
+use crate::utils::wrap_in_dummy_mod;
 use proc_macro2::{Span, TokenStream};
 use syn;
 use syn::spanned::Spanned;
-use crate::utils::wrap_in_dummy_mod;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let filter_value = filter_value(item);
@@ -59,7 +59,7 @@ fn wundergraph_value(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic>
         .map(|m| m.expect_ident_value())
         .ok_or_else(|| {
             item.span()
-                .error(format!("Missing required option `sql_type`",))
+                .error("Missing required option `sql_type`".to_string())
         })?;
     let item_name = &item.ident;
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();

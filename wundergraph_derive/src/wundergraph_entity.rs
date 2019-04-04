@@ -1,8 +1,9 @@
 use crate::diagnostic_shim::{Diagnostic, DiagnosticShim};
+use crate::field::Field;
 use crate::model::Model;
+use crate::utils::{inner_of_option_ty, inner_ty_args, is_has_many, wrap_in_dummy_mod};
 use proc_macro2::{Span, TokenStream};
 use syn;
-use crate::utils::{inner_of_option_ty, inner_ty_args, is_has_many, wrap_in_dummy_mod};
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let model = Model::from_item(item)?;
@@ -124,7 +125,7 @@ fn derive_loading_handler(
     let struct_type = &model.name;
     let (_, ty_generics, _) = item.generics.split_for_impl();
     let table = model.table_type()?;
-    let field_names = model.fields().iter().map(|f| f.graphql_name());
+    let field_names = model.fields().iter().map(Field::graphql_name);
     let field_list = model.fields().iter().map(|f| &f.ty);
     let columns = model.fields().iter().filter_map(|f| {
         if is_has_many(&f.ty) {
@@ -178,17 +179,19 @@ fn derive_loading_handler(
         }
     });
 
-    let type_description = model
-        .docs
-        .as_ref()
-        .map(|d| quote!(std::option::Option::Some(#d)))
-        .unwrap_or_else(|| quote!(std::option::Option::None));
+    let type_description = model.docs.as_ref().map_or_else(
+        || quote!(std::option::Option::None),
+        |d| quote!(std::option::Option::Some(#d)),
+    );
 
-    let filter = model.filter_type().map(|p| quote!(#p)).unwrap_or_else(|| {
-        quote! {
-            wundergraph::filter::filter_helper::FilterWrapper<Self, #backend, __Ctx>
-        }
-    });
+    let filter = model.filter_type().map_or_else(
+        || {
+            quote! {
+                wundergraph::filter::filter_helper::FilterWrapper<Self, #backend, __Ctx>
+            }
+        },
+        |p| quote!(#p),
+    );
 
     let mut generics = item.generics.clone();
     generics

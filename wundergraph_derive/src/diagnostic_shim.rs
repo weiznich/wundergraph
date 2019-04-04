@@ -74,6 +74,7 @@ impl Diagnostic {
         self.help(msg)
     }
 
+    #[allow(clippy::print_stdout)]
     pub fn emit(self) {
         match self.level {
             Level::Error => panic!("{}", self.message),
