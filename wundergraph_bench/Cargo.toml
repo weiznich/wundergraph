@@ -9,6 +9,7 @@ readme = "../README.md"
 keywords = ["GraphQL", "ORM", "PostgreSQL", "SQLite"]
 categories = ["database", "web-programming"]
 description = "A GraphQL ORM build on top of diesel"
+edition = "2018"
 
 [dependencies]
 wundergraph = {path = "../wundergraph", default-features = false, features = ["chrono"]}

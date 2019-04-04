@@ -1,60 +1,44 @@
 #![deny(missing_debug_implementations, missing_copy_implementations)]
-#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy))]
-// Clippy lints
-#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
-#![cfg_attr(
-    feature = "cargo-clippy",
-    warn(
-        wrong_pub_self_convention,
-        used_underscore_binding,
-        use_self,
-        use_debug,
-        unseparated_literal_suffix,
-        unnecessary_unwrap,
-        unimplemented,
-        single_match_else,
-        shadow_unrelated,
-        option_map_unwrap_or_else,
-        option_map_unwrap_or,
-        needless_continue,
-        mutex_integer,
-        needless_borrow,
-        items_after_statements,
-        filter_map,
-        expl_impl_clone_on_copy,
-        else_if_without_else,
-        doc_markdown,
-        default_trait_access,
-        option_unwrap_used,
-        result_unwrap_used,
-        wrong_pub_self_convention,
-        mut_mut,
-        non_ascii_literal,
-        similar_names,
-        unicode_not_nfc,
-        enum_glob_use,
-        if_not_else,
-        items_after_statements,
-        used_underscore_binding
-    )
+#![warn(
+    clippy::option_unwrap_used,
+    clippy::result_unwrap_used,
+    clippy::print_stdout,
+    clippy::wrong_pub_self_convention,
+    clippy::mut_mut,
+    clippy::non_ascii_literal,
+    clippy::similar_names,
+    clippy::unicode_not_nfc,
+    clippy::enum_glob_use,
+    clippy::if_not_else,
+    clippy::items_after_statements,
+    clippy::used_underscore_binding,
+    clippy::cargo_common_metadata,
+    clippy::dbg_macro,
+    clippy::doc_markdown,
+    clippy::filter_map,
+    clippy::map_flatten,
+    clippy::match_same_arms,
+    clippy::needless_borrow,
+    clippy::needless_pass_by_value,
+    clippy::option_map_unwrap_or,
+    clippy::option_map_unwrap_or_else,
+    clippy::redundant_clone,
+    clippy::result_map_unwrap_or_else,
+    clippy::unnecessary_unwrap,
+    clippy::unseparated_literal_suffix,
+    clippy::wildcard_dependencies
 )]
 
-extern crate actix;
-extern crate actix_web;
-extern crate diesel;
-extern crate failure;
-extern crate juniper;
-extern crate structopt;
-extern crate wundergraph;
+use actix;
+
+use structopt;
+
 #[macro_use]
 extern crate serde;
-extern crate chrono;
-extern crate env_logger;
-extern crate futures;
-extern crate num_cpus;
-extern crate serde_json;
-extern crate wundergraph_bench;
+
+use num_cpus;
+use serde_json;
+use wundergraph_bench;
 
 use std::sync::Arc;
 
@@ -81,11 +65,7 @@ use wundergraph::scalar::WundergraphScalarValue;
 struct Opt {
     #[structopt(short = "u", long = "db-url")]
     database_url: String,
-    #[structopt(
-        short = "s",
-        long = "socket",
-        default_value = "127.0.0.1:8000"
-    )]
+    #[structopt(short = "s", long = "socket", default_value = "127.0.0.1:8000")]
     socket: String,
 }
 
@@ -150,9 +130,11 @@ fn graphql((st, data): (State<AppState>, Json<GraphQLData>)) -> FutureResponse<H
                 .content_type("application/json")
                 .body(user)),
             Err(_) => Ok(HttpResponse::InternalServerError().into()),
-        }).responder()
+        })
+        .responder()
 }
 
+#[allow(clippy::print_stdout)]
 fn main() {
     let opt = Opt::from_args();
     let manager = ConnectionManager::<PgConnection>::new(opt.database_url);
@@ -162,8 +144,7 @@ fn main() {
         .expect("Failed to init pool");
 
     let query = wundergraph_bench::api::Query::default();
-    let mutation =
-        wundergraph_bench::api::Mutation::default();
+    let mutation = wundergraph_bench::api::Mutation::default();
     let schema = wundergraph_bench::Schema::new(query, mutation);
 
     let sys = actix::System::new("wundergraph-bench");
@@ -179,7 +160,8 @@ fn main() {
     server::new(move || {
         App::with_state(AppState {
             executor: addr.clone(),
-        }).resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
+        })
+        .resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
         .resource("/graphql", |r| r.method(http::Method::GET).with(graphql))
         .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
         .default_resource(|r| {
@@ -189,7 +171,8 @@ fn main() {
                     .finish()
             })
         })
-    }).workers(num_cpus::get() * 2)
+    })
+    .workers(num_cpus::get() * 2)
     .bind(&url)
     .expect("Failed to start server")
     .start();
