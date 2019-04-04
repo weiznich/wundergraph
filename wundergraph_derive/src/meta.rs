@@ -3,9 +3,9 @@ use syn;
 use syn::fold::Fold;
 use syn::spanned::Spanned;
 
-use diagnostic_shim::*;
-use resolved_at_shim::*;
-use utils::*;
+use crate::diagnostic_shim::*;
+use crate::resolved_at_shim::*;
+use crate::utils::*;
 
 #[derive(Debug)]
 pub struct MetaItem {

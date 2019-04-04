@@ -1,8 +1,8 @@
-use diagnostic_shim::{Diagnostic, DiagnosticShim};
-use model::Model;
+use crate::diagnostic_shim::{Diagnostic, DiagnosticShim};
+use crate::model::Model;
 use proc_macro2::{Span, TokenStream};
 use syn;
-use utils::{inner_of_option_ty, inner_ty_args, is_has_many, wrap_in_dummy_mod};
+use crate::utils::{inner_of_option_ty, inner_ty_args, is_has_many, wrap_in_dummy_mod};
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let model = Model::from_item(item)?;

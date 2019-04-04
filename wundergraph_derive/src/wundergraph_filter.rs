@@ -1,14 +1,14 @@
-use diagnostic_shim::{Diagnostic, };
-use field::Field;
-use model::Model;
+use crate::diagnostic_shim::{Diagnostic, };
+use crate::field::Field;
+use crate::model::Model;
 use proc_macro2::{TokenStream};
 use syn;
-use utils::{inner_of_box_ty, inner_of_option_ty, is_box_ty, wrap_in_dummy_mod};
+use crate::utils::{inner_of_box_ty, inner_of_option_ty, is_box_ty, wrap_in_dummy_mod};
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let inner_filter = inner_filter(item)?;
     let build_filter = build_filter(item)?;
-    let nameable = ::wundergraph_value::nameable(item);
+    let nameable = crate::wundergraph_value::nameable(item);
 
     Ok(wrap_in_dummy_mod(
         "WundergraphFilter",

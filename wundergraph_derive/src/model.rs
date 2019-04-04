@@ -1,9 +1,9 @@
 use proc_macro2::Span;
 use syn;
 
-use diagnostic_shim::*;
-use field::*;
-use meta::*;
+use crate::diagnostic_shim::*;
+use crate::field::*;
+use crate::meta::*;
 
 pub struct Model {
     pub name: syn::Ident,

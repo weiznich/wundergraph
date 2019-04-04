@@ -3,9 +3,9 @@ use quote;
 use syn;
 use syn::spanned::Spanned;
 
-use diagnostic_shim::{Diagnostic, DiagnosticShim};
-use meta::*;
-use utils::*;
+use crate::diagnostic_shim::{Diagnostic, DiagnosticShim};
+use crate::meta::*;
+use crate::utils::*;
 
 #[derive(Debug)]
 pub struct Field {

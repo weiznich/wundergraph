@@ -1,9 +1,9 @@
-use diagnostic_shim::*;
-use meta::MetaItem;
+use crate::diagnostic_shim::*;
+use crate::meta::MetaItem;
 use proc_macro2::{Span, TokenStream};
 use syn;
 use syn::spanned::Spanned;
-use utils::wrap_in_dummy_mod;
+use crate::utils::wrap_in_dummy_mod;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let filter_value = filter_value(item);
