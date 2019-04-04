@@ -1,4 +1,4 @@
-use infer_schema_internals::*;
+use crate::infer_schema_internals::*;
 use std::fmt::{self, Display, Formatter, Write};
 
 pub struct TableDefinitions<'a> {
@@ -9,7 +9,7 @@ pub struct TableDefinitions<'a> {
 }
 
 impl<'a> Display for TableDefinitions<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut is_first = true;
         for table in self.tables {
             if is_first {
@@ -51,7 +51,7 @@ pub struct TableDefinition<'a> {
 }
 
 impl<'a> Display for TableDefinition<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "table! {{")?;
         {
             let mut out = PadAdapter::new(f);
@@ -98,7 +98,7 @@ pub struct ColumnDefinitions<'a> {
 }
 
 impl<'a> Display for ColumnDefinitions<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         {
             let mut out = PadAdapter::new(f);
             writeln!(out, "{{")?;
@@ -122,7 +122,7 @@ impl<'a> Display for ColumnDefinitions<'a> {
 }
 
 /// Lifted directly from libcore/fmt/builders.rs
-pub struct PadAdapter<'a, W: 'a> {
+pub struct PadAdapter<'a, W> {
     fmt: &'a mut W,
     on_newline: bool,
 }
@@ -170,7 +170,7 @@ pub struct GraphqlDefinition<'a> {
 }
 
 impl<'a> Display for GraphqlDefinition<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for t in self.tables {
             writeln!(
                 f,
@@ -178,7 +178,6 @@ impl<'a> Display for GraphqlDefinition<'a> {
                 GraphqlData {
                     table: t,
                     foreign_keys: &self.foreign_keys,
-                    table_data: self.tables
                 }
             )?;
         }
@@ -213,7 +212,6 @@ impl<'a> Display for GraphqlDefinition<'a> {
 struct GraphqlData<'a> {
     table: &'a TableData,
     foreign_keys: &'a [ForeignKeyConstraint],
-    table_data: &'a [TableData],
 }
 
 fn uppercase_table_name(name: &str) -> String {
@@ -262,7 +260,7 @@ where
 }
 
 impl<'a> Display for GraphqlData<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "#[derive(Clone, Debug, Identifiable, WundergraphEntity)]")?;
         writeln!(f, "#[table_name = \"{}\"]", self.table.name.name)?;
         write_primary_key_section(f, self.table)?;
@@ -319,7 +317,7 @@ struct GraphqlColumn<'a> {
 }
 
 impl<'a> Display for GraphqlColumn<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut tpe = GraphqlType {
             sql_type: &self.column.ty,
             allow_option: true,
@@ -345,14 +343,14 @@ impl<'a> Display for GraphqlColumn<'a> {
 }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "cargo-clippy", allow(needless_borrow))]
+#[allow(clippy::needless_borrow)]
 struct GraphqlType<'a> {
     sql_type: &'a ColumnType,
     allow_option: bool,
 }
 
 impl<'a> Display for GraphqlType<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self.sql_type {
             ColumnType {
                 is_nullable: true, ..
@@ -429,7 +427,7 @@ pub struct GraphqlMutations<'a> {
 }
 
 impl<'a> Display for GraphqlMutations<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for t in self.tables {
             writeln!(f, "{}", GraphqlInsertable { table: t })?;
             writeln!(f, "{}", GraphqlChangeSet { table: t })?;
@@ -468,7 +466,7 @@ struct GraphqlInsertable<'a> {
 }
 
 impl<'a> Display for GraphqlInsertable<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if self.table.primary_key.len() == self.table.column_data.len() {
             return Ok(());
         }
@@ -498,7 +496,7 @@ struct GraphqlChangeSet<'a> {
 }
 
 impl<'a> Display for GraphqlChangeSet<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if self.table.primary_key.len() == self.table.column_data.len() {
             return Ok(());
         }

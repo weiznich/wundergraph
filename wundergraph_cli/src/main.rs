@@ -1,49 +1,35 @@
 #![deny(missing_debug_implementations, missing_copy_implementations)]
-#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy))]
-// Clippy lints
-#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
-#![cfg_attr(
-    feature = "cargo-clippy",
-    warn(
-        wrong_pub_self_convention,
-        used_underscore_binding,
-        use_self,
-        use_debug,
-        unseparated_literal_suffix,
-        unnecessary_unwrap,
-        unimplemented,
-        single_match_else,
-        shadow_unrelated,
-        option_map_unwrap_or_else,
-        option_map_unwrap_or,
-        needless_continue,
-        mutex_integer,
-        needless_borrow,
-        items_after_statements,
-        filter_map,
-        expl_impl_clone_on_copy,
-        else_if_without_else,
-        doc_markdown,
-        default_trait_access,
-        option_unwrap_used,
-        result_unwrap_used,
-        wrong_pub_self_convention,
-        mut_mut,
-        non_ascii_literal,
-        similar_names,
-        unicode_not_nfc,
-        enum_glob_use,
-        if_not_else,
-        items_after_statements,
-        used_underscore_binding
-    )
+#![warn(
+    clippy::option_unwrap_used,
+    clippy::result_unwrap_used,
+    clippy::wrong_pub_self_convention,
+    clippy::mut_mut,
+    clippy::non_ascii_literal,
+    clippy::similar_names,
+    clippy::unicode_not_nfc,
+    clippy::enum_glob_use,
+    clippy::if_not_else,
+    clippy::items_after_statements,
+    clippy::used_underscore_binding,
+    clippy::cargo_common_metadata,
+    clippy::dbg_macro,
+    clippy::doc_markdown,
+    clippy::filter_map,
+    clippy::map_flatten,
+    clippy::match_same_arms,
+    clippy::needless_borrow,
+    clippy::needless_pass_by_value,
+    clippy::option_map_unwrap_or,
+    clippy::option_map_unwrap_or_else,
+    clippy::redundant_clone,
+    clippy::result_map_unwrap_or_else,
+    clippy::unnecessary_unwrap,
+    clippy::unseparated_literal_suffix,
+    clippy::wildcard_dependencies
 )]
 
-extern crate structopt;
 #[macro_use]
 extern crate diesel;
-//extern crate infer_schema_internals;
 
 use structopt::StructOpt;
 

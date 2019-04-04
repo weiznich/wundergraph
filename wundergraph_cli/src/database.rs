@@ -67,7 +67,7 @@ pub enum InferConnection {
 }
 
 impl InferConnection {
-    pub fn establish(database_url: &str) -> Result<Self, Box<Error>> {
+    pub fn establish(database_url: &str) -> Result<Self, Box<dyn Error>> {
         match Backend::for_url(database_url) {
             #[cfg(feature = "postgres")]
             Backend::Pg => PgConnection::establish(database_url).map(InferConnection::Pg),

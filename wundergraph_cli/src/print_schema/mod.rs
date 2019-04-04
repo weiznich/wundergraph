@@ -1,10 +1,10 @@
-use infer_schema_internals::*;
+use crate::infer_schema_internals::*;
 use std::error::Error;
 
 mod print_helper;
 use self::print_helper::*;
 
-pub fn print(database_url: &str, schema_name: Option<&str>) -> Result<(), Box<Error>> {
+pub fn print(database_url: &str, schema_name: Option<&str>) -> Result<(), Box<dyn Error>> {
     let table_names = load_table_names(database_url, schema_name)?;
     let foreign_keys = load_foreign_key_constraints(database_url, schema_name)?;
     let foreign_keys =
@@ -13,7 +13,7 @@ pub fn print(database_url: &str, schema_name: Option<&str>) -> Result<(), Box<Er
     let table_data = table_names
         .into_iter()
         .map(|t| load_table_data(database_url, t))
-        .collect::<Result<Vec<_>, Box<Error>>>()?;
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
     let definitions = TableDefinitions {
         tables: &table_data,
         include_docs: false,

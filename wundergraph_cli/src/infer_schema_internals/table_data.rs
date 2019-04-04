@@ -52,7 +52,7 @@ where
 }
 
 impl fmt::Display for TableName {
-    fn fmt(&self, out: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self.schema {
             Some(ref schema_name) => write!(out, "{}.{}", schema_name, self.name),
             None => write!(out, "{}", self.name),

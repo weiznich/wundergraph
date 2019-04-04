@@ -8,6 +8,7 @@ readme = "../README.md"
 keywords = ["GraphQL", "ORM", "PostgreSQL", "SQLite"]
 categories = ["database", "web-programming"]
 description = "A helper tool to generate some code for using wundergraph with existing databases"
+edition = "2018"
 
 [dependencies]
 structopt = "0.2"

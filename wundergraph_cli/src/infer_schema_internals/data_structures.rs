@@ -28,7 +28,7 @@ pub struct ColumnType {
 use std::fmt;
 
 impl fmt::Display for ColumnType {
-    fn fmt(&self, out: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.is_nullable {
             write!(out, "Nullable<")?;
         }

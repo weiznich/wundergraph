@@ -59,7 +59,7 @@ impl UsesInformationSchema for Mysql {
     }
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(module_inception))]
+#[allow(clippy::module_inception)]
 mod information_schema {
     table! {
         information_schema.tables (table_schema, table_name) {
@@ -168,7 +168,7 @@ where
 pub fn load_table_names<Conn>(
     connection: &Conn,
     schema_name: Option<&str>,
-) -> Result<Vec<TableName>, Box<Error>>
+) -> Result<Vec<TableName>, Box<dyn Error>>
 where
     Conn: Connection,
     Conn::Backend: UsesInformationSchema,
@@ -195,7 +195,7 @@ where
     Ok(table_names)
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(similar_names))]
+#[allow(clippy::similar_names)]
 #[cfg(feature = "postgres")]
 pub fn load_foreign_key_constraints<Conn>(
     connection: &Conn,
@@ -223,12 +223,14 @@ where
             rc::table.on(tc::constraint_schema
                 .eq(rc::constraint_schema)
                 .and(tc::constraint_name.eq(rc::constraint_name))),
-        ).select((
+        )
+        .select((
             rc::constraint_schema,
             rc::constraint_name,
             rc::unique_constraint_schema,
             rc::unique_constraint_name,
-        )).load::<(String, String, String, String)>(connection)?;
+        ))
+        .load::<(String, String, String, String)>(connection)?;
 
     constraint_names
         .into_iter()
@@ -255,224 +257,6 @@ where
                     primary_key: primary_key_column,
                 })
             },
-        ).collect()
+        )
+        .collect()
 }
-
-
-/*#[cfg(all(test, feature = "postgres"))]
-mod tests {
-    extern crate dotenv;
-
-    use self::dotenv::dotenv;
-    use super::*;
-    use std::env;
-
-    fn connection() -> PgConnection {
-        let _ = dotenv();
-
-        let connection_url = env::var("PG_DATABASE_URL")
-            .or_else(|_| env::var("DATABASE_URL"))
-            .expect("DATABASE_URL must be set in order to run tests");
-        let connection = PgConnection::establish(&connection_url).unwrap();
-        connection.begin_test_transaction().unwrap();
-        connection
-    }
-
-    #[test]
-    fn skip_views() {
-        let connection = connection();
-
-        connection
-            .execute("CREATE TABLE a_regular_table (id SERIAL PRIMARY KEY)")
-            .unwrap();
-        connection
-            .execute("CREATE VIEW a_view AS SELECT 42")
-            .unwrap();
-
-        let table_names = load_table_names(&connection, None).unwrap();
-
-        assert!(table_names.contains(&TableName::from_name("a_regular_table")));
-        assert!(!table_names.contains(&TableName::from_name("a_view")));
-    }
-
-    #[test]
-    fn load_table_names_loads_from_public_schema_if_none_given() {
-        let connection = connection();
-
-        connection
-            .execute(
-                "CREATE TABLE load_table_names_loads_from_public_schema_if_none_given (id SERIAL PRIMARY KEY)",
-            )
-            .unwrap();
-
-        let table_names = load_table_names(&connection, None).unwrap();
-        for &TableName { ref schema, .. } in &table_names {
-            assert_eq!(None, *schema);
-        }
-        assert!(table_names.contains(&TableName::from_name(
-            "load_table_names_loads_from_public_schema_if_none_given",
-        ),));
-    }
-
-    #[test]
-    fn load_table_names_loads_from_custom_schema() {
-        let connection = connection();
-
-        connection.execute("CREATE SCHEMA test_schema").unwrap();
-        connection
-            .execute("CREATE TABLE test_schema.table_1 (id SERIAL PRIMARY KEY)")
-            .unwrap();
-
-        let table_names = load_table_names(&connection, Some("test_schema")).unwrap();
-        assert_eq!(vec![TableName::new("table_1", "test_schema")], table_names);
-
-        connection
-            .execute("CREATE TABLE test_schema.table_2 (id SERIAL PRIMARY KEY)")
-            .unwrap();
-
-        let table_names = load_table_names(&connection, Some("test_schema")).unwrap();
-        let expected = vec![
-            TableName::new("table_1", "test_schema"),
-            TableName::new("table_2", "test_schema"),
-        ];
-        assert_eq!(expected, table_names);
-
-        connection
-            .execute("CREATE SCHEMA other_test_schema")
-            .unwrap();
-        connection
-            .execute("CREATE TABLE other_test_schema.table_1 (id SERIAL PRIMARY KEY)")
-            .unwrap();
-
-        let table_names = load_table_names(&connection, Some("test_schema")).unwrap();
-        let expected = vec![
-            TableName::new("table_1", "test_schema"),
-            TableName::new("table_2", "test_schema"),
-        ];
-        assert_eq!(expected, table_names);
-        let table_names = load_table_names(&connection, Some("other_test_schema")).unwrap();
-        assert_eq!(
-            vec![TableName::new("table_1", "other_test_schema")],
-            table_names
-        );
-    }
-
-    #[test]
-    fn load_table_names_output_is_ordered() {
-        let connection = connection();
-        connection.execute("CREATE SCHEMA test_schema").unwrap();
-        connection
-            .execute("CREATE TABLE test_schema.ccc (id SERIAL PRIMARY KEY)")
-            .unwrap();
-        connection
-            .execute("CREATE TABLE test_schema.aaa (id SERIAL PRIMARY KEY)")
-            .unwrap();
-        connection
-            .execute("CREATE TABLE test_schema.bbb (id SERIAL PRIMARY KEY)")
-            .unwrap();
-
-        let table_names = load_table_names(&connection, Some("test_schema"))
-            .unwrap()
-            .iter()
-            .map(|table| table.to_string())
-            .collect::<Vec<_>>();
-        assert_eq!(
-            vec!["test_schema.aaa", "test_schema.bbb", "test_schema.ccc"],
-            table_names
-        );
-    }
-
-    #[test]
-    fn get_primary_keys_only_includes_primary_key() {
-        let connection = connection();
-
-        connection.execute("CREATE SCHEMA test_schema").unwrap();
-        connection
-            .execute("CREATE TABLE test_schema.table_1 (id SERIAL PRIMARY KEY, not_id INTEGER)")
-            .unwrap();
-        connection
-            .execute(
-                "CREATE TABLE test_schema.table_2 (id INTEGER, id2 INTEGER, not_id INTEGER, PRIMARY KEY (id, id2))",
-            )
-            .unwrap();
-
-        let table_1 = TableName::new("table_1", "test_schema");
-        let table_2 = TableName::new("table_2", "test_schema");
-        assert_eq!(
-            vec!["id".to_string()],
-            get_primary_keys(&connection, &table_1).unwrap()
-        );
-        assert_eq!(
-            vec!["id".to_string(), "id2".to_string()],
-            get_primary_keys(&connection, &table_2).unwrap()
-        );
-    }
-
-    #[test]
-    fn get_table_data_loads_column_information() {
-        let connection = connection();
-
-        connection.execute("CREATE SCHEMA test_schema").unwrap();
-        connection
-            .execute(
-                "CREATE TABLE test_schema.table_1 (id SERIAL PRIMARY KEY, text_col VARCHAR, not_null TEXT NOT NULL)",
-            )
-            .unwrap();
-        connection
-            .execute("CREATE TABLE test_schema.table_2 (array_col VARCHAR[] NOT NULL)")
-            .unwrap();
-
-        let table_1 = TableName::new("table_1", "test_schema");
-        let table_2 = TableName::new("table_2", "test_schema");
-        let id = ColumnInformation::new("id", "int4", false);
-        let text_col = ColumnInformation::new("text_col", "varchar", true);
-        let not_null = ColumnInformation::new("not_null", "text", false);
-        let array_col = ColumnInformation::new("array_col", "_varchar", false);
-        assert_eq!(
-            Ok(vec![id, text_col, not_null]),
-            get_table_data(&connection, &table_1)
-        );
-        assert_eq!(Ok(vec![array_col]), get_table_data(&connection, &table_2));
-    }
-
-    #[test]
-    fn get_foreign_keys_loads_foreign_keys() {
-        let connection = connection();
-
-        connection.execute("CREATE SCHEMA test_schema").unwrap();
-        connection
-            .execute("CREATE TABLE test_schema.table_1 (id SERIAL PRIMARY KEY)")
-            .unwrap();
-        connection
-            .execute(
-                "CREATE TABLE test_schema.table_2 (id SERIAL PRIMARY KEY, fk_one INTEGER NOT NULL REFERENCES test_schema.table_1)",
-            )
-            .unwrap();
-        connection
-            .execute(
-                "CREATE TABLE test_schema.table_3 (id SERIAL PRIMARY KEY, fk_two INTEGER NOT NULL REFERENCES test_schema.table_2)",
-            )
-            .unwrap();
-
-        let table_1 = TableName::new("table_1", "test_schema");
-        let table_2 = TableName::new("table_2", "test_schema");
-        let table_3 = TableName::new("table_3", "test_schema");
-        let fk_one = ForeignKeyConstraint {
-            child_table: table_2.clone(),
-            parent_table: table_1.clone(),
-            foreign_key: "fk_one".into(),
-            primary_key: "id".into(),
-        };
-        let fk_two = ForeignKeyConstraint {
-            child_table: table_3.clone(),
-            parent_table: table_2.clone(),
-            foreign_key: "fk_two".into(),
-            primary_key: "id".into(),
-        };
-        assert_eq!(
-            Ok(vec![fk_one, fk_two]),
-            load_foreign_key_constraints(&connection, Some("test_schema"))
-        );
-    }
-}
-*/
