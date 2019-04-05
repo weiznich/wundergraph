@@ -17,8 +17,8 @@ diesel = { version = "1.4", features = ["r2d2"]}
 juniper = "0.11"
 indexmap = "1"
 wundergraph_derive = { path = "../wundergraph_derive" }
-uuid = { version = "0.7", optional = true }
-chrono = { version = "0.4", optional = true }
+uuid_internal = { version = "0.7", optional = true, package = "uuid" }
+chrono_internal = { version = "0.4", optional = true, package = "chrono" }
 failure = "0.1"
 log = "0.4"
 paste = "0.1"
@@ -26,20 +26,19 @@ paste = "0.1"
 [dev-dependencies]
 wundergraph_example = { path = "../wundergraph_example", default-features = false }
 wundergraph_bench = { path = "../wundergraph_bench", default-features = false }
-diesel_migrations = "1.3.0"
+diesel_migrations = "1.4.0"
 serde_json = "1"
 criterion = "0.2"
 lazy_static = "1"
 
 [features]
 default = ["postgres", "extras"]
-#default = ["postgres", "extras"]
 debug = ["wundergraph_derive/debug"]
 sqlite = ["diesel/sqlite", "wundergraph_derive/sqlite"]
 postgres = ["diesel/postgres", "wundergraph_derive/postgres"]
 extras = ["chrono", "uuid"]
-
-
+uuid = ["uuid_internal", "diesel/uuidv07"]
+chrono = ["chrono_internal", "diesel/chrono"]
 
 [[test]]
 name = "integration_tests"

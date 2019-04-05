@@ -28,8 +28,6 @@ use std::cmp::Eq;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
-#[cfg(feature = "chrono")]
-extern crate chrono;
 
 pub trait PlaceHolderMarker {
     type InnerType;
@@ -205,9 +203,21 @@ impl WundergraphValue for f64 {
 }
 
 #[cfg(feature = "chrono")]
-impl WundergraphValue for chrono::NaiveDateTime {
+impl WundergraphValue for chrono_internal::NaiveDateTime {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<::diesel::sql_types::Timestamp>;
+}
+
+#[cfg(feature = "chrono")]
+impl WundergraphValue for chrono_internal::DateTime<chrono_internal::Utc> {
+    type PlaceHolder = PlaceHolder<Self>;
+    type SqlType = Nullable<::diesel::sql_types::Timestamptz>;
+}
+
+#[cfg(feature = "uuid")]
+impl WundergraphValue for uuid_internal::Uuid {
+    type PlaceHolder = PlaceHolder<Self>;
+    type SqlType = Nullable<::diesel::sql_types::Uuid>;
 }
 
 impl<T, Inner> WundergraphValue for Vec<T>
@@ -484,7 +494,7 @@ where
     }
 }
 
-impl<T> TableFieldCollector<HasMany<T>> for () {
+impl<T, FK> TableFieldCollector<HasMany<T, FK>> for () {
     type Out = ();
 
     const FIELD_COUNT: usize = 0;
@@ -507,8 +517,8 @@ where
     }
 }
 
-impl<T> NonTableFieldCollector<HasMany<T>> for () {
-    type Out = (HasMany<T>,);
+impl<T, FK> NonTableFieldCollector<HasMany<T, FK>> for () {
+    type Out = (HasMany<T, FK>,);
 
     const FIELD_COUNT: usize = 1;
 
@@ -691,18 +701,14 @@ pub trait WundergraphResolveAssociation<K, Other, DB: Backend, Ctx> {
     ) -> Result<HashMap<Option<K>, Vec<juniper::Value<WundergraphScalarValue>>>, Error>;
 }
 
-pub trait WundergraphBelongsTo<Other, DB, Ctx>: LoadingHandler<DB, Ctx>
+pub trait WundergraphBelongsTo<Other, DB, Ctx, FK>: LoadingHandler<DB, Ctx>
 where
     DB: Backend + ApplyOffset + 'static,
     Self::Table: 'static,
     <Self::Table as QuerySource>::FromClause: QueryFragment<DB>,
     DB::QueryBuilder: Default,
+    FK: Default + NonAggregate + SelectableExpression<Self::Table> + QueryFragment<DB>,
 {
-    type ForeignKeyColumn: Default
-        + NonAggregate
-        + SelectableExpression<Self::Table>
-        + QueryFragment<DB>;
-
     type Key: Eq + Hash;
 
     fn resolve(
@@ -750,10 +756,11 @@ where
     }
 }
 
-impl<T, K, Other, DB, Ctx> WundergraphResolveAssociation<K, Other, DB, Ctx> for HasMany<T>
+impl<T, K, Other, DB, Ctx, FK> WundergraphResolveAssociation<K, Other, DB, Ctx> for HasMany<T, FK>
 where
     DB: Backend + ApplyOffset + 'static,
-    T: WundergraphBelongsTo<Other, DB, Ctx, Key = K>,
+    FK: Default + NonAggregate + QueryFragment<DB> + SelectableExpression<T::Table>,
+    T: WundergraphBelongsTo<Other, DB, Ctx, FK, Key = K>,
     K: Eq + Hash,
     T::Table: 'static,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -944,7 +951,7 @@ macro_rules! wundergraph_value_impl {
                 }
             }
 
-            impl<$($T,)* Next> TableFieldCollector<HasMany<Next>> for ($($T,)*)
+            impl<$($T,)* Next, ForeignKey> TableFieldCollector<HasMany<Next, ForeignKey>> for ($($T,)*)
                 where ($($T,)*): FieldListExtractor,
             {
                 type Out = <($($T,)*) as FieldListExtractor>::Out;
@@ -969,16 +976,16 @@ macro_rules! wundergraph_value_impl {
                 }
             }
 
-            impl<$($T,)* Next> NonTableFieldCollector<HasMany<Next>> for ($($T,)*)
+            impl<$($T,)* Next, ForeignKey> NonTableFieldCollector<HasMany<Next, ForeignKey>> for ($($T,)*)
             where ($($T,)*): NonTableFieldExtractor,
-                  <($($T,)*) as NonTableFieldExtractor>::Out: AppendToTuple<HasMany<Next>>,
+                  <($($T,)*) as NonTableFieldExtractor>::Out: AppendToTuple<HasMany<Next, ForeignKey>>,
             {
-                type Out = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next>>>::Out;
+                type Out = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next, ForeignKey>>>::Out;
 
-                const FIELD_COUNT: usize = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next>>>::LENGHT;
+                const FIELD_COUNT: usize = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next, ForeignKey>>>::LENGHT;
 
                 fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
-                    if local_index == <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next>>>::LENGHT - 1 {
+                    if local_index == <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next, ForeignKey>>>::LENGHT - 1 {
                         Some(callback(wundergraph_add_one_to_index!($($idx)*)))
                     } else {
                         <($($T,)*) as NonTableFieldExtractor>::map(local_index, callback)

@@ -77,6 +77,6 @@ wundergraph::mutation_object! {
         Species(insert = NewSpecies, update = SpeciesChangeset,),
         HomeWorld(insert = NewHomeWorld, update = HomeWorldChangeset,),
         Friend( insert = NewFriend,),
-        AppearsIn(insert = NewAppearsIn,),
+        AppearsIn(insert = NewAppearsIn, ),
     }
 }

@@ -109,36 +109,30 @@ impl Nameable for () {
 }
 
 #[cfg(feature = "chrono")]
-extern crate chrono;
-
-#[cfg(feature = "chrono")]
-impl Nameable for self::chrono::NaiveDateTime {
+impl Nameable for chrono_internal::NaiveDateTime {
     fn name() -> String {
         String::from("NaiveDateTime")
     }
 }
 
 #[cfg(feature = "chrono")]
-impl<O> Nameable for self::chrono::DateTime<O>
+impl<O> Nameable for chrono_internal::DateTime<O>
 where
-    O: self::chrono::TimeZone,
+    O: chrono_internal::TimeZone,
 {
     fn name() -> String {
         String::from("DateTime")
     }
 }
 #[cfg(feature = "chrono")]
-impl Nameable for self::chrono::NaiveDate {
+impl Nameable for chrono_internal::NaiveDate {
     fn name() -> String {
         String::from("Date")
     }
 }
 
 #[cfg(feature = "uuid")]
-extern crate uuid;
-
-#[cfg(feature = "uuid")]
-impl Nameable for self::uuid::Uuid {
+impl Nameable for uuid_internal::Uuid {
     fn name() -> String {
         String::from("Uuid")
     }

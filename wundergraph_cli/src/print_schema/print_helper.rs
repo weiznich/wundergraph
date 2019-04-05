@@ -285,9 +285,11 @@ impl<'a> Display for GraphqlData<'a> {
             {
                 writeln!(
                     out,
-                    "{}: HasMany<{}>,",
+                    "{}: HasMany<{}, {}::{}>,",
                     f.child_table.name,
-                    fix_table_name(&f.child_table.name)
+                    fix_table_name(&f.child_table.name),
+                    f.child_table,
+                    f.foreign_key,
                 )?;
             }
         }

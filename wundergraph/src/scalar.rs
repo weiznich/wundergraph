@@ -56,8 +56,8 @@ impl<'a> From<&'a str> for WundergraphScalarValue {
 }
 
 #[cfg(feature = "chrono")]
-impl From<chrono::NaiveDateTime> for WundergraphScalarValue {
-    fn from(n: chrono::NaiveDateTime) -> Self {
+impl From<chrono_internal::NaiveDateTime> for WundergraphScalarValue {
+    fn from(n: chrono_internal::NaiveDateTime) -> Self {
         WundergraphScalarValue::Double(n.timestamp() as _)
     }
 }

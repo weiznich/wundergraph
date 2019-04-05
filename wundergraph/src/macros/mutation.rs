@@ -1,83 +1,212 @@
+#[doc(hidden)]
 #[macro_export]
-macro_rules! mutation_object {
+macro_rules! __expand_register_delete {
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident,) => {
+        $crate::__expand_register_delete!($entity_name, $registry, $fields, $info, true)
+    };
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, true) => {
+        $crate::__expand_register_delete!(
+            $entity_name, $registry, $fields, $info,
+            $crate::helper::primary_keys::PrimaryKeyArgument<
+                'static,
+                 <$entity_name as $crate::diesel::associations::HasTable>::Table,
+                 Ctx,
+                 <&'static $entity_name as $crate::diesel::Identifiable>::Id
+            >
+        )
+    };
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, false) => {};
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, $($delete:tt)*) => {{
+        let delete = $registry.arg::<$($delete)*>(
+            concat!("Delete", stringify!($entity_name)),
+            &std::default::Default::default(),
+        );
+        let delete = $registry.field::<Option<$crate::mutations::DeletedCount>>(
+            concat!("Delete", stringify!($entity_name)),
+            $info
+        ).argument(delete);
+        $fields.push(delete);
+    }}
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __expand_resolve_delete {
+    ($entity_name: ident, $executor: ident, $arguments: ident, ) => {
+        $crate::__expand_resolve_delete!($entity_name, $executor, $arguments, true)
+    };
+    ($entity_name: ident, $executor: ident, $arguments: ident, true) => {
+        $crate::__expand_resolve_delete!(
+            $entity_name, $executor, $arguments,
+            $crate::helper::primary_keys::PrimaryKeyArgument<
+                'static,
+                 <$entity_name as $crate::diesel::associations::HasTable>::Table,
+                 Ctx,
+                 <&'static $entity_name as $crate::diesel::Identifiable>::Id
+            >
+        )
+    };
+    ($entity_name: ident, $executor: ident, $arguments: ident, false) => {
+        Err($crate::juniper::FieldError::new(
+            "Unknown field:",
+            $crate::juniper::Value::scalar(concat!("Delete", stringify!($entity_name))),
+        ))
+    };
+    ($entity_name: ident, $executor: ident, $arguments: ident, $($delete:tt)*) => {
+       $crate::mutations::handle_delete::<
+           DB,
+       $($delete)*,
+       $entity_name,
+       Self::Context,
+               >($executor, $arguments, concat!("Delete", stringify!($entity_name)))
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __build_mutation_trait_bounds {
     (
-        $(#[doc = $glob_doc: expr])*
-        $mutation_name: ident {
-            $($entity_name: ident (
-                $(insert = $insert: ident,)?
-                $(update = $update: ident,)?
-                $(,)?
-            ),)*
+        mutation_name = {$($mutation_name:tt)*},
+        structs = [$($entity_name: ident(
+            $(insert = $insert: ident,)?
+            $(update = $update: ident,)?
+            $(delete = $($delete:tt)*)?
+        ),)*],
+        $(lt = $lt: tt,)?
+        body = {
+            $($inner: tt)*
         }
     ) => {
-        $crate::mutation_object!{
-            $(#[doc = $glob_doc])*
-            $mutation_name {
-                $($entity_name($(insert = $insert,)* $(update = $update,)* delete = true),)*
+        $crate::paste::item! {
+            $crate::__build_mutation_trait_bounds! {
+                input = {
+                    $($entity_name($(delete = {$($delete)*},)? table = {[<$entity_name _table>]},),)*
+                },
+                original = [
+                    mutation_name = {$($mutation_name)*},
+                    structs = [$($entity_name(
+                        $(insert = $insert,)?
+                            $(update = $update,)?
+                    ),)*],
+                    $(lt = $lt,)?
+                        body = {
+                            $($inner)*
+                        }
+                ],
+                additional_bound = [],
             }
         }
     };
     (
-        $(#[doc = $glob_doc: expr])*
-        $mutation_name: ident {
-            $($entity_name: ident (
-                $(insert = $insert: ident,)?
-                $(update = $update: ident,)?
-                delete = false
-                $(,)?
-            ),)*
-        }
+        input = {
+            $entity_name: ident (table = {$($table:tt)*},),
+            $($rest:tt)*
+        },
+        original = [ $($orig: tt)*],
+        additional_bound = [$({$($bounds:tt)*},)*],
     ) => {
-        $crate::__impl_mutation_object! {
-            $(#[doc = $glob_doc])*
-            $mutation_name {
-                $($entity_name($(insert = $insert,)* $(update = $update,)*),)*
-            }
+        $crate::__build_mutation_trait_bounds! {
+            input = {
+                $entity_name(delete = {true}, table = {$($table)*},),
+                $($rest)*
+            },
+            original = [$($orig)*],
+            additional_bound = [$({$($bounds)*},)*],
         }
     };
     (
-        $(#[doc = $glob_doc: expr])*
-        $mutation_name: ident {
-            $($entity_name: ident (
-                $(insert = $insert: ident,)?
-                $(update = $update: ident,)?
-                delete = true
-                $(,)?
-            ),)*
-        }
+        input = {
+            $entity_name: ident (delete = {true}, table = {$($table:tt)*},),
+            $($rest:tt)*
+        },
+        original = [ $($orig: tt)*],
+        additional_bound = [$({$($bounds:tt)*},)*],
     ) => {
-        $crate::__impl_mutation_object! {
-            $(#[doc = $glob_doc])*
-            $mutation_name {
-                $($entity_name($(insert = $insert,)* $(update = $update,)*
-                               delete = ($crate::helper::primary_keys::PrimaryKeyArgument<
-                               'static,
-                               <$entity_name as $crate::diesel::associations::HasTable>::Table,
-                               Ctx,
-                               <&'static $entity_name as $crate::diesel::Identifiable>::Id
-                >)),)*
-            }
+        $crate::__build_mutation_trait_bounds! {
+            input = {
+                $entity_name(
+                    delete = {$crate::helper::primary_keys::PrimaryKeyArgument<
+                        'static,
+                        <$entity_name as $crate::diesel::associations::HasTable>::Table,
+                        Ctx,
+                        <&'static $entity_name as $crate::diesel::Identifiable>::Id
+                    >},
+                    table = {$($table)*},
+                ),
+                $($rest)*
+            },
+            original = [$($orig)*],
+            additional_bound = [$({$($bounds)*},)*],
         }
     };
     (
-        $(#[doc = $glob_doc: expr])*
-        $mutation_name: ident {
-            $($entity_name: ident (
-                $(insert = $insert: ident,)?
-                $(update = $update: ident,)?
-                delete = $delete: ty
-                $(,)?
-            ),)*
-        }
+        input = {
+            $entity_name: ident (delete = {false}, table = {$($table:tt)*},),
+            $($rest:tt)*
+        },
+        original = [ $($orig: tt)*],
+        additional_bound = [$({$($bounds:tt)*},)*],
     ) => {
-        $crate::__impl_mutation_object! {
-            $(#[doc = $glob_doc])*
-            $mutation_name {
-                $($entity_name($(insert = $insert,)* $(update = $update,)* delete = ($delete)),)*
+        $crate::__build_mutation_trait_bounds! {
+            input = {
+                $($rest)*
+            },
+            original = [$($orig)*],
+            additional_bound = [$({$($bounds)*},)*],
+        }
+    };
+    (
+        input = {
+            $entity_name: ident (delete = {$($delete:tt)*}, table = {$($table:tt)*},),
+            $($rest:tt)*
+        },
+        original = [ $($orig: tt)*],
+        additional_bound = [$({$($bounds:tt)*},)*],
+    ) => {
+        $crate::__build_mutation_trait_bounds! {
+            input = {
+                $($rest)*
+            },
+            original = [$($orig)*],
+            additional_bound = [$({$($bounds)*},)*
+                {
+                    $($table)*: $crate::mutations::HandleDelete<$entity_name, $($delete)*, DB, Ctx>
+                },
+            ],
+        }
+    };
+    (
+        input = {},
+        original = [
+            mutation_name = {$($mutation_name:tt)*},
+           structs = [
+
+                $($entity_name: ident(
+                   $(insert = $insert: ident,)?
+                   $(update = $update: ident,)?
+                ),)*
+           ],
+           $(lt = $lt: tt,)?
+            body = {
+                $($inner: tt)*
+            }
+        ],
+        additional_bound = [$({$($bounds:tt)*},)*],
+    ) => {
+        $crate::__impl_graphql_obj_for_mutation! {
+            mutation_name = {$($mutation_name)*},
+            structs = [
+                $($entity_name($(insert = $insert,)? $(update = $update,)?),)*
+            ],
+            additional_bound = [$({$($bounds)*},)*],
+            $(lt = $lt,)?
+            body = {
+                $($inner)*
             }
         }
     };
 }
+
 
 #[doc(hidden)]
 #[macro_export]
@@ -94,6 +223,29 @@ macro_rules! __impl_graphql_obj_for_mutation {
             $($inner: tt)*
         }
     ) => {
+        $crate::__build_mutation_trait_bounds! {
+            mutation_name = {$($mutation_name)*},
+            structs = [
+                $($entity_name($(insert = $insert,)? $(update = $update,)? $(delete = $($delete)*)?),)*
+            ],
+            $(lt = $lt,)?
+            body = {
+                $($inner)*
+            }
+        }
+    };
+    (
+        mutation_name = {$($mutation_name:tt)*},
+        structs = [$($entity_name: ident(
+            $(insert = $insert: ident,)?
+            $(update = $update: ident,)?
+        ),)*],
+        additional_bound = [$({$($bounds:tt)*},)*],
+        $(lt = $lt: tt,)?
+        body = {
+            $($inner: tt)*
+        }
+    ) => {
         $crate::paste::item! {
             impl<$($lt,)? Ctx, DB, $([<$entity_name _table>],)* $([<$entity_name _id>],)*> $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
                 for $($mutation_name)*<$($lt,)? Ctx>
@@ -103,7 +255,7 @@ macro_rules! __impl_graphql_obj_for_mutation {
                   Ctx::Connection: $crate::diesel::Connection<Backend = DB>,
                   $($entity_name: $crate::LoadingHandler<DB, Ctx> + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
                   $([<$entity_name _table>]: $crate::diesel::Table + 'static +
-                      $crate::diesel::QuerySource<FromClause = $crate::diesel::query_builder::nodes::Identifier<'static>>,)*
+                      $crate::diesel::QuerySource<FromClause = $crate::diesel::query_builder::nodes::Identifier<'static>> +  $crate::diesel::Table + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
                   $([<$entity_name _table>]::FromClause: $crate::diesel::query_builder::QueryFragment<DB>,)*
                   $(<$entity_name as $crate::LoadingHandler<DB, Ctx>>::Columns: $crate::query_helper::order::BuildOrder<[<$entity_name _table>], DB>,)*
                   $(<$entity_name as $crate::LoadingHandler<DB, Ctx>>::Columns: $crate::query_helper::select::BuildSelect<
@@ -134,7 +286,8 @@ macro_rules! __impl_graphql_obj_for_mutation {
                   $($([<$entity_name _table>]: $crate::mutations::HandleInsert<$entity_name, $insert, DB, Ctx>,)*)*
                   $($([<$entity_name _table>]: $crate::mutations::HandleBatchInsert<$entity_name, $insert, DB, Ctx>,)*)*
                   $($([<$entity_name _table>]: $crate::mutations::HandleUpdate<$entity_name, $update, DB, Ctx>,)*)*
-                  $($([<$entity_name _table>]: $crate::mutations::HandleDelete<$entity_name, $($delete)*, DB, Ctx>,)*)*
+                  $($($bounds)*,)*
+
             {
                 $($inner)*
             }
@@ -142,17 +295,15 @@ macro_rules! __impl_graphql_obj_for_mutation {
     }
 }
 
-
-#[doc(hidden)]
 #[macro_export]
-macro_rules! __impl_mutation_object {
+macro_rules! mutation_object {
     (
         $(#[doc = $glob_doc: expr])*
         $mutation_name: ident {
             $($entity_name: ident (
                 $(insert = $insert: ident,)?
                 $(update = $update: ident,)?
-                $(delete = ($($delete:tt)*))?
+                $(delete = $($delete: tt)*)?
                 $(,)?
             ),)*
         }
@@ -340,19 +491,7 @@ macro_rules! __impl_mutation_object {
                                 )*
                             )*
                             $(
-                                $(
-                                    let delete = registry.arg::<$($delete)*>(
-                                        concat!("Delete", stringify!($entity_name)),
-                                        &$crate::helper::primary_keys::PrimaryKeyInfo::new(
-                                            &<$entity_name as $crate::diesel::associations::HasTable>::table(),
-                                        )
-                                    );
-                                    let delete = registry.field::<Option<$crate::mutations::DeletedCount>>(
-                                        concat!("Delete", stringify!($entity_name)),
-                                        info
-                                    ).argument(delete);
-                                    fields.push(delete);
-                                )*
+                                $crate::__expand_register_delete!($entity_name, registry, fields, info, $($($delete)*)?);
                             )*
                             let mut mutation = registry.build_object_type::<Self>(info, &fields);
                         mutation = mutation.description(concat!($($glob_doc, "\n",)* ""));
@@ -415,17 +554,10 @@ macro_rules! __impl_mutation_object {
                                     )*
                                 )*
                                 $(
-                                    $(
-                                        concat!("Delete", stringify!($entity_name)) => {
-                                            $crate::mutations::handle_delete::<
-                                                DB,
-                                            $($delete)*,
-                                            $entity_name,
-                                            Self::Context,
-                                            >(executor, arguments, concat!("Delete", stringify!($entity_name)))
-                                        }
-                                    )*
-                                )*
+                                    concat!("Delete", stringify!($entity_name)) => {
+                                        $crate::__expand_resolve_delete!($entity_name, executor, arguments, $($($delete)*)?)
+                                    }
+                                 )*
                                 e => Err($crate::juniper::FieldError::new(
                                     "Unknown field:",
                                     $crate::juniper::Value::scalar(e),

@@ -188,14 +188,15 @@ macro_rules! primary_key_input_object_impl {
 __diesel_for_each_tuple!(primary_key_input_object_impl);
 
 #[derive(Debug)]
-pub struct PrimaryKeyInfo(String);
+pub struct PrimaryKeyInfo<T>(String, PhantomData<T>);
 
-impl PrimaryKeyInfo {
-    pub fn new<T>(table: &T) -> Self
-    where
-        T: QuerySource<FromClause = Identifier<'static>>,
-    {
-        Self(format!("{}Key", table.from_clause().0))
+impl<T> Default for PrimaryKeyInfo<T>
+where
+    T: QuerySource<FromClause = Identifier<'static>> + HasTable<Table = T> + Table,
+{
+    fn default() -> Self {
+        let table = T::table();
+        Self(format!("{}Key", table.from_clause().0), PhantomData)
     }
 }
 
@@ -226,7 +227,7 @@ where
     V: UnRef<'a>,
 {
     type Context = Ctx;
-    type TypeInfo = PrimaryKeyInfo;
+    type TypeInfo = PrimaryKeyInfo<T>;
 
     fn name(info: &Self::TypeInfo) -> Option<&str> {
         Some(&info.0)

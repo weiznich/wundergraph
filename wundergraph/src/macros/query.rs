@@ -131,7 +131,8 @@ macro_rules! __impl_graphql_obj_for_query {
               [<$graphql_struct _table>],
               DB
               >,
-              > +  $crate::diesel::QuerySource<FromClause = $crate::diesel::query_builder::nodes::Identifier<'static>> + 'static,)*
+              > +  $crate::diesel::QuerySource<FromClause = $crate::diesel::query_builder::nodes::Identifier<'static>>
+              + $crate::diesel::Table + $crate::diesel::associations::HasTable<Table = [<$graphql_struct _table>]> + 'static,)*
                 $($graphql_struct: $crate::LoadingHandler<DB, Ctx> + $crate::diesel::associations::HasTable<Table = [<$graphql_struct _table>]>,)*
                 $(Ctx: $crate::QueryModifier<$graphql_struct, DB>,)*
                 $(<[<$graphql_struct _table>] as $crate::diesel::QuerySource>::FromClause: $crate::diesel::query_builder::QueryFragment<DB>,)*
@@ -366,7 +367,7 @@ macro_rules! query_object {
                                     field
                                 },
                                 {
-                                    let key_info = $crate::helper::primary_keys::PrimaryKeyInfo::new(&<$graphql_struct as $crate::diesel::associations::HasTable>::table());
+                                    let key_info = $crate::helper::primary_keys::PrimaryKeyInfo::default();
                                     let key = registry.arg::<
                                         $crate::helper::primary_keys::PrimaryKeyArgument<
                                         'static,

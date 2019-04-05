@@ -130,11 +130,9 @@ static RFC3339_PARSE_FORMAT: &'static str = "%+";
 #[cfg(feature = "chrono")]
 static RFC3339_FORMAT: &'static str = "%Y-%m-%dT%H:%M:%S%.f%:z";
 
-#[cfg(feature = "chrono")]
-extern crate chrono;
 
 #[cfg(feature = "chrono")]
-impl FromLookAheadValue for self::chrono::NaiveDateTime {
+impl FromLookAheadValue for chrono_internal::NaiveDateTime {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             Self::parse_from_str(s, RFC3339_PARSE_FORMAT).ok()
@@ -145,7 +143,7 @@ impl FromLookAheadValue for self::chrono::NaiveDateTime {
 }
 
 #[cfg(feature = "chrono")]
-impl FromLookAheadValue for self::chrono::DateTime<self::chrono::Utc> {
+impl FromLookAheadValue for chrono_internal::DateTime<chrono_internal::Utc> {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             s.parse().ok()
@@ -156,7 +154,7 @@ impl FromLookAheadValue for self::chrono::DateTime<self::chrono::Utc> {
 }
 
 #[cfg(feature = "chrono")]
-impl FromLookAheadValue for self::chrono::DateTime<self::chrono::FixedOffset> {
+impl FromLookAheadValue for chrono_internal::DateTime<chrono_internal::FixedOffset> {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             Self::parse_from_rfc3339(s).ok()
@@ -167,7 +165,7 @@ impl FromLookAheadValue for self::chrono::DateTime<self::chrono::FixedOffset> {
 }
 
 #[cfg(feature = "chrono")]
-impl FromLookAheadValue for self::chrono::NaiveDate {
+impl FromLookAheadValue for chrono_internal::NaiveDate {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             Self::parse_from_str(s, RFC3339_FORMAT).ok()
@@ -178,10 +176,7 @@ impl FromLookAheadValue for self::chrono::NaiveDate {
 }
 
 #[cfg(feature = "uuid")]
-extern crate uuid;
-
-#[cfg(feature = "uuid")]
-impl FromLookAheadValue for self::uuid::Uuid {
+impl FromLookAheadValue for uuid_internal::Uuid {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         if let LookAheadValue::Scalar(WundergraphScalarValue::String(ref s)) = *v {
             Self::parse_str(s).ok()

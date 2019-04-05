@@ -15,7 +15,7 @@ use crate::scalar::WundergraphScalarValue;
 use crate::{ApplyOffset, LoadingHandler};
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
-use diesel::expression::NonAggregate;
+use diesel::expression::{NonAggregate, SelectableExpression};
 use diesel::query_builder::QueryFragment;
 use diesel::sql_types::Bool;
 use diesel::Expression;
@@ -104,21 +104,18 @@ pub trait AsNonColumnFilter<L, DB, Ctx> {
     type Filter;
 }
 
-impl<L, O, DB, Ctx> AsNonColumnFilter<L, DB, Ctx> for HasMany<O>
+impl<L, O, DB, Ctx, FK> AsNonColumnFilter<L, DB, Ctx> for HasMany<O, FK>
 where
     L: HasTable,
-    O: WundergraphBelongsTo<L::Table, DB, Ctx>,
+    FK: Default + NonAggregate + QueryFragment<DB> + SelectableExpression<O::Table>,
+    O: WundergraphBelongsTo<L::Table, DB, Ctx, FK>,
     O::Table: 'static,
     DB: Backend + ApplyOffset + 'static,
     <O::Table as QuerySource>::FromClause: QueryFragment<DB>,
     DB::QueryBuilder: Default,
 {
-    type Filter = ReferenceFilter<
-        <L::Table as Table>::PrimaryKey,
-        Filter<O::Filter, O::Table>,
-        O::ForeignKeyColumn,
-        (),
-    >;
+    type Filter =
+        ReferenceFilter<<L::Table as Table>::PrimaryKey, Filter<O::Filter, O::Table>, FK, ()>;
 }
 
 impl<C, DB, Ctx> AsColumnFilter<C, DB, Ctx> for i16 {
@@ -161,7 +158,17 @@ where
 }
 
 #[cfg(feature = "chrono")]
-impl<C, DB, Ctx> AsColumnFilter<C, DB, Ctx> for chrono::NaiveDateTime {
+impl<C, DB, Ctx> AsColumnFilter<C, DB, Ctx> for chrono_internal::NaiveDateTime {
+    type Filter = FilterOption<Self, C>;
+}
+
+#[cfg(feature = "chrono")]
+impl<C, DB, Ctx> AsColumnFilter<C, DB, Ctx> for chrono_internal::DateTime<chrono_internal::Utc> {
+    type Filter = FilterOption<Self, C>;
+}
+
+#[cfg(feature = "uuid")]
+impl<C, DB, Ctx> AsColumnFilter<C, DB, Ctx> for uuid_internal::Uuid {
     type Filter = FilterOption<Self, C>;
 }
 

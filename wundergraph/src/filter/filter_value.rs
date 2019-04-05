@@ -86,18 +86,15 @@ where
 }
 
 #[cfg(feature = "chrono")]
-extern crate chrono;
-
-#[cfg(feature = "chrono")]
-impl<C> FilterValue<C> for self::chrono::NaiveDateTime {
+impl<C> FilterValue<C> for chrono_internal::NaiveDateTime {
     type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 #[cfg(feature = "chrono")]
-impl<O, C> FilterValue<C> for self::chrono::DateTime<O>
+impl<O, C> FilterValue<C> for chrono_internal::DateTime<O>
 where
-    O: self::chrono::TimeZone,
+    O: chrono_internal::TimeZone,
     Self: ToInputValue<WundergraphScalarValue>
         + FromInputValue<WundergraphScalarValue>
         + FromLookAheadValue,
@@ -107,16 +104,13 @@ where
 }
 
 #[cfg(feature = "chrono")]
-impl<C> FilterValue<C> for self::chrono::NaiveDate {
+impl<C> FilterValue<C> for chrono_internal::NaiveDate {
     type RawValue = Self;
     type AdditionalFilter = ();
 }
 
 #[cfg(feature = "uuid")]
-extern crate uuid;
-
-#[cfg(feature = "uuid")]
-impl<C> FilterValue<C> for self::uuid::Uuid {
+impl<C> FilterValue<C> for uuid_internal::Uuid {
     type RawValue = Self;
     type AdditionalFilter = ();
 }

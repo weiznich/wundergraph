@@ -27,7 +27,6 @@
     clippy::unnecessary_unwrap,
     clippy::unseparated_literal_suffix,
     clippy::wildcard_dependencies
-
 )]
 #![allow(clippy::type_complexity)]
 
@@ -60,7 +59,6 @@ pub mod helper;
 pub mod mutations;
 pub mod order;
 pub mod query_helper;
-//pub mod query_modifier;
 pub mod scalar;
 #[macro_use]
 mod macros;
@@ -69,22 +67,32 @@ pub mod graphql_type;
 use self::error::WundergraphError;
 use self::helper::FromLookAheadValue;
 use self::scalar::WundergraphScalarValue;
-
+use crate::diesel_ext::BoxableFilter;
+use crate::filter::build_filter::BuildFilter;
+use crate::filter::inner_filter::InnerFilter;
+use crate::filter::Filter;
 use crate::helper::primary_keys::{PrimaryKeyArgument, UnRef};
+use crate::query_helper::order::BuildOrder;
 use crate::query_helper::placeholder::*;
+use crate::query_helper::select::BuildSelect;
+use crate::query_helper::tuple::IsPrimaryKeyIndex;
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
 use diesel::dsl::SqlTypeOf;
 use diesel::expression::NonAggregate;
 use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
 use diesel::query_dsl::methods::BoxedDsl;
+use diesel::query_dsl::methods::FilterDsl;
 use diesel::query_dsl::methods::{LimitDsl, OffsetDsl, SelectDsl};
 use diesel::r2d2;
+use diesel::sql_types::{Bool, HasSqlType};
+use diesel::BoxableExpression;
 use diesel::EqAll;
 use diesel::Identifiable;
 use diesel::QuerySource;
 use diesel::{AppearsOnTable, Connection, QueryDsl, Table};
 use failure::Error;
+use juniper::LookAheadValue;
 use juniper::{Executor, LookAheadSelection, Selection};
 
 pub trait WundergraphContext {
@@ -160,18 +168,6 @@ where
         Ok(query)
     }
 }
-
-use crate::diesel_ext::BoxableFilter;
-use crate::filter::build_filter::BuildFilter;
-use crate::filter::inner_filter::InnerFilter;
-use crate::filter::Filter;
-use crate::query_helper::order::BuildOrder;
-use crate::query_helper::select::BuildSelect;
-use crate::query_helper::tuple::IsPrimaryKeyIndex;
-use diesel::query_dsl::methods::FilterDsl;
-use diesel::sql_types::{Bool, HasSqlType};
-use diesel::BoxableExpression;
-use juniper::LookAheadValue;
 
 pub trait LoadingHandler<DB, Ctx>: HasTable + Sized
 where

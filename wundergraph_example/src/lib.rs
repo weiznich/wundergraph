@@ -153,7 +153,7 @@ pub struct HomeWorld {
     /// The name of a world
     name: String,
     /// All heros of a given world
-    heros: HasMany<Hero>,
+    heros: HasMany<Hero, heros::home_world>,
 }
 
 #[allow(deprecated)]
@@ -176,10 +176,10 @@ mod hero {
         species: HasOne<i32, Species>,
         /// On which world a hero was born
         home_world: Option<HasOne<i32, HomeWorld>>,
-        //        /// Episodes a hero appears in
-        appears_in: HasMany<AppearsIn>,
+        /// Episodes a hero appears in
+        appears_in: HasMany<AppearsIn, appears_in::hero_id>,
         /// List of friends of the current hero
-        friends: HasMany<Friend>,
+        friends: HasMany<Friend, friends::friend_id>,
     }
 }
 pub use self::hero::Hero;
@@ -193,7 +193,7 @@ pub struct Species {
     /// The name of a species
     name: String,
     /// A list of heros for a species
-    heros: HasMany<Hero>,
+    heros: HasMany<Hero, heros::species>,
 }
 
 wundergraph::query_object! {

@@ -220,7 +220,7 @@ pub struct Album {
     id: i32,
     title: String,
     artist_id: HasOne<i32, Artist>,
-    tracks: HasMany<Track>,
+    tracks: HasMany<Track, tracks::album_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
@@ -229,7 +229,7 @@ pub struct Album {
 pub struct Artist {
     id: i32,
     name: Option<String>,
-    albums: HasMany<Album>,
+    albums: HasMany<Album, albums::artist_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
@@ -258,7 +258,7 @@ pub struct Customer {
     fax: Option<String>,
     email: String,
     support_rep_id: Option<HasOne<i32, Employe>>,
-    invoices: HasMany<Invoice>,
+    invoices: HasMany<Invoice, invoices::customer_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
@@ -280,7 +280,7 @@ pub struct Employe {
     phone: Option<String>,
     fax: Option<String>,
     email: Option<String>,
-    customers: HasMany<Customer>,
+    customers: HasMany<Customer, customers::support_rep_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity, Copy)]
@@ -318,7 +318,7 @@ pub struct Film {
 pub struct Genre {
     id: i32,
     name: Option<String>,
-    tracks: HasMany<Track>,
+    tracks: HasMany<Track, tracks::genre_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
@@ -345,7 +345,7 @@ pub struct Invoice {
     billing_country: Option<String>,
     billing_postal_code: Option<String>,
     //    total: BigDecimal,
-    invoice_lines: HasMany<InvoiceLine>,
+    invoice_lines: HasMany<InvoiceLine, invoice_lines::invoice_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
@@ -354,7 +354,7 @@ pub struct Invoice {
 pub struct MediaType {
     id: i32,
     name: Option<String>,
-    tracks: HasMany<Track>,
+    tracks: HasMany<Track, tracks::media_type_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
@@ -363,7 +363,7 @@ pub struct MediaType {
 pub struct Playlist {
     id: i32,
     name: Option<String>,
-    playlist_track: HasMany<PlaylistTrack>,
+    playlist_track: HasMany<PlaylistTrack, playlist_track::playlist_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
@@ -387,8 +387,8 @@ pub struct Track {
     milliseconds: i32,
     bytes: Option<i32>,
     //    unit_price: BigDecimal,
-    invoice_lines: HasMany<InvoiceLine>,
-    playlist_track: HasMany<PlaylistTrack>,
+    invoice_lines: HasMany<InvoiceLine, invoice_lines::track_id>,
+    playlist_track: HasMany<PlaylistTrack, playlist_track::track_id>,
 }
 
 wundergraph::query_object! {

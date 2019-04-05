@@ -1,11 +1,12 @@
 use crate::graphql_type::WundergraphGraphqlMapper;
 use crate::scalar::WundergraphScalarValue;
 use juniper::{meta, Registry};
+use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct HasMany<T>(Vec<T>);
+pub struct HasMany<T, FK>(Vec<T>, PhantomData<FK>);
 
-impl<T, DB, Ctx> WundergraphGraphqlMapper<DB, Ctx> for HasMany<T>
+impl<T, DB, Ctx, FK> WundergraphGraphqlMapper<DB, Ctx> for HasMany<T, FK>
 where
     T: WundergraphGraphqlMapper<DB, Ctx>,
 {

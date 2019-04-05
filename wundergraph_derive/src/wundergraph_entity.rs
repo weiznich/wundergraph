@@ -3,6 +3,7 @@ use crate::field::Field;
 use crate::model::Model;
 use crate::utils::{inner_of_option_ty, inner_ty_args, is_has_many, wrap_in_dummy_mod};
 use proc_macro2::{Span, TokenStream};
+use std::collections::HashMap;
 use syn;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
@@ -62,40 +63,42 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
                 } else {
                     panic!("No parent type found");
                 };
-                let pg = if cfg!(feature = "postgres") {
-                    Some(derive_belongs_to(
-                        &model,
-                        item,
-                        parent_ty,
-                        &key_ty,
-                        f.sql_name(),
-                        &quote!(diesel::pg::Pg),
-                    ))
-                } else {
-                    None
-                };
-                let sqlite = if cfg!(feature = "sqlite") {
-                    Some(derive_belongs_to(
-                        &model,
-                        item,
-                        parent_ty,
-                        &key_ty,
-                        f.sql_name(),
-                        &quote!(diesel::sqlite::Sqlite),
-                    ))
-                } else {
-                    None
-                };
-                match (pg, sqlite) {
-                    (None, None) => panic!("One feature needs to be enabled"),
-                    (Some(Ok(pg)), Some(Ok(sqlite))) => Some(Ok(quote! {#pg #sqlite})),
-                    (None, Some(Ok(sqlite))) => Some(Ok(sqlite)),
-                    (Some(Ok(pg)), None) => Some(Ok(pg)),
-                    (Some(Err(e)), _) | (_, Some(Err(e))) => Some(Err(e)),
-                }
+                Some((parent_ty, (key_ty, f)))
             } else {
                 None
             }
+        })
+        .collect::<HashMap<_, _>>()
+        .into_iter()
+        .map(|(parent_ty, (key_ty, f))| {
+            let pg = if cfg!(feature = "postgres") {
+                Some(derive_belongs_to(
+                    &model,
+                    item,
+                    parent_ty,
+                    &key_ty,
+                    f.sql_name(),
+                    &quote!(diesel::pg::Pg),
+                )?)
+            } else {
+                None
+            };
+            let sqlite = if cfg!(feature = "sqlite") {
+                Some(derive_belongs_to(
+                    &model,
+                    item,
+                    parent_ty,
+                    &key_ty,
+                    f.sql_name(),
+                    &quote!(diesel::sqlite::Sqlite),
+                )?)
+            } else {
+                None
+            };
+            Ok(quote! {
+                #pg
+                #sqlite
+            })
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -291,11 +294,11 @@ fn derive_belongs_to(
         impl#impl_generics wundergraph::query_helper::placeholder::WundergraphBelongsTo<
             <#other as wundergraph::diesel::associations::HasTable>::Table,
             #backend,
-            __Ctx
+            __Ctx,
+            #key_column,
         > for #struct_type #ty_generics
             #where_clause
         {
-            type ForeignKeyColumn = #key_column;
             type Key = #key_ty;
 
             fn resolve(
@@ -314,16 +317,17 @@ fn derive_belongs_to(
                         <BoxedQuery<Self, #backend, __Ctx> as QueryDsl>::select(
                            <Self as LoadingHandler<#backend, __Ctx>>::build_query(look_ahead)?,
                             (
-                                Self::ForeignKeyColumn::default().nullable(),
+                                #key_column::default().nullable(),
                                 <Self as LoadingHandler<#backend, __Ctx>>::get_select(look_ahead)?,
                             )
                        ),
-                        Self::ForeignKeyColumn::default().nullable().eq_any(keys),
+                        #key_column::default().nullable().eq_any(keys),
                     );
                     <Self as wundergraph::query_helper::placeholder::WundergraphBelongsTo<
                         <#other as wundergraph::diesel::associations::HasTable>::Table,
                     #backend,
                     __Ctx,
+                    #key_column
                     >>::build_response(query.load(conn)?, look_ahead, selection, executor)
             }
         }
