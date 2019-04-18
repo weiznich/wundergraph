@@ -17,17 +17,32 @@ fn order_asc() {
 }
 ",
     );
-    println!("{:?}", res);
     assert!(res.is_ok());
-    assert_eq!(json!([{"Heros": [
-        {"heroName": "Darth Vader"},
-        {"heroName": "Han Solo"},
-        {"heroName": "Leia Organa"},
-        {"heroName": "Luke Skywalker"},
-        {"heroName": "Wilhuff Tarkin"}
-    ]}, []]), res.as_json());
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Darth Vader"
+      },
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Leia Organa"
+      },
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Wilhuff Tarkin"
+      }
+    ]
+  },
+  []
+]"###
+    );
 }
-
 
 #[test]
 fn order_desc() {
@@ -45,13 +60,29 @@ fn order_desc() {
 }
 ",
     );
-    println!("{:?}", res);
     assert!(res.is_ok());
-    assert_eq!(json!([{"Heros": [
-        {"heroName": "Wilhuff Tarkin"},
-        {"heroName": "Luke Skywalker"},
-        {"heroName": "Leia Organa"},
-        {"heroName": "Han Solo"},
-        {"heroName": "Darth Vader"},
-    ]}, []]), res.as_json());
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Wilhuff Tarkin"
+      },
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Leia Organa"
+      },
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Darth Vader"
+      }
+    ]
+  },
+  []
+]"###
+    );
 }

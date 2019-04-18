@@ -20,34 +20,40 @@ fn check_alias() {
 }
 ",
     );
-    println!("{:?}", res);
     assert!(res.is_ok());
-    assert_eq!(json!([{"Heros": [
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
       {
-        "name": "Luke Skywalker",
         "HomeWorld": {
           "planet": "Tatooine"
-        }
+        },
+        "name": "Luke Skywalker"
       },
       {
-        "name": "Darth Vader",
         "HomeWorld": {
           "planet": "Tatooine"
-        }
+        },
+        "name": "Darth Vader"
       },
       {
-        "name": "Han Solo",
-        "HomeWorld": null
+        "HomeWorld": null,
+        "name": "Han Solo"
       },
       {
-        "name": "Leia Organa",
         "HomeWorld": {
           "planet": "Alderaan"
-        }
+        },
+        "name": "Leia Organa"
       },
       {
-        "name": "Wilhuff Tarkin",
-        "HomeWorld": null
+        "HomeWorld": null,
+        "name": "Wilhuff Tarkin"
       }
-    ]}, []]), res.as_json());
+    ]
+  },
+  []
+]"###
+    );
 }

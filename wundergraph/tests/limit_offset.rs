@@ -18,12 +18,20 @@ fn limit() {
 ",
     );
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-        {"heroName": "Luke Skywalker"},
-        {"heroName": "Darth Vader"},
-    ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Darth Vader"
+      }
+    ]
+  },
+  []
+]"###
     );
 }
 
@@ -44,13 +52,23 @@ fn offset() {
 ",
     );
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-        {"heroName": "Han Solo"},
-        {"heroName": "Leia Organa"},
-        {"heroName": "Wilhuff Tarkin"}
-    ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Leia Organa"
+      },
+      {
+        "heroName": "Wilhuff Tarkin"
+      }
+    ]
+  },
+  []
+]"###
     );
 }
 
@@ -71,11 +89,19 @@ fn limit_offset() {
 ",
     );
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-        {"heroName": "Han Solo"},
-        {"heroName": "Leia Organa"},
-    ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Leia Organa"
+      }
+    ]
+  },
+  []
+]"###
     );
 }

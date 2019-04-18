@@ -1,13 +1,14 @@
 extern crate diesel;
 extern crate diesel_migrations;
 extern crate juniper;
-#[macro_use]
 extern crate serde_json;
 extern crate wundergraph;
 extern crate wundergraph_bench;
 extern crate wundergraph_example;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate insta;
 
 mod helper;
 

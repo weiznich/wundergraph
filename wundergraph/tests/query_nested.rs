@@ -19,15 +19,29 @@ fn query_filter_eq_not_nullable_child() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Luke Skywalker"},
-            {"heroName": "Darth Vader"},
-            {"heroName": "Han Solo"},
-            {"heroName": "Leia Organa"},
-            {"heroName": "Wilhuff Tarkin"}
-    ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Darth Vader"
+      },
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Leia Organa"
+      },
+      {
+        "heroName": "Wilhuff Tarkin"
+      }
+    ]
+  },
+  []
+]"###
     );
 }
 
@@ -49,12 +63,17 @@ fn query_filter_eq_nullable_child() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Leia Organa"},
-
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Leia Organa"
+      }
+    ]
+  },
+  []
+]"###
     );
 }
 
@@ -76,12 +95,20 @@ fn query_filter_nullable_child_is_null() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Han Solo"},
-            {"heroName": "Wilhuff Tarkin"}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Wilhuff Tarkin"
+      }
+    ]
+  },
+  []
+]"###
     );
 }
 
@@ -104,11 +131,17 @@ fn query_filter_negative_expression() {
 
     assert!(res.is_ok());
     // Only Leia has a home_world that is set and not "Tatooine"
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Leia Organa"},
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Leia Organa"
+      }
+    ]
+  },
+  []
+]"###
     );
 }
 
@@ -128,14 +161,21 @@ fn query_filter_double_nested() {
 }
 "#,
     );
-    println!("{:?}", res);
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Luke Skywalker"},
-            {"heroName": "Darth Vader"}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Darth Vader"
+      }
+    ]
+  },
+  []
+]"###
     );
 }
 
@@ -155,13 +195,20 @@ fn query_filter_double_nested_negative() {
 }
 "#,
     );
-    println!("{:?}", res);
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Luke Skywalker"},
-            {"heroName": "Darth Vader"}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Darth Vader"
+      }
+    ]
+  },
+  []
+]"###
     );
 }

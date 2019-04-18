@@ -19,15 +19,29 @@ fn create_one() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Luke Skywalker"},
-            {"heroName": "Darth Vader"},
-            {"heroName": "Han Solo"},
-            {"heroName": "Leia Organa"},
-            {"heroName": "Wilhuff Tarkin"}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Darth Vader"
+      },
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Leia Organa"
+      },
+      {
+        "heroName": "Wilhuff Tarkin"
+      }
+    ]
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -42,18 +56,22 @@ mutation NewHero {
     }
   }
 }
-"#
+"#,
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"CreateHero": {
-            "heroName": "Obi-Wan Kenobi",
-            "species": {
-                "name": "Human"
-            }
-        }}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "CreateHero": {
+      "heroName": "Obi-Wan Kenobi",
+      "species": {
+        "name": "Human"
+      }
+    }
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -69,19 +87,34 @@ mutation NewHero {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Luke Skywalker"},
-            {"heroName": "Darth Vader"},
-            {"heroName": "Han Solo"},
-            {"heroName": "Leia Organa"},
-            {"heroName": "Wilhuff Tarkin"},
-            {"heroName": "Obi-Wan Kenobi"},
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Darth Vader"
+      },
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Leia Organa"
+      },
+      {
+        "heroName": "Wilhuff Tarkin"
+      },
+      {
+        "heroName": "Obi-Wan Kenobi"
+      }
+    ]
+  },
+  []
+]"###
     );
 }
-
 
 #[test]
 fn create_multiple() {
@@ -101,15 +134,29 @@ fn create_multiple() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Luke Skywalker"},
-            {"heroName": "Darth Vader"},
-            {"heroName": "Han Solo"},
-            {"heroName": "Leia Organa"},
-            {"heroName": "Wilhuff Tarkin"}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Darth Vader"
+      },
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Leia Organa"
+      },
+      {
+        "heroName": "Wilhuff Tarkin"
+      }
+    ]
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -124,26 +171,30 @@ mutation NewHeros {
     }
   }
 }
-"#
+"#,
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"CreateHeros": [
-            {
-                "heroName": "Obi-Wan Kenobi",
-                "species": {
-                    "name": "Human"
-                }
-            },
-            {
-                "heroName": "R2-D2",
-                "species": {
-                    "name": "Robot"
-                }
-            }
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "CreateHeros": [
+      {
+        "heroName": "Obi-Wan Kenobi",
+        "species": {
+          "name": "Human"
+        }
+      },
+      {
+        "heroName": "R2-D2",
+        "species": {
+          "name": "Robot"
+        }
+      }
+    ]
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -159,16 +210,34 @@ mutation NewHeros {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"heroName": "Luke Skywalker"},
-            {"heroName": "Darth Vader"},
-            {"heroName": "Han Solo"},
-            {"heroName": "Leia Organa"},
-            {"heroName": "Wilhuff Tarkin"},
-            {"heroName": "Obi-Wan Kenobi"},
-            {"heroName": "R2-D2"},
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker"
+      },
+      {
+        "heroName": "Darth Vader"
+      },
+      {
+        "heroName": "Han Solo"
+      },
+      {
+        "heroName": "Leia Organa"
+      },
+      {
+        "heroName": "Wilhuff Tarkin"
+      },
+      {
+        "heroName": "Obi-Wan Kenobi"
+      },
+      {
+        "heroName": "R2-D2"
+      }
+    ]
+  },
+  []
+]"###
     );
 }

@@ -21,15 +21,39 @@ fn update_existing() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"id": 1, "heroName": "Luke Skywalker", "hair_color": "blond"},
-            {"id": 2, "heroName": "Darth Vader", "hair_color": null},
-            {"id": 3, "heroName": "Han Solo", "hair_color": null},
-            {"id": 4, "heroName": "Leia Organa", "hair_color": null},
-            {"id": 5, "heroName": "Wilhuff Tarkin", "hair_color": null}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "hair_color": "blond",
+        "heroName": "Luke Skywalker",
+        "id": 1
+      },
+      {
+        "hair_color": null,
+        "heroName": "Darth Vader",
+        "id": 2
+      },
+      {
+        "hair_color": null,
+        "heroName": "Han Solo",
+        "id": 3
+      },
+      {
+        "hair_color": null,
+        "heroName": "Leia Organa",
+        "id": 4
+      },
+      {
+        "hair_color": null,
+        "heroName": "Wilhuff Tarkin",
+        "id": 5
+      }
+    ]
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -42,16 +66,20 @@ mutation updateHero {
     hair_color
   }
 }
-"#
+"#,
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"UpdateHero": {
-            "heroName": "Leia Organa",
-            "hair_color": "dark"
-        }}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "UpdateHero": {
+      "hair_color": "dark",
+      "heroName": "Leia Organa"
+    }
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -69,18 +97,41 @@ mutation updateHero {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"id": 1, "heroName": "Luke Skywalker", "hair_color": "blond"},
-            {"id": 2, "heroName": "Darth Vader", "hair_color": null},
-            {"id": 3, "heroName": "Han Solo", "hair_color": null},
-            {"id": 4, "heroName": "Leia Organa", "hair_color": "dark"},
-            {"id": 5, "heroName": "Wilhuff Tarkin", "hair_color": null}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "hair_color": "blond",
+        "heroName": "Luke Skywalker",
+        "id": 1
+      },
+      {
+        "hair_color": null,
+        "heroName": "Darth Vader",
+        "id": 2
+      },
+      {
+        "hair_color": null,
+        "heroName": "Han Solo",
+        "id": 3
+      },
+      {
+        "hair_color": null,
+        "heroName": "Wilhuff Tarkin",
+        "id": 5
+      },
+      {
+        "hair_color": "dark",
+        "heroName": "Leia Organa",
+        "id": 4
+      }
+    ]
+  },
+  []
+]"###
     );
 }
-
 
 #[test]
 fn update_non_existing() {
@@ -102,15 +153,39 @@ fn update_non_existing() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"id": 1, "heroName": "Luke Skywalker", "hair_color": "blond"},
-            {"id": 2, "heroName": "Darth Vader", "hair_color": null},
-            {"id": 3, "heroName": "Han Solo", "hair_color": null},
-            {"id": 4, "heroName": "Leia Organa", "hair_color": null},
-            {"id": 5, "heroName": "Wilhuff Tarkin", "hair_color": null}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "hair_color": "blond",
+        "heroName": "Luke Skywalker",
+        "id": 1
+      },
+      {
+        "hair_color": null,
+        "heroName": "Darth Vader",
+        "id": 2
+      },
+      {
+        "hair_color": null,
+        "heroName": "Han Solo",
+        "id": 3
+      },
+      {
+        "hair_color": null,
+        "heroName": "Leia Organa",
+        "id": 4
+      },
+      {
+        "hair_color": null,
+        "heroName": "Wilhuff Tarkin",
+        "id": 5
+      }
+    ]
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -123,13 +198,17 @@ mutation updateHero {
     hair_color
   }
 }
-"#
+"#,
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"UpdateHero": null}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "UpdateHero": null
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -147,14 +226,38 @@ mutation updateHero {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"id": 1, "heroName": "Luke Skywalker", "hair_color": "blond"},
-            {"id": 2, "heroName": "Darth Vader", "hair_color": null},
-            {"id": 3, "heroName": "Han Solo", "hair_color": null},
-            {"id": 4, "heroName": "Leia Organa", "hair_color": null},
-            {"id": 5, "heroName": "Wilhuff Tarkin", "hair_color": null}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "hair_color": "blond",
+        "heroName": "Luke Skywalker",
+        "id": 1
+      },
+      {
+        "hair_color": null,
+        "heroName": "Darth Vader",
+        "id": 2
+      },
+      {
+        "hair_color": null,
+        "heroName": "Han Solo",
+        "id": 3
+      },
+      {
+        "hair_color": null,
+        "heroName": "Leia Organa",
+        "id": 4
+      },
+      {
+        "hair_color": null,
+        "heroName": "Wilhuff Tarkin",
+        "id": 5
+      }
+    ]
+  },
+  []
+]"###
     );
 }

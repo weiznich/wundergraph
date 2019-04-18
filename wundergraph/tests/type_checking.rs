@@ -26,51 +26,53 @@ fn test_type_decoration() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{
-            "__type": {
-                "name": "Hero",
-                "description": "A hero from Star Wars",
-                "fields": [
-                    {
-                        "name": "id",
-                        "description": "Internal id of a hero",
-                        "isDeprecated": false,
-                        "deprecationReason": null
-                    },
-                    {
-                        "name": "heroName",
-                        "description": "The name of a hero",
-                        "isDeprecated": false,
-                        "deprecationReason": null
-                    },
-                    {
-                        "name": "species",
-                        "description": "Which species a hero belongs to",
-                        "isDeprecated": false,
-                        "deprecationReason": null
-                    },
-                    {
-                        "name": "home_world",
-                        "description": "On which world a hero was born",
-                        "isDeprecated": false,
-                        "deprecationReason": null
-                    },
-                    {
-                        "name": "appears_in",
-                        "description": null,
-                        "isDeprecated": false,
-                        "deprecationReason": null
-                    },
-                    {
-                        "name": "friends",
-                        "description": "List of friends of the current hero",
-                        "isDeprecated": false,
-                        "deprecationReason": null
-                    }
-                ]
-            }
-        }, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "__type": {
+      "description": "A hero from Star Wars",
+      "fields": [
+        {
+          "deprecationReason": null,
+          "description": "Internal id of a hero",
+          "isDeprecated": false,
+          "name": "id"
+        },
+        {
+          "deprecationReason": null,
+          "description": "The name of a hero",
+          "isDeprecated": false,
+          "name": "heroName"
+        },
+        {
+          "deprecationReason": null,
+          "description": "Which species a hero belongs to",
+          "isDeprecated": false,
+          "name": "species"
+        },
+        {
+          "deprecationReason": null,
+          "description": "On which world a hero was born",
+          "isDeprecated": false,
+          "name": "home_world"
+        },
+        {
+          "deprecationReason": null,
+          "description": "Episodes a hero appears in",
+          "isDeprecated": false,
+          "name": "appears_in"
+        },
+        {
+          "deprecationReason": null,
+          "description": "List of friends of the current hero",
+          "isDeprecated": false,
+          "name": "friends"
+        }
+      ],
+      "name": "Hero"
+    }
+  },
+  []
+]"###
     );
 }

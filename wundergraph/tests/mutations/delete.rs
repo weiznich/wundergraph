@@ -20,15 +20,34 @@ fn delete_existing() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"id": 1, "heroName": "Luke Skywalker"},
-            {"id": 2, "heroName": "Darth Vader"},
-            {"id": 3, "heroName": "Han Solo"},
-            {"id": 4, "heroName": "Leia Organa"},
-            {"id": 5, "heroName": "Wilhuff Tarkin"}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker",
+        "id": 1
+      },
+      {
+        "heroName": "Darth Vader",
+        "id": 2
+      },
+      {
+        "heroName": "Han Solo",
+        "id": 3
+      },
+      {
+        "heroName": "Leia Organa",
+        "id": 4
+      },
+      {
+        "heroName": "Wilhuff Tarkin",
+        "id": 5
+      }
+    ]
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -40,15 +59,19 @@ mutation DeleteHero {
     count
   }
 }
-"#
+"#,
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"DeleteHero": {
-            "count": 1
-        }}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "DeleteHero": {
+      "count": 1
+    }
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -65,14 +88,30 @@ mutation DeleteHero {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"id": 1, "heroName": "Luke Skywalker"},
-            {"id": 2, "heroName": "Darth Vader"},
-            {"id": 3, "heroName": "Han Solo"},
-            {"id": 4, "heroName": "Leia Organa"},
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker",
+        "id": 1
+      },
+      {
+        "heroName": "Darth Vader",
+        "id": 2
+      },
+      {
+        "heroName": "Han Solo",
+        "id": 3
+      },
+      {
+        "heroName": "Leia Organa",
+        "id": 4
+      }
+    ]
+  },
+  []
+]"###
     );
 }
 
@@ -95,15 +134,34 @@ fn delete_non_existing() {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"id": 1, "heroName": "Luke Skywalker"},
-            {"id": 2, "heroName": "Darth Vader"},
-            {"id": 3, "heroName": "Han Solo"},
-            {"id": 4, "heroName": "Leia Organa"},
-            {"id": 5, "heroName": "Wilhuff Tarkin"}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker",
+        "id": 1
+      },
+      {
+        "heroName": "Darth Vader",
+        "id": 2
+      },
+      {
+        "heroName": "Han Solo",
+        "id": 3
+      },
+      {
+        "heroName": "Leia Organa",
+        "id": 4
+      },
+      {
+        "heroName": "Wilhuff Tarkin",
+        "id": 5
+      }
+    ]
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -115,15 +173,19 @@ mutation DeleteHero {
     count
   }
 }
-"#
+"#,
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"DeleteHero": {
-            "count": 0
-        }}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "DeleteHero": {
+      "count": 0
+    }
+  },
+  []
+]"###
     );
 
     let res = execute_query(
@@ -140,14 +202,33 @@ mutation DeleteHero {
     );
 
     assert!(res.is_ok());
-    assert_eq!(
-        json!([{"Heros": [
-            {"id": 1, "heroName": "Luke Skywalker"},
-            {"id": 2, "heroName": "Darth Vader"},
-            {"id": 3, "heroName": "Han Solo"},
-            {"id": 4, "heroName": "Leia Organa"},
-            {"id": 5, "heroName": "Wilhuff Tarkin"}
-        ]}, []]),
-        res.as_json()
+    assert_json_snapshot_matches!(
+        res.as_json(), @r###"[
+  {
+    "Heros": [
+      {
+        "heroName": "Luke Skywalker",
+        "id": 1
+      },
+      {
+        "heroName": "Darth Vader",
+        "id": 2
+      },
+      {
+        "heroName": "Han Solo",
+        "id": 3
+      },
+      {
+        "heroName": "Leia Organa",
+        "id": 4
+      },
+      {
+        "heroName": "Wilhuff Tarkin",
+        "id": 5
+      }
+    ]
+  },
+  []
+]"###
     );
 }
