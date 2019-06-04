@@ -47,12 +47,12 @@ macro_rules! __expand_offset {
 macro_rules! __expand_order {
     ($registry: ident, $entity: ident, $conn: ty, $graphql_struct: ident ) => {
         $crate::__expand_optional_argument!("order",
-                                                Vec<$crate::order::OrderBy<$graphql_struct, <$conn as $crate::diesel::Connection>::Backend, Ctx>>,
+                                                Vec<$crate::query_builder::selection::order::OrderBy<$graphql_struct, <$conn as $crate::diesel::Connection>::Backend, Ctx>>,
                                                 $registry, $entity, &Default::default(), true)
     };
     ($registry: ident, $entity: ident, $conn: ty, $graphql_struct: ident $(,$order: tt)+) => {
         $crate::__expand_optional_argument!("order",
-                                                Vec<$crate::order::OrderBy<$graphql_struct, <$conn as $crate::diesel::Connection>::Backend, Ctx>>,
+                                                Vec<$crate::query_builder::selection::order::OrderBy<$graphql_struct, <$conn as $crate::diesel::Connection>::Backend, Ctx>>,
                                                 $registry, $entity, &Default::default() $(,$order)*)
     };
 }
@@ -62,12 +62,12 @@ macro_rules! __expand_order {
 macro_rules! __expand_filter {
     ($registry: ident, $entity: ident, $conn: ty, $graphql_struct: ident ) => {
         $crate::__expand_optional_argument!("filter",
-                                            $crate::filter::Filter<<$graphql_struct as $crate::LoadingHandler<<$conn as $crate::diesel::Connection>::Backend, Ctx>>::Filter, <$graphql_struct as $crate::diesel::associations::HasTable>::Table>,
+                                            $crate::query_builder::selection::filter::Filter<<$graphql_struct as $crate::query_builder::selection::LoadingHandler<<$conn as $crate::diesel::Connection>::Backend, Ctx>>::Filter, <$graphql_struct as $crate::diesel::associations::HasTable>::Table>,
                                             $registry, $entity, &Default::default(), true)
     };
     ($registry: ident, $entity: ident, $conn: ty, $graphql_struct: ident $(, $filter: tt)+) => {
         $crate::__expand_optional_argument!("filter",
-                                            $crate::filter::Filter<<$graphql_struct as $crate::LoadingHandler<<$conn as $crate::diesel::Connection>::Backend, Ctx>>::Filter, <$graphql_struct as $crate::diesel::associations::HasTable>::Table>,
+                                            $crate::query_builder::selection::filter::Filter<<$graphql_struct as $crate::query_builder::selection::LoadingHandler<<$conn as $crate::diesel::Connection>::Backend, Ctx>>::Filter, <$graphql_struct as $crate::diesel::associations::HasTable>::Table>,
                                             $registry, $entity, &Default::default() $(,$filter)*)
     };
 }
@@ -118,8 +118,8 @@ macro_rules! __impl_graphql_obj_for_query {
         $crate::paste::item!{
             impl<$($lt,)? Ctx, DB, $([<$graphql_struct _table>], [<$graphql_struct _id>],)*> $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
                 for $($query_name)*<$($lt,)? Ctx>
-            where Ctx: $crate::WundergraphContext,
-                  DB: $crate::diesel::backend::Backend + $crate::ApplyOffset + 'static,
+            where Ctx: $crate::context::WundergraphContext,
+                  DB: $crate::diesel::backend::Backend + $crate::query_builder::selection::offset::ApplyOffset + 'static,
                   DB::QueryBuilder: std::default::Default,
                   Ctx::Connection: $crate::diesel::Connection<Backend = DB>,
             $([<$graphql_struct _table>]: $crate::diesel::Table + $crate::diesel::query_dsl::methods::BoxedDsl<
@@ -133,34 +133,35 @@ macro_rules! __impl_graphql_obj_for_query {
               >,
               > +  $crate::diesel::QuerySource<FromClause = $crate::diesel::query_builder::nodes::Identifier<'static>>
               + $crate::diesel::Table + $crate::diesel::associations::HasTable<Table = [<$graphql_struct _table>]> + 'static,)*
-                $($graphql_struct: $crate::LoadingHandler<DB, Ctx> + $crate::diesel::associations::HasTable<Table = [<$graphql_struct _table>]>,)*
-                $(Ctx: $crate::QueryModifier<$graphql_struct, DB>,)*
+                $($graphql_struct: $crate::query_builder::selection::LoadingHandler<DB, Ctx> + $crate::diesel::associations::HasTable<Table = [<$graphql_struct _table>]>,)*
+                $(Ctx: $crate::query_builder::selection::query_modifier::QueryModifier<$graphql_struct, DB>,)*
                 $(<[<$graphql_struct _table>] as $crate::diesel::QuerySource>::FromClause: $crate::diesel::query_builder::QueryFragment<DB>,)*
-                $(<$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::Columns: $crate::query_helper::order::BuildOrder<[<$graphql_struct _table>], DB>,)*
-                $(<$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::Columns: $crate::query_helper::select::BuildSelect<
+                $(<$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Columns: $crate::query_builder::selection::order::BuildOrder<[<$graphql_struct _table>], DB>,)*
+                $(<$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Columns: $crate::query_builder::selection::select::BuildSelect<
                   [<$graphql_struct _table>],
                   DB,
-                  $crate::query_helper::placeholder::SqlTypeOfPlaceholder<
-                  <$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::FieldList,
+                  $crate::query_builder::selection::SqlTypeOfPlaceholder<
+                  <$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList,
                   DB,
-                  <$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
+                  <$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
                   [<$graphql_struct _table>],
                   Ctx
                   >
                   >,)*
-                $(<$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::FieldList: $crate::query_helper::placeholder::WundergraphFieldList<
+                $(<$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList: $crate::query_builder::selection::fields::WundergraphFieldList<
                   DB,
-                  <$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
+                  <$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
                   [<$graphql_struct _table>],
                   Ctx,
                   >,)*
-                $(<$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::FieldList:
+                $(<$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList:
                   $crate::graphql_type::WundergraphGraphqlHelper<$graphql_struct, DB, Ctx> +
-                  $crate::query_helper::placeholder::FieldListExtractor,)*
-                $(DB: $crate::diesel::sql_types::HasSqlType<$crate::query_helper::placeholder::SqlTypeOfPlaceholder<
-                  <$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::FieldList,
+                  $crate::query_builder::selection::order::WundergraphGraphqlOrderHelper<$graphql_struct, DB, Ctx> +
+                  $crate::query_builder::selection::fields::FieldListExtractor,)*
+                $(DB: $crate::diesel::sql_types::HasSqlType<$crate::query_builder::selection::SqlTypeOfPlaceholder<
+                  <$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList,
                   DB,
-                  <$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
+                  <$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
                   [<$graphql_struct _table>],
                   Ctx
                   >>,)*
@@ -171,9 +172,12 @@ macro_rules! __impl_graphql_obj_for_query {
                   >,)*
                 $([<$graphql_struct _table>]::PrimaryKey: $crate::diesel::EqAll<<[<$graphql_struct _id>] as $crate::helper::primary_keys::UnRef<'static>>::UnRefed>,)*
                 $(<[<$graphql_struct _table>]::PrimaryKey as $crate::diesel::EqAll<<[<$graphql_struct _id>] as $crate::helper::primary_keys::UnRef<'static>>::UnRefed>>::Output: $crate::diesel::AppearsOnTable<[<$graphql_struct _table>]> + $crate::diesel::query_builder::QueryFragment<DB> + $crate::diesel::expression::NonAggregate,)*
-                $(<<$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::Filter as $crate::filter::build_filter::BuildFilter<DB>>::Ret: $crate::diesel::AppearsOnTable<[<$graphql_struct _table>]>,)*
-                $(<<$graphql_struct as $crate::LoadingHandler<DB, Ctx>>::FieldList as $crate::query_helper::placeholder::FieldListExtractor>::Out: $crate::graphql_type::WundergraphGraphqlHelper<$graphql_struct, DB, Ctx>,)*
-                $($crate::helper::primary_keys::PrimaryKeyArgument<'static, [<$graphql_struct _table>], (), <&'static $graphql_struct as $crate::diesel::Identifiable>::Id>: $crate::helper::FromLookAheadValue,)*
+                $(<<$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Filter as $crate::query_builder::selection::filter::build_filter::BuildFilter<DB>>::Ret: $crate::diesel::AppearsOnTable<[<$graphql_struct _table>]>,)*
+                $(<<$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList as $crate::query_builder::selection::fields::FieldListExtractor>::Out:
+                  $crate::graphql_type::WundergraphGraphqlHelper<$graphql_struct, DB, Ctx> +
+                  $crate::query_builder::selection::order::WundergraphGraphqlOrderHelper<$graphql_struct, DB, Ctx>,
+            )*
+                $($crate::helper::primary_keys::PrimaryKeyArgument<'static, [<$graphql_struct _table>], (), <&'static $graphql_struct as $crate::diesel::Identifiable>::Id>: $crate::juniper_ext::FromLookAheadValue,)*
             {
                 $($inner)*
             }
@@ -344,7 +348,7 @@ macro_rules! query_object {
                                 {
                                     let mut field = registry.field::<Vec<$crate::graphql_type::GraphqlWrapper<
                                         $graphql_struct,
-                                    <<Ctx as $crate::WundergraphContext>::Connection as $crate::diesel::Connection>::Backend, Ctx>
+                                    <<Ctx as $crate::context::WundergraphContext>::Connection as $crate::diesel::Connection>::Backend, Ctx>
                                         >>(
                                             $crate::__expand_name!($graphql_struct, $(#[$($meta)*],)*),
                                             info
@@ -353,7 +357,7 @@ macro_rules! query_object {
                                     $crate::__expand_filter!(
                                         registry,
                                         field,
-                                        <Ctx as $crate::WundergraphContext>::Connection,
+                                        <Ctx as $crate::context::WundergraphContext>::Connection,
                                         $graphql_struct
                                             $($(, $filter)?)?
                                     );
@@ -362,7 +366,7 @@ macro_rules! query_object {
                                     $crate::__expand_order!(
                                         registry,
                                         field,
-                                        <Ctx as $crate::WundergraphContext>::Connection,
+                                        <Ctx as $crate::context::WundergraphContext>::Connection,
                                         $graphql_struct $($(, $order)?)?);
                                     field
                                 },
@@ -376,7 +380,7 @@ macro_rules! query_object {
                                     <&'static $graphql_struct as $crate::diesel::Identifiable>::Id
                                         >
                                         >("primaryKey", &key_info);
-                                    registry.field::<Option<$crate::graphql_type::GraphqlWrapper<$graphql_struct, <<Ctx as $crate::WundergraphContext>::Connection as $crate::diesel::Connection>::Backend, Ctx>>>(
+                                    registry.field::<Option<$crate::graphql_type::GraphqlWrapper<$graphql_struct, <<Ctx as $crate::context::WundergraphContext>::Connection as $crate::diesel::Connection>::Backend, Ctx>>>(
                                         stringify!($graphql_struct),
                                         info
                                     ).argument(key)
@@ -397,8 +401,8 @@ macro_rules! query_object {
                         _arguments: &$crate::juniper::Arguments<$crate::scalar::WundergraphScalarValue>,
                         executor: &$crate::juniper::Executor<Self::Context, $crate::scalar::WundergraphScalarValue>,
                     ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue> {
-                        use $crate::LoadingHandler;
-                        use $crate::WundergraphContext;
+                        use $crate::query_builder::selection::LoadingHandler;
+                        use $crate::context::WundergraphContext;
                         match field_name {
                             $(
                                 $crate::__expand_name!($graphql_struct, $(#[$($meta)*],)*) => {

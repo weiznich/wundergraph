@@ -1,4 +1,4 @@
-use super::FromLookAheadValue;
+use crate::juniper_ext::FromLookAheadValue;
 use crate::scalar::WundergraphScalarValue;
 use diesel::associations::HasTable;
 use diesel::query_builder::nodes::Identifier;

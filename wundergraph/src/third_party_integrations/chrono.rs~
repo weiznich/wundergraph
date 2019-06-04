@@ -1,0 +1,5 @@
+impl From<chrono_internal::NaiveDateTime> for WundergraphScalarValue {
+    fn from(n: chrono_internal::NaiveDateTime) -> Self {
+        WundergraphScalarValue::Double(n.timestamp() as _)
+    }
+}

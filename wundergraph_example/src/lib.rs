@@ -27,7 +27,6 @@
     clippy::unnecessary_unwrap,
     clippy::unseparated_literal_suffix,
     clippy::wildcard_dependencies
-
 )]
 
 #[macro_use]
@@ -46,16 +45,20 @@ use diesel::{Connection, Identifiable};
 use failure::Error;
 use juniper::LookAheadSelection;
 use std::io::Write;
-use wundergraph::query_helper::{HasMany, HasOne};
+use wundergraph::context::WundergraphContext;
+use wundergraph::query_builder::selection::offset::ApplyOffset;
+use wundergraph::query_builder::selection::query_modifier::QueryModifier;
+use wundergraph::query_builder::selection::{LoadingHandler, BoxedQuery};
+use wundergraph::query_builder::types::{HasMany, HasOne};
 use wundergraph::scalar::WundergraphScalarValue;
-use wundergraph::WundergraphContext;
-use wundergraph::{ApplyOffset, BoxedQuery, LoadingHandler, QueryModifier};
 use wundergraph::{WundergraphEntity, WundergraphValue};
 
 pub mod mutations;
 use self::mutations::*;
 
-#[derive(Debug, Copy, Clone, AsExpression, FromSqlRow, GraphQLEnum, WundergraphValue, Eq, PartialEq, Hash)]
+#[derive(
+    Debug, Copy, Clone, AsExpression, FromSqlRow, GraphQLEnum, WundergraphValue, Eq, PartialEq, Hash,
+)]
 #[sql_type = "SmallInt"]
 pub enum Episode {
     NEWHOPE = 1,

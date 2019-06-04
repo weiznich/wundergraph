@@ -107,7 +107,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         &model.name,
         &quote! {
             use wundergraph::diesel;
-            use wundergraph::LoadingHandler;
+            use wundergraph::query_builder::selection::LoadingHandler;
             use wundergraph::graphql_type::WundergraphGraphqlMapper;
 
             #pg_loading_handler
@@ -151,7 +151,7 @@ fn derive_loading_handler(
                 .find(|(_, f)| *f.sql_name() == *primary_key)
                 .map(|(i, _)| {
                     let index = syn::Ident::new(&format!("TupleIndex{}", i), Span::call_site());
-                    quote!(wundergraph::query_helper::tuple::#index)
+                    quote!(wundergraph::helper::tuple::#index)
                 })
                 .ok_or_else(|| {
                     Span::call_site().error(
@@ -190,7 +190,7 @@ fn derive_loading_handler(
     let filter = model.filter_type().map_or_else(
         || {
             quote! {
-                wundergraph::filter::filter_helper::FilterWrapper<Self, #backend, __Ctx>
+                wundergraph::query_builder::selection::filter::filter_helper::FilterWrapper<Self, #backend, __Ctx>
             }
         },
         |p| quote!(#p),
@@ -199,12 +199,12 @@ fn derive_loading_handler(
     let mut generics = item.generics.clone();
     generics
         .params
-        .push(parse_quote!(__Ctx: wundergraph::WundergraphContext + 'static));
+        .push(parse_quote!(__Ctx: wundergraph::context::WundergraphContext + 'static));
     {
         let where_clause = generics.where_clause.get_or_insert(parse_quote!(where));
         where_clause
             .predicates
-            .push(parse_quote!(<__Ctx as wundergraph::WundergraphContext>::Connection: wundergraph::diesel::Connection<Backend = #backend>));
+            .push(parse_quote!(<__Ctx as wundergraph::context::WundergraphContext>::Connection: wundergraph::diesel::Connection<Backend = #backend>));
     }
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
@@ -220,7 +220,7 @@ fn derive_loading_handler(
                 field: wundergraph::juniper::meta::Field<'r, wundergraph::scalar::WundergraphScalarValue>
             ) -> wundergraph::juniper::meta::Field<'r, wundergraph::scalar::WundergraphScalarValue> {
                 let arg = registry.arg_with_default::<
-                    std::option::Option<wundergraph::filter::Filter<
+                    std::option::Option<wundergraph::query_builder::selection::filter::Filter<
                     <Self as LoadingHandler<#backend, __Ctx>>::Filter,
                 <Self as wundergraph::diesel::associations::HasTable>::Table
                     >>
@@ -282,16 +282,16 @@ fn derive_belongs_to(
     let mut generics = item.generics.clone();
     generics
         .params
-        .push(parse_quote!(__Ctx: wundergraph::WundergraphContext + 'static));
+        .push(parse_quote!(__Ctx: wundergraph::context::WundergraphContext + 'static));
     {
         let where_clause = generics.where_clause.get_or_insert(parse_quote!(where));
         where_clause
             .predicates
-            .push(parse_quote!(<__Ctx as wundergraph::WundergraphContext>::Connection: wundergraph::diesel::Connection<Backend = #backend>));
+            .push(parse_quote!(<__Ctx as wundergraph::context::WundergraphContext>::Connection: wundergraph::diesel::Connection<Backend = #backend>));
     }
     let (impl_generics, _, where_clause) = generics.split_for_impl();
     Ok(quote! {
-        impl#impl_generics wundergraph::query_helper::placeholder::WundergraphBelongsTo<
+        impl#impl_generics wundergraph::query_builder::selection::fields::associations::WundergraphBelongsTo<
             <#other as wundergraph::diesel::associations::HasTable>::Table,
             #backend,
             __Ctx,
@@ -311,7 +311,8 @@ fn derive_belongs_to(
                     std::vec::Vec<juniper::Value<WundergraphScalarValue>>
                 >, wundergraph::failure::Error> {
                     use wundergraph::diesel::{ExpressionMethods, RunQueryDsl, QueryDsl, NullableExpressionMethods};
-                    use wundergraph::{WundergraphContext, LoadingHandler, BoxedQuery};
+                    use wundergraph::context::WundergraphContext;
+                    use wundergraph::query_builder::selection::{LoadingHandler, BoxedQuery};
                     let conn = executor.context().get_connection();
                     let query = <_ as QueryDsl>::filter(
                         <BoxedQuery<Self, #backend, __Ctx> as QueryDsl>::select(
@@ -323,7 +324,7 @@ fn derive_belongs_to(
                        ),
                         #key_column::default().nullable().eq_any(keys),
                     );
-                    <Self as wundergraph::query_helper::placeholder::WundergraphBelongsTo<
+                    <Self as wundergraph::query_builder::selection::fields::associations::WundergraphBelongsTo<
                         <#other as wundergraph::diesel::associations::HasTable>::Table,
                     #backend,
                     __Ctx,
@@ -343,12 +344,12 @@ fn derive_non_table_filter(
     let mut generics = item.generics.clone();
     generics
         .params
-        .push(parse_quote!(__Ctx: wundergraph::WundergraphContext + 'static));
+        .push(parse_quote!(__Ctx: wundergraph::context::WundergraphContext + 'static));
     {
         let where_clause = generics.where_clause.get_or_insert(parse_quote!(where));
         where_clause
             .predicates
-            .push(parse_quote!(<__Ctx as wundergraph::WundergraphContext>::Connection: wundergraph::diesel::Connection<Backend = #backend>));
+            .push(parse_quote!(<__Ctx as wundergraph::context::WundergraphContext>::Connection: wundergraph::diesel::Connection<Backend = #backend>));
     }
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -356,11 +357,12 @@ fn derive_non_table_filter(
     let table = &quote!(#table::table);
     let struct_type = &model.name;
     let filter = &quote! {
-        <wundergraph::filter::filter_helper::FilterConverter<#struct_type #ty_generics, #backend, __Ctx> as wundergraph::filter::filter_helper::CreateFilter>::Filter
+        <wundergraph::query_builder::selection::filter::filter_helper::FilterConverter<
+            #struct_type #ty_generics, #backend, __Ctx> as wundergraph::query_builder::selection::filter::filter_helper::CreateFilter>::Filter
     };
 
     Ok(quote! {
-        impl#impl_generics wundergraph::filter::filter_helper::BuildFilterHelper<
+        impl#impl_generics wundergraph::query_builder::selection::filter::filter_helper::BuildFilterHelper<
             #backend,
             #filter,
             __Ctx,
@@ -368,28 +370,32 @@ fn derive_non_table_filter(
             #where_clause
         {
             type Ret = Box<dyn wundergraph::diesel_ext::BoxableFilter<#table, #backend, SqlType = wundergraph::diesel::sql_types::Bool>>;
-            const FIELD_COUNT: usize = <wundergraph::filter::filter_helper::FilterBuildHelper<#filter, #struct_type #ty_generics, #backend, __Ctx> as wundergraph::filter::inner_filter::InnerFilter>::FIELD_COUNT;
+            const FIELD_COUNT: usize = <wundergraph::query_builder::selection::filter::filter_helper::FilterBuildHelper<
+                #filter,
+                #struct_type  #ty_generics,
+                #backend,
+                __Ctx> as wundergraph::query_builder::selection::filter::inner_filter::InnerFilter>::FIELD_COUNT;
 
             fn into_filter(
                 f: #filter,
             ) -> std::option::Option<Self::Ret> {
-                use wundergraph::filter::build_filter::BuildFilter;
+                use wundergraph::query_builder::selection::filter::build_filter::BuildFilter;
                 BuildFilter::<#backend>::into_filter(f)
             }
 
             fn from_inner_look_ahead(
                 objs: &[(&str, wundergraph::juniper::LookAheadValue<wundergraph::scalar::WundergraphScalarValue>)]
             ) -> #filter {
-                use wundergraph::filter::inner_filter::InnerFilter;
-                wundergraph::filter::filter_helper::FilterBuildHelper::<#filter, #struct_type #ty_generics, #backend, __Ctx>::from_inner_look_ahead(objs).0
+                use wundergraph::query_builder::selection::filter::inner_filter::InnerFilter;
+                wundergraph::query_builder::selection::filter::filter_helper::FilterBuildHelper::<#filter, #struct_type #ty_generics, #backend, __Ctx>::from_inner_look_ahead(objs).0
             }
 
             fn from_inner_input_value(
                 obj: wundergraph::indexmap::IndexMap<&str, &wundergraph::juniper::InputValue<wundergraph::scalar::WundergraphScalarValue>>,
             ) -> std::option::Option<#filter> {
-                use wundergraph::filter::inner_filter::InnerFilter;
+                use wundergraph::query_builder::selection::filter::inner_filter::InnerFilter;
                 std::option::Option::Some(
-                    wundergraph::filter::filter_helper::FilterBuildHelper::<#filter, #struct_type #ty_generics, #backend, __Ctx>::from_inner_input_value(obj)?.0
+                    wundergraph::query_builder::selection::filter::filter_helper::FilterBuildHelper::<#filter, #struct_type #ty_generics, #backend, __Ctx>::from_inner_input_value(obj)?.0
                 )
             }
 
@@ -401,11 +407,11 @@ fn derive_non_table_filter(
             }
 
             fn register_fields<'__r>(
-                _info: &wundergraph::helper::NameBuilder<()>,
+                _info: &wundergraph::juniper_ext::NameBuilder<()>,
                 registry: &mut wundergraph::juniper::Registry<'__r, wundergraph::scalar::WundergraphScalarValue>
             ) -> std::vec::Vec<wundergraph::juniper::meta::Argument<'__r, wundergraph::scalar::WundergraphScalarValue>> {
-                use wundergraph::filter::inner_filter::InnerFilter;
-                wundergraph::filter::filter_helper::FilterBuildHelper::<#filter, #struct_type #ty_generics, #backend, __Ctx>::register_fields(&Default::default(), registry)
+                use wundergraph::query_builder::selection::filter::inner_filter::InnerFilter;
+                wundergraph::query_builder::selection::filter::filter_helper::FilterBuildHelper::<#filter, #struct_type #ty_generics, #backend, __Ctx>::register_fields(&Default::default(), registry)
             }
         }
     })

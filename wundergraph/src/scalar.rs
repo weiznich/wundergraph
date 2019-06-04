@@ -1,5 +1,5 @@
 use juniper::parser::{ParseError, ScalarToken, Token};
-use juniper::{InputValue, ParseScalarResult, ScalarValue, Value};
+use juniper::{graphql_scalar, InputValue, ParseScalarResult, ScalarValue, Value};
 use serde::de;
 use std::fmt;
 
@@ -52,13 +52,6 @@ impl ScalarValue for WundergraphScalarValue {
 impl<'a> From<&'a str> for WundergraphScalarValue {
     fn from(s: &'a str) -> Self {
         WundergraphScalarValue::String(s.into())
-    }
-}
-
-#[cfg(feature = "chrono")]
-impl From<chrono_internal::NaiveDateTime> for WundergraphScalarValue {
-    fn from(n: chrono_internal::NaiveDateTime) -> Self {
-        WundergraphScalarValue::Double(n.timestamp() as _)
     }
 }
 

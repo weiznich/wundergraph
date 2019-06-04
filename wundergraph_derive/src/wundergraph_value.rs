@@ -16,14 +16,13 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         "wundergraph_value",
         &item.ident,
         &quote! {
-            use wundergraph::filter::filter_value::FilterValue;
-            use wundergraph::helper::FromLookAheadValue;
+            use wundergraph::query_builder::selection::filter::filter_value::FilterValue;
+            use wundergraph::query_builder::selection::filter::filter_helper::AsColumnFilter;
+            use wundergraph::query_builder::selection::filter::FilterOption;
             use wundergraph::juniper::{self, LookAheadValue};
+            use wundergraph::juniper_ext::{FromLookAheadValue, Nameable};
             use wundergraph::scalar::WundergraphScalarValue;
-            use wundergraph::helper::Nameable;
-            use wundergraph::filter::filter_helper::AsColumnFilter;
-            use wundergraph::filter::FilterOption;
-            use wundergraph::query_helper::placeholder::{WundergraphValue, PlaceHolder};
+            use wundergraph::query_builder::types::{WundergraphValue, PlaceHolder};
             use wundergraph::diesel::sql_types::Nullable;
 
 

@@ -21,7 +21,7 @@ macro_rules! __expand_register_delete {
             concat!("Delete", stringify!($entity_name)),
             &std::default::Default::default(),
         );
-        let delete = $registry.field::<Option<$crate::mutations::DeletedCount>>(
+        let delete = $registry.field::<Option<$crate::query_builder::mutations::DeletedCount>>(
             concat!("Delete", stringify!($entity_name)),
             $info
         ).argument(delete);
@@ -53,7 +53,7 @@ macro_rules! __expand_resolve_delete {
         ))
     };
     ($entity_name: ident, $executor: ident, $arguments: ident, $($delete:tt)*) => {
-       $crate::mutations::handle_delete::<
+       $crate::query_builder::mutations::handle_delete::<
            DB,
        $($delete)*,
        $entity_name,
@@ -170,7 +170,7 @@ macro_rules! __build_mutation_trait_bounds {
             original = [$($orig)*],
             additional_bound = [$({$($bounds)*},)*
                 {
-                    $($table)*: $crate::mutations::HandleDelete<$entity_name, $($delete)*, DB, Ctx>
+                    $($table)*: $crate::query_builder::mutations::HandleDelete<$entity_name, $($delete)*, DB, Ctx>
                 },
             ],
         }
@@ -249,43 +249,43 @@ macro_rules! __impl_graphql_obj_for_mutation {
         $crate::paste::item! {
             impl<$($lt,)? Ctx, DB, $([<$entity_name _table>],)* $([<$entity_name _id>],)*> $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
                 for $($mutation_name)*<$($lt,)? Ctx>
-            where Ctx: $crate::WundergraphContext,
-                  DB: $crate::diesel::backend::Backend + $crate::ApplyOffset + 'static,
+            where Ctx: $crate::context::WundergraphContext,
+                  DB: $crate::diesel::backend::Backend + $crate::query_builder::selection::offset::ApplyOffset + 'static,
                   DB::QueryBuilder: std::default::Default,
                   Ctx::Connection: $crate::diesel::Connection<Backend = DB>,
-                  $($entity_name: $crate::LoadingHandler<DB, Ctx> + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
+                  $($entity_name: $crate::query_builder::selection::LoadingHandler<DB, Ctx> + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
                   $([<$entity_name _table>]: $crate::diesel::Table + 'static +
                       $crate::diesel::QuerySource<FromClause = $crate::diesel::query_builder::nodes::Identifier<'static>> +  $crate::diesel::Table + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
                   $([<$entity_name _table>]::FromClause: $crate::diesel::query_builder::QueryFragment<DB>,)*
-                  $(<$entity_name as $crate::LoadingHandler<DB, Ctx>>::Columns: $crate::query_helper::order::BuildOrder<[<$entity_name _table>], DB>,)*
-                  $(<$entity_name as $crate::LoadingHandler<DB, Ctx>>::Columns: $crate::query_helper::select::BuildSelect<
+                  $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Columns: $crate::query_builder::selection::order::BuildOrder<[<$entity_name _table>], DB>,)*
+                  $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Columns: $crate::query_builder::selection::select::BuildSelect<
                       [<$entity_name _table>],
                       DB,
-                      $crate::query_helper::placeholder::SqlTypeOfPlaceholder<
-                      <$entity_name as $crate::LoadingHandler<DB, Ctx>>::FieldList,
+                      $crate::query_builder::selection::SqlTypeOfPlaceholder<
+                      <$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList,
                       DB,
-                      <$entity_name as $crate::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
+                      <$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
                       [<$entity_name _table>],
                       Ctx,
                       >
                   >,)*
-                  $(<$entity_name as $crate::LoadingHandler<DB, Ctx>>::FieldList: $crate::query_helper::placeholder::WundergraphFieldList<
+                  $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList: $crate::query_builder::selection::fields::WundergraphFieldList<
                       DB,
-                      <$entity_name as $crate::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
+                      <$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
                       [<$entity_name _table>],
                       Ctx
                   >,)*
-                  $(<$entity_name as $crate::LoadingHandler<DB, Ctx>>::FieldList:
+                  $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList:
                       $crate::graphql_type::WundergraphGraphqlHelper<$entity_name, DB, Ctx> +
-                    $crate::query_helper::placeholder::FieldListExtractor,)*
+                    $crate::query_builder::selection::fields::FieldListExtractor,)*
                   $(&'static $entity_name: $crate::diesel::Identifiable<Id = [<$entity_name _id>]>,)*
                   $([<$entity_name _id>]: std::hash::Hash + std::cmp::Eq + $crate::helper::primary_keys::UnRef<'static>,)*
                   $([<$entity_name _table>]::PrimaryKey: $crate::helper::primary_keys::PrimaryKeyInputObject<
                     <[<$entity_name _id>] as $crate::helper::primary_keys::UnRef<'static>>::UnRefed, ()
                   >,)*
-                  $($([<$entity_name _table>]: $crate::mutations::HandleInsert<$entity_name, $insert, DB, Ctx>,)*)*
-                  $($([<$entity_name _table>]: $crate::mutations::HandleBatchInsert<$entity_name, $insert, DB, Ctx>,)*)*
-                  $($([<$entity_name _table>]: $crate::mutations::HandleUpdate<$entity_name, $update, DB, Ctx>,)*)*
+                  $($([<$entity_name _table>]: $crate::query_builder::mutations::HandleInsert<$entity_name, $insert, DB, Ctx>,)*)*
+                  $($([<$entity_name _table>]: $crate::query_builder::mutations::HandleBatchInsert<$entity_name, $insert, DB, Ctx>,)*)*
+                  $($([<$entity_name _table>]: $crate::query_builder::mutations::HandleUpdate<$entity_name, $update, DB, Ctx>,)*)*
                   $($($bounds)*,)*
 
             {
@@ -509,7 +509,7 @@ macro_rules! mutation_object {
                             $(
                                 $(
                                     concat!("Create", stringify!($entity_name)) => {
-                                        $crate::mutations::handle_insert::<
+                                        $crate::query_builder::mutations::handle_insert::<
                                             DB,
                                         $insert,
                                         $entity_name,
@@ -522,7 +522,7 @@ macro_rules! mutation_object {
                                             )
                                     }
                                     concat!("Create", stringify!($entity_name), "s") => {
-                                        $crate::mutations::handle_batch_insert::<
+                                        $crate::query_builder::mutations::handle_batch_insert::<
                                             DB,
                                         $insert,
                                         $entity_name,
@@ -539,7 +539,7 @@ macro_rules! mutation_object {
                                 $(
                                     $(
                                         concat!("Update", stringify!($entity_name)) => {
-                                            $crate::mutations::handle_update::<
+                                            $crate::query_builder::mutations::handle_update::<
                                                 DB,
                                             $update,
                                             $entity_name,

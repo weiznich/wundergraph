@@ -1,6 +1,6 @@
 #![cfg_attr(feature = "clippy", allow(similar_names))]
 use chrono::NaiveDateTime;
-use wundergraph::query_helper::{HasMany, HasOne};
+use wundergraph::query_builder::types::{HasMany, HasOne};
 use wundergraph::scalar::WundergraphScalarValue;
 
 table! {
