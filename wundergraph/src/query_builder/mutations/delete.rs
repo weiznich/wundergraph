@@ -17,7 +17,7 @@ use juniper::{
 };
 
 #[derive(Debug, GraphQLObject, Clone, Copy)]
-#[graphql(scalar = "WundergraphScalarValue")]
+#[graphql(scalar = WundergraphScalarValue)]
 pub struct DeletedCount {
     pub count: i64,
 }

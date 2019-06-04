@@ -16,7 +16,7 @@ clap = "2.27"
 diesel = "1.2"
 
 [dev-dependencies]
-dotenv = "0.10"
+dotenv = "0.14"
 
 [features]
 default = ["postgres", "sqlite"]

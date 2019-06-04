@@ -29,25 +29,13 @@
     clippy::wildcard_dependencies
 )]
 
-use actix;
-
-#[macro_use]
-extern crate serde;
-use env_logger;
-
-use serde_json;
-use structopt;
-
-use actix::prelude::*;
-use actix_web::{
-    http, middleware, server, App, AsyncResponder, FutureResponse, HttpRequest, HttpResponse, Json,
-    State,
-};
-use futures::future::Future;
+use actix_web::web::{Data, Json};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 
 use diesel::r2d2::{ConnectionManager, Pool};
 use juniper::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
+use serde::{Deserialize, Serialize};
 
 use failure::Error;
 use std::sync::Arc;
@@ -70,64 +58,28 @@ struct Opt {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GraphQLData(GraphQLRequest<WundergraphScalarValue>);
 
-impl Message for GraphQLData {
-    type Result = Result<String, Error>;
-}
-
-#[allow(missing_debug_implementations)]
-pub struct GraphQLExecutor {
+#[derive(Clone)]
+struct AppState {
     schema: Arc<Schema<MyContext<DBConnection>>>,
     pool: Arc<Pool<ConnectionManager<DBConnection>>>,
 }
 
-impl GraphQLExecutor {
-    fn new(
-        schema: Arc<Schema<MyContext<DBConnection>>>,
-        pool: Arc<Pool<ConnectionManager<DBConnection>>>,
-    ) -> Self {
-        Self { schema, pool }
-    }
-}
-
-impl Actor for GraphQLExecutor {
-    type Context = SyncContext<Self>;
-}
-
-impl Handler<GraphQLData> for GraphQLExecutor {
-    type Result = Result<String, Error>;
-
-    fn handle(&mut self, msg: GraphQLData, _: &mut Self::Context) -> Self::Result {
-        let ctx = MyContext::new(self.pool.get()?);
-        let res = msg.0.execute(&self.schema, &ctx);
-        let res_text = serde_json::to_string(&res)?;
-        Ok(res_text)
-    }
-}
-
-struct AppState {
-    executor: Addr<GraphQLExecutor>,
-}
-
-#[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphiql(_req: &HttpRequest<AppState>) -> Result<HttpResponse, Error> {
+fn graphiql() -> Result<HttpResponse, Error> {
     let html = graphiql_source("/graphql");
     Ok(HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
         .body(html))
 }
 
-#[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphql((st, data): (State<AppState>, Json<GraphQLData>)) -> FutureResponse<HttpResponse> {
-    st.executor
-        .send(data.0)
-        .from_err()
-        .and_then(|res| match res {
-            Ok(user) => Ok(HttpResponse::Ok()
-                .content_type("application/json")
-                .body(user)),
-            Err(_) => Ok(HttpResponse::InternalServerError().into()),
-        })
-        .responder()
+fn graphql(
+    Json(GraphQLData(data)): Json<GraphQLData>,
+    st: Data<AppState>,
+) -> Result<HttpResponse, Error> {
+    let ctx = MyContext::new(st.get_ref().pool.get()?);
+    let res = data.execute(&st.get_ref().schema, &ctx);
+    Ok(HttpResponse::Ok()
+        .content_type("application/json")
+        .body(serde_json::to_string(&res)?))
 }
 
 #[allow(clippy::print_stdout)]
@@ -141,45 +93,35 @@ fn main() {
         .build(manager)
         .expect("Failed to init pool");
     ::diesel_migrations::run_pending_migrations(&pool.get().expect("Failed to get db connection"))
-           .expect("Failed to run migrations");
+        .expect("Failed to run migrations");
 
     let query = Query::<MyContext<DBConnection>>::default();
-    //    let mutation = juniper::EmptyMutation::new();
     let mutation = Mutation::<MyContext<DBConnection>>::default();
     let schema = Schema::new(query, mutation);
 
-    let sys = actix::System::new("wundergraph-example");
-
     let schema = Arc::new(schema);
     let pool = Arc::new(pool);
-    let addr = SyncArbiter::start(3, move || {
-        GraphQLExecutor::new(schema.clone(), pool.clone())
-    });
+    let data = AppState { schema, pool };
 
     let url = opt.socket;
 
-    // Start http server
-    server::new(move || {
-        App::with_state(AppState {
-            executor: addr.clone(),
-        })
-        // enable logger
-        .middleware(middleware::Logger::default())
-        .resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
-        .resource("/graphql", |r| r.method(http::Method::GET).with(graphql))
-        .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
-        .default_resource(|r| {
-            r.get().f(|_| {
+    println!("Started http server: http://{}", url);
+
+    HttpServer::new(move || {
+        App::new()
+            .data(data.clone())
+            .wrap(middleware::Logger::default())
+            .route("/graphql", web::get().to(graphql))
+            .route("/graphql", web::post().to(graphql))
+            .route("/graphiql", web::get().to(graphiql))
+            .default_service(web::route().to(|| {
                 HttpResponse::Found()
                     .header("location", "/graphiql")
                     .finish()
-            })
-        })
+            }))
     })
     .bind(&url)
     .expect("Failed to start server")
-    .start();
-
-    println!("Started http server: http://{}", url);
-    let _ = sys.run();
+    .run()
+    .unwrap();
 }

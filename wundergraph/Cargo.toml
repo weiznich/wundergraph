@@ -14,7 +14,7 @@ description = "A GraphQL ORM build on top of diesel"
 [dependencies]
 serde = "1"
 diesel = { version = "1.4", features = ["r2d2"]}
-juniper = "0.11"
+juniper = "0.12"
 indexmap = "1"
 wundergraph_derive = { path = "../wundergraph_derive" }
 uuid_internal = { version = "0.7", optional = true, package = "uuid" }
@@ -30,7 +30,7 @@ diesel_migrations = "1.4.0"
 serde_json = "1"
 criterion = "0.2"
 lazy_static = "1"
-insta = "0.7"
+insta = "0.8"
 
 [features]
 default = ["postgres", "extras"]

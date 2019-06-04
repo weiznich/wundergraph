@@ -29,35 +29,16 @@
     clippy::wildcard_dependencies
 )]
 
-use actix;
-
-use structopt;
-
-#[macro_use]
-extern crate serde;
-
-use num_cpus;
-use serde_json;
-use wundergraph_bench;
-
-use std::sync::Arc;
-
-use actix::{Actor, Addr, Handler, Message, SyncArbiter, SyncContext};
-use actix_web::{
-    http, server, App, AsyncResponder, FutureResponse, HttpRequest, HttpResponse, Json, State,
-};
-
+use actix_web::web::{Data, Json};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
-
 use failure::Error;
-use futures::Future;
-
 use juniper::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
-
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use structopt::StructOpt;
-
 use wundergraph::scalar::WundergraphScalarValue;
 
 #[derive(Debug, StructOpt)]
@@ -73,65 +54,28 @@ struct Opt {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GraphQLData(GraphQLRequest<WundergraphScalarValue>);
 
-impl Message for GraphQLData {
-    type Result = Result<String, Error>;
-}
-
-#[allow(missing_debug_implementations)]
-pub struct GraphQLExecutor {
+#[derive(Clone)]
+struct AppState {
     schema: Arc<wundergraph_bench::Schema<PgConnection>>,
     pool: Arc<Pool<ConnectionManager<PgConnection>>>,
 }
 
-impl GraphQLExecutor {
-    fn new(
-        schema: Arc<wundergraph_bench::Schema<PgConnection>>,
-        pool: Arc<Pool<ConnectionManager<PgConnection>>>,
-    ) -> Self {
-        Self { schema, pool }
-    }
-}
-
-impl Actor for GraphQLExecutor {
-    type Context = SyncContext<Self>;
-}
-
-impl Handler<GraphQLData> for GraphQLExecutor {
-    type Result = Result<String, Error>;
-
-    fn handle(&mut self, msg: GraphQLData, _: &mut Self::Context) -> Self::Result {
-        let ctx = self.pool.get()?;
-        //        let ctx = MyContext::new(self.pool.get()?);
-        let res = msg.0.execute(&*self.schema, &ctx);
-        let res_text = serde_json::to_string(&res)?;
-        Ok(res_text)
-    }
-}
-
-struct AppState {
-    executor: Addr<GraphQLExecutor>,
-}
-
-#[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphiql(_req: &HttpRequest<AppState>) -> Result<HttpResponse, Error> {
+fn graphiql() -> Result<HttpResponse, Error> {
     let html = graphiql_source("/graphql");
     Ok(HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
         .body(html))
 }
 
-#[cfg_attr(feature = "clippy", allow(needless_pass_by_value))]
-fn graphql((st, data): (State<AppState>, Json<GraphQLData>)) -> FutureResponse<HttpResponse> {
-    st.executor
-        .send(data.0)
-        .from_err()
-        .and_then(|res| match res {
-            Ok(user) => Ok(HttpResponse::Ok()
-                .content_type("application/json")
-                .body(user)),
-            Err(_) => Ok(HttpResponse::InternalServerError().into()),
-        })
-        .responder()
+fn graphql(
+    Json(GraphQLData(data)): Json<GraphQLData>,
+    st: Data<AppState>,
+) -> Result<HttpResponse, Error> {
+    let ctx = st.get_ref().pool.get()?;
+    let res = data.execute(&st.get_ref().schema, &ctx);
+    Ok(HttpResponse::Ok()
+        .content_type("application/json")
+        .body(serde_json::to_string(&res)?))
 }
 
 #[allow(clippy::print_stdout)]
@@ -147,36 +91,29 @@ fn main() {
     let mutation = wundergraph_bench::api::Mutation::default();
     let schema = wundergraph_bench::Schema::new(query, mutation);
 
-    let sys = actix::System::new("wundergraph-bench");
-
     let schema = Arc::new(schema);
     let pool = Arc::new(pool);
-    let addr = SyncArbiter::start(num_cpus::get() + 1, move || {
-        GraphQLExecutor::new(schema.clone(), pool.clone())
-    });
+    let data = AppState { schema, pool };
     let url = opt.socket;
 
     // Start http server
-    server::new(move || {
-        App::with_state(AppState {
-            executor: addr.clone(),
-        })
-        .resource("/graphql", |r| r.method(http::Method::POST).with(graphql))
-        .resource("/graphql", |r| r.method(http::Method::GET).with(graphql))
-        .resource("/graphiql", |r| r.method(http::Method::GET).h(graphiql))
-        .default_resource(|r| {
-            r.get().f(|_| {
+    println!("Started http server: http://{}", url);
+
+    HttpServer::new(move || {
+        App::new()
+            .data(data.clone())
+            .wrap(middleware::Logger::default())
+            .route("/graphql", web::get().to(graphql))
+            .route("/graphql", web::post().to(graphql))
+            .route("/graphiql", web::get().to(graphiql))
+            .default_service(web::route().to(|| {
                 HttpResponse::Found()
                     .header("location", "/graphiql")
                     .finish()
-            })
-        })
+            }))
     })
-    .workers(num_cpus::get() * 2)
     .bind(&url)
     .expect("Failed to start server")
-    .start();
-
-    println!("Started http server: http://{}", url);
-    let _ = sys.run();
+    .run()
+    .unwrap();
 }
