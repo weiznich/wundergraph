@@ -38,6 +38,7 @@ use juniper::http::GraphQLRequest;
 use serde::{Deserialize, Serialize};
 
 use failure::Error;
+use std::path::PathBuf;
 use std::sync::Arc;
 use structopt::StructOpt;
 
@@ -82,6 +83,24 @@ fn graphql(
         .body(serde_json::to_string(&res)?))
 }
 
+fn run_migrations(conn: &DBConnection) {
+    let mut migration_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    migration_path.push("migrations");
+    if cfg!(feature = "postgres") {
+        migration_path.push("pg");
+    } else if cfg!(feature = "sqlite") {
+        migration_path.push("sqlite");
+    }
+    let pending_migrations =
+        ::diesel_migrations::mark_migrations_in_directory(conn, &migration_path)
+            .unwrap()
+            .into_iter()
+            .filter_map(|(migration, run)| if run { None } else { Some(migration) });
+
+    ::diesel_migrations::run_migrations(conn, pending_migrations, &mut ::std::io::stdout())
+        .expect("Failed to run migrations");
+}
+
 #[allow(clippy::print_stdout)]
 fn main() {
     let opt = Opt::from_args();
@@ -92,8 +111,8 @@ fn main() {
         .max_size(1)
         .build(manager)
         .expect("Failed to init pool");
-    ::diesel_migrations::run_pending_migrations(&pool.get().expect("Failed to get db connection"))
-        .expect("Failed to run migrations");
+
+    run_migrations(&pool.get().expect("Failed to get db connection"));
 
     let query = Query::<MyContext<DBConnection>>::default();
     let mutation = Mutation::<MyContext<DBConnection>>::default();
