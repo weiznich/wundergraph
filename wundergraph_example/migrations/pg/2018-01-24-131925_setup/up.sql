@@ -20,7 +20,7 @@ CREATE TABLE heros(
 
 CREATE TABLE appears_in(
     hero_id INTEGER NOT NULL REFERENCES heros(id) ON DELETE CASCADE ON UPDATE RESTRICT,
-    episode INTEGER NOT NULL CHECK(episode IN (1,2,3)),
+    episode SMALLINT NOT NULL CHECK(episode IN (1,2,3)),
     PRIMARY KEY(hero_id, episode)
 );
 
