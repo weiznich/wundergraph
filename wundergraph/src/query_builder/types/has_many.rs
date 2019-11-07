@@ -3,6 +3,8 @@ use crate::scalar::WundergraphScalarValue;
 use juniper::{meta, Registry};
 use std::marker::PhantomData;
 
+/// Type used to indicate that a given field references multiple other entities
+/// by a given id
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct HasMany<T, FK>(Vec<T>, PhantomData<FK>);
 

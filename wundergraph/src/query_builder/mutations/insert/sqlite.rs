@@ -52,7 +52,7 @@ where
         conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             let look_ahead = executor.look_ahead();
             insertable.insert_into(T::table()).execute(conn)?;
-            let q = OrderDsl::order(L::build_query(&look_ahead)?, sql::<Bool>("rowid DESC"));
+            let q = OrderDsl::order(L::build_query(&[], &look_ahead)?, sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, 1);
             let items = L::load(&look_ahead, selection, executor, q)?;
 
@@ -101,7 +101,7 @@ where
                 .collect::<Result<Vec<_>, _>>()?
                 .into_iter()
                 .sum();
-            let q = OrderDsl::order(L::build_query(&look_ahead)?, sql::<Bool>("rowid DESC"));
+            let q = OrderDsl::order(L::build_query(&[], &look_ahead)?, sql::<Bool>("rowid DESC"));
             let q = LimitDsl::limit(q, n as i64);
             let items = L::load(&look_ahead, selection, executor, q)?;
             Ok(Value::list(items.into_iter().rev().collect()))

@@ -11,15 +11,15 @@ fn query_filter_eq_not_nullable_child() {
         &ctx,
         r#"
 {
-    Heros(filter: {species: {name: {eq: "Human"}}}) {
+    Heros(filter: {species: {name: {eq: "Human"}}}, order: [{column: id, direction: ASC}]) {
         heroName
     }
 }
 "#,
     );
-
+    println!("{:?}", res);
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -63,7 +63,7 @@ fn query_filter_eq_nullable_child() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -95,7 +95,7 @@ fn query_filter_nullable_child_is_null() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -131,7 +131,7 @@ fn query_filter_negative_expression() {
 
     assert!(res.is_ok());
     // Only Leia has a home_world that is set and not "Tatooine"
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -162,7 +162,7 @@ fn query_filter_double_nested() {
 "#,
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -196,7 +196,7 @@ fn query_filter_double_nested_negative() {
 "#,
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [

@@ -31,7 +31,6 @@
 
 use actix_web::web::{Data, Json};
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
-use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 use failure::Error;
 use juniper::graphiql::graphiql_source;
@@ -56,8 +55,8 @@ pub struct GraphQLData(GraphQLRequest<WundergraphScalarValue>);
 
 #[derive(Clone)]
 struct AppState {
-    schema: Arc<wundergraph_bench::Schema<PgConnection>>,
-    pool: Arc<Pool<ConnectionManager<PgConnection>>>,
+    schema: Arc<wundergraph_bench::Schema<DbConnection>>,
+    pool: Arc<Pool<ConnectionManager<DbConnection>>>,
 }
 
 fn graphiql() -> Result<HttpResponse, Error> {
@@ -78,10 +77,16 @@ fn graphql(
         .body(serde_json::to_string(&res)?))
 }
 
+#[cfg(feature = "postgres")]
+type DbConnection = diesel::pg::PgConnection;
+
+#[cfg(feature = "sqlite")]
+type DbConnection = diesel::sqlite::SqliteConnection;
+
 #[allow(clippy::print_stdout)]
 fn main() {
     let opt = Opt::from_args();
-    let manager = ConnectionManager::<PgConnection>::new(opt.database_url);
+    let manager = ConnectionManager::<DbConnection>::new(opt.database_url);
     let pool = Pool::builder()
         .max_size((num_cpus::get() * 2 * 4) as u32)
         .build(manager)

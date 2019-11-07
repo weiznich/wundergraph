@@ -16,12 +16,15 @@ use juniper::{
     Arguments, ExecutionResult, Executor, FieldError, FromInputValue, GraphQLObject, Value,
 };
 
+/// A struct representing the number of deleted entities
 #[derive(Debug, GraphQLObject, Clone, Copy)]
 #[graphql(scalar = WundergraphScalarValue)]
 pub struct DeletedCount {
+    /// Number of deleted entities
     pub count: i64,
 }
 
+#[doc(hidden)]
 pub fn handle_delete<DB, D, R, Ctx>(
     executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     arguments: &Arguments<'_, WundergraphScalarValue>,
@@ -49,7 +52,17 @@ where
     }
 }
 
+/// A trait to handle delete mutations for database entities
+///
+/// Type parameters:
+/// * `Self`: database table type from diesel
+/// * `L`: Struct implementing `LoadingHandler`
+/// * `K`: Input type used determine which entities should be deleted.
+///    Normally something representing the primary key of the table
+/// * `DB`: Backend type from diesel, so one of `Pg` or `Sqlite`
+/// * `Ctx`: The used wundergraph context type
 pub trait HandleDelete<L, K, DB, Ctx> {
+    /// Actual function called to delete a database entity
     fn handle_delete(
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
         to_delete: &K,
@@ -73,7 +86,7 @@ where
     L::FieldList: WundergraphFieldList<DB, L::PrimaryKeyIndex, T, Ctx>,
     K: 'static,
     &'static K: Identifiable<Table = T>,
-    T::PrimaryKey: EqAll<<&'static K as Identifiable>::Id>,
+    T::PrimaryKey: EqAll<<&'static K as Identifiable>::Id> + Default,
     T::Query: FilterDsl<<T::PrimaryKey as EqAll<<&'static K as Identifiable>::Id>>::Output>,
     Filter<T::Query, <T::PrimaryKey as EqAll<<&'static K as Identifiable>::Id>>::Output>: IntoUpdateTarget<Table = T>,
     <Filter<T::Query, <T::PrimaryKey as EqAll<<&'static K as Identifiable>::Id>>::Output> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>
@@ -88,9 +101,10 @@ where
         conn.transaction(|| -> ExecutionResult<WundergraphScalarValue> {
             // this is safe becuse we do not leak to_delete out of this function
             let static_to_delete: &'static K = unsafe { &*(to_delete as *const K) };
-            let filter = Self::table().primary_key().eq_all(static_to_delete.id());
+            let filter = T::PrimaryKey::default().eq_all(static_to_delete.id());
             let d = ::diesel::delete(FilterDsl::filter(Self::table(), filter));
-            if cfg!(feature = "debug") {
+            #[cfg(feature = "debug")]
+            {
                 log::debug!("{}", ::diesel::debug_query(&d));
             }
 

@@ -7,6 +7,7 @@ use diesel::helper_types;
 use juniper::meta::MetaType;
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 
+/// A filter node representing a negation operation
 #[derive(Debug)]
 pub struct Not<I>(I);
 

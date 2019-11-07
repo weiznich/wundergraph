@@ -3,7 +3,7 @@ use crate::field::Field;
 use crate::model::Model;
 use crate::utils::{inner_of_box_ty, inner_of_option_ty, is_box_ty, wrap_in_dummy_mod};
 use proc_macro2::TokenStream;
-use syn;
+use quote::quote;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let inner_filter = inner_filter(item)?;
@@ -209,7 +209,7 @@ fn impl_build_filter(
     item: &syn::DeriveInput,
     fields: &[TokenStream],
     backend: &TokenStream,
-    table: &syn::Ident,
+    table: &syn::Path,
 ) -> TokenStream {
     let item_name = &item.ident;
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();

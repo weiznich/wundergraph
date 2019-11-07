@@ -18,7 +18,7 @@ fn limit() {
 ",
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -52,7 +52,7 @@ fn offset() {
 ",
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -89,7 +89,7 @@ fn limit_offset() {
 ",
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [

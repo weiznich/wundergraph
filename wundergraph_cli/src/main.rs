@@ -37,6 +37,8 @@ mod database;
 mod infer_schema_internals;
 mod print_schema;
 
+use crate::database::InferConnection;
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "wundergraph")]
 enum Wundergraph {
@@ -52,7 +54,16 @@ fn main() {
         Wundergraph::PrintSchema {
             database_url,
             schema,
-        } => print_schema::print(&database_url, schema.as_ref().map(|s| s as &str))
-            .expect("Failed to infer the schema"),
+        } => {
+            let conn = InferConnection::establish(&database_url).unwrap_or_else(|_| {
+                panic!("Unable to connect to database with url: {}", database_url)
+            });
+            print_schema::print(
+                &conn,
+                schema.as_ref().map(|s| s as &str),
+                &mut std::io::stdout(),
+            )
+        }
+        .expect("Failed to infer the schema"),
     }
 }

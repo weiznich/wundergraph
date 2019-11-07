@@ -1,4 +1,4 @@
-cyclomatic-complexity-threshold = 30
+cognitive-complexity-threshold = 30
 doc-valid-idents = [
   "MiB", "GiB", "TiB", "PiB", "EiB",
   "DirectX", "OpenGL", "TrueType",
@@ -6,5 +6,6 @@ doc-valid-idents = [
   "GitHub",
   "IPv4", "IPv6",
   "JavaScript", "NaN", "OAuth",
-  "SQLite", "PostgreSQL", "MySQL"
+  "SQLite", "PostgreSQL", "MySQL",
+  "GraphQL"
 ]

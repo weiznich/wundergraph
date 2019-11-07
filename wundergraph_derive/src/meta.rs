@@ -1,5 +1,5 @@
 use proc_macro2::{Ident, Span};
-use syn;
+use quote::quote;
 use syn::fold::Fold;
 use syn::spanned::Spanned;
 
@@ -17,11 +17,12 @@ impl MetaItem {
         attrs
             .iter()
             .filter_map(|attr| {
-                attr.interpret_meta()
+                attr.parse_meta()
+                    .ok()
                     .map(|m| FixSpan(attr.pound_token.spans[0]).fold_meta(m))
             })
             .filter_map(|meta| {
-                if meta.name() == name {
+                if meta.path().is_ident(name) {
                     Some(Self { meta })
                 } else {
                     None
@@ -40,7 +41,7 @@ impl MetaItem {
             .iter()
             .filter_map(|a| {
                 let meta = a.parse_meta().expect("Failed to parse meta");
-                if meta.name() == "doc" {
+                if meta.path().is_ident("doc") {
                     if let syn::Meta::NameValue(value) = meta {
                         let s = match value.lit {
                             syn::Lit::Str(v) => v.value(),
@@ -75,7 +76,7 @@ impl MetaItem {
     pub fn empty(name: &str) -> Self {
         Self {
             meta: syn::Meta::List(syn::MetaList {
-                ident: Ident::new(name, Span::call_site()),
+                path: syn::Path::from(Ident::new(name, Span::call_site())),
                 paren_token: syn::token::Paren::default(),
                 nested: syn::punctuated::Punctuated::default(),
             }),
@@ -84,29 +85,34 @@ impl MetaItem {
 
     pub fn nested_item(&self, name: &str) -> Result<Self, Diagnostic> {
         self.nested().and_then(|mut i| {
-            i.find(|n| n.name() == name).ok_or_else(|| {
+            i.find(|n| match n.meta {
+                syn::Meta::NameValue(syn::MetaNameValue { path: ref p, .. })
+                | syn::Meta::Path(ref p) => p.is_ident(name),
+                syn::Meta::List(_) => false,
+            })
+            .ok_or_else(|| {
                 self.span()
                     .error(format!("Missing required option {}", name))
             })
         })
     }
 
-    pub fn expect_ident_value(&self) -> syn::Ident {
+    pub fn expect_ident_value(&self) -> syn::Path {
         self.ident_value().unwrap_or_else(|e| {
             e.emit();
-            self.name()
+            self.name().clone()
         })
     }
 
-    pub fn ident_value(&self) -> Result<syn::Ident, Diagnostic> {
+    pub fn ident_value(&self) -> Result<syn::Path, Diagnostic> {
         let maybe_attr = self.nested().ok().and_then(|mut n| n.nth(0));
-        let maybe_word = maybe_attr.as_ref().and_then(|m| m.word().ok());
+        let maybe_word = maybe_attr.as_ref().and_then(|m| m.path().ok());
         match maybe_word {
             Some(x) => {
                 self.span()
                     .warning(format!(
                         "The form `{0}(value)` is deprecated. Use `{0} = \"value\"` instead",
-                        self.name(),
+                        self.name().get_ident().unwrap(),
                     ))
                     .emit();
                 Ok(x)
@@ -114,18 +120,19 @@ impl MetaItem {
             _ => Ok(syn::Ident::new(
                 &self.str_value()?,
                 self.value_span().resolved_at(Span::call_site()),
-            )),
+            )
+            .into()),
         }
     }
 
-    pub fn word(&self) -> Result<syn::Ident, Diagnostic> {
-        if let syn::Meta::Word(ref x) = self.meta {
+    pub fn path(&self) -> Result<syn::Path, Diagnostic> {
+        if let syn::Meta::Path(ref x) = self.meta {
             Ok(x.clone())
         } else {
             let meta = &self.meta;
             Err(self.span().error(format!(
                 "Expected `{}` found `{}`",
-                self.name(),
+                self.name().get_ident().unwrap(),
                 quote!(#meta)
             )))
         }
@@ -136,14 +143,15 @@ impl MetaItem {
 
         match self.meta {
             List(ref list) => Ok(Nested(list.nested.iter())),
-            _ => Err(self
-                .span()
-                .error(format!("`{0}` must be in the form `{0}(...)`", self.name()))),
+            _ => Err(self.span().error(format!(
+                "`{0}` must be in the form `{0}(...)`",
+                self.name().get_ident().unwrap()
+            ))),
         }
     }
 
-    pub fn name(&self) -> syn::Ident {
-        self.meta.name()
+    pub fn name(&self) -> &syn::Path {
+        self.meta.path()
     }
 
     pub fn str_value(&self) -> Result<String, Diagnostic> {
@@ -157,7 +165,7 @@ impl MetaItem {
             Str(ref s) => Ok(s),
             _ => Err(self.span().error(format!(
                 "`{0}` must be in the form `{0} = \"value\"`",
-                self.name()
+                self.name().get_ident().unwrap()
             ))),
         }
     }
@@ -169,7 +177,7 @@ impl MetaItem {
             NameValue(ref name_value) => Ok(&name_value.lit),
             _ => Err(self.span().error(format!(
                 "`{0}` must be in the form `{0} = \"value\"`",
-                self.name()
+                self.name().get_ident().unwrap()
             ))),
         }
     }
@@ -180,12 +188,15 @@ impl MetaItem {
             Ok(x) => x,
             Err(_) => return,
         };
-        let unrecognized_options =
-            nested.filter(|n| !options.contains(&(&n.name().to_string() as _)));
+        let unrecognized_options = nested
+            .filter(|n| !options.contains(&(&n.name().get_ident().unwrap().to_string() as _)));
         for ignored in unrecognized_options {
             ignored
                 .span()
-                .warning(format!("Option {} has no effect", ignored.name()))
+                .warning(format!(
+                    "Option {} has no effect",
+                    ignored.name().get_ident().unwrap()
+                ))
                 .emit();
         }
     }
@@ -194,7 +205,7 @@ impl MetaItem {
         use syn::Meta::*;
 
         match self.meta {
-            Word(ref ident) => ident.span(),
+            Path(ref path) => path.span(),
             List(ref meta) => meta.nested.span(),
             NameValue(ref meta) => meta.lit.span(),
         }

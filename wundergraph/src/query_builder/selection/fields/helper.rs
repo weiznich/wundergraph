@@ -1,35 +1,71 @@
-use crate::query_builder::types::{HasMany, WundergraphValue};
 use crate::helper::tuple::AppendToTuple;
+use crate::query_builder::types::{HasMany, WundergraphValue};
 
+/// A helper trait to collect extracted graphql fields which represents a
+/// database value
 pub trait TableFieldCollector<T> {
+    /// List of all collected fields
+    ///
+    /// Normally a tuple with `FIELD_COUNT` values
     type Out;
 
+    /// Number of collected fields
     const FIELD_COUNT: usize;
 
+    /// Execute the given callback with the converted global index
+    /// (inside the complete field list) calculated from the passed local index
+    /// (inside this specific field list)
     fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
 }
 
+/// A helper trait to collect extracted graphql fields which not represent a
+/// database value
 pub trait NonTableFieldCollector<T> {
+    /// List of all collected fields
+    ///
+    /// Normally a tuple with `FIELD_COUNT` values
     type Out;
 
+    /// Number of collected fields
     const FIELD_COUNT: usize;
 
+    /// Execute the given callback with the converted global index
+    /// (inside the complete field list) calculated from the passed local index
+    /// (inside this specific field list)
     fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
 }
 
+/// A helper trati to exctrat graphql fields, that represent database values,
+/// from the global field list
 pub trait FieldListExtractor {
+    /// List of extracted fields
+    ///
+    /// Normally a tuple with `FIELD_COUNT` values
     type Out;
 
+    /// Number of extracted fields
     const FIELD_COUNT: usize;
 
+    /// Execute the given callback with the converted global index
+    /// (inside the complete field list) calculated from the passed local index
+    /// (inside this specific field list)
     fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
 }
 
+/// A helper trati to exctrat graphql fields, which don't represent database values,
+/// from the global field list
 pub trait NonTableFieldExtractor {
+    /// List of extracted fields
+    ///
+    /// Normally a tuple with `FIELD_COUNT` values
     type Out;
 
+    /// Number of extracted fields
     const FIELD_COUNT: usize;
 
+    /// Execute the given callback with the converted global index
+    /// (inside the complete field list) calculated from the passed local index
+    /// (inside this specific field list)
     fn map<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
 }
 

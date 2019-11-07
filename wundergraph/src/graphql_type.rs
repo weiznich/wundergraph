@@ -7,6 +7,8 @@ use diesel::QuerySource;
 use juniper::{meta, GraphQLType, Registry};
 use std::marker::PhantomData;
 
+/// A helper type to automatically provide `juniper::GraphQLObject` implementation
+/// for types that also implement `LoadingHandler`
 #[derive(Debug)]
 pub struct GraphqlWrapper<T, DB, Ctx>(T, PhantomData<(DB, Ctx)>);
 
@@ -40,6 +42,7 @@ where
     }
 }
 
+#[doc(hidden)]
 pub trait WundergraphGraphqlMapper<DB, Ctx> {
     type GraphQLType: GraphQLType<WundergraphScalarValue, TypeInfo = ()>;
 
@@ -58,6 +61,7 @@ where
     type GraphQLType = Self;
 }
 
+#[doc(hidden)]
 pub trait WundergraphGraphqlHelper<L, DB, Ctx> {
     fn object_meta<'r, T>(
         names: &[&str],
@@ -105,7 +109,7 @@ macro_rules! wundergraph_graphql_helper_impl {
                         &(),
                         &fields,
                     );
-                    if let Some(doc) = Loading::type_description() {
+                    if let Some(doc) = Loading::TYPE_DESCRIPTION {
                         ty = ty.description(doc);
                     }
                     meta::MetaType::Object(ty)

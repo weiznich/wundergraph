@@ -1,7 +1,5 @@
 #![deny(missing_debug_implementations, missing_copy_implementations)]
 #![warn(
-    clippy::option_unwrap_used,
-    clippy::result_unwrap_used,
     clippy::print_stdout,
     clippy::wrong_pub_self_convention,
     clippy::mut_mut,
@@ -19,7 +17,6 @@
     clippy::map_flatten,
     clippy::match_same_arms,
     clippy::needless_borrow,
-    clippy::needless_pass_by_value,
     clippy::option_map_unwrap_or,
     clippy::option_map_unwrap_or_else,
     clippy::redundant_clone,
@@ -31,16 +28,12 @@
 
 use actix_web::web::{Data, Json};
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
-
 use diesel::r2d2::{ConnectionManager, Pool};
 use juniper::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
 use serde::{Deserialize, Serialize};
-
-use failure::Error;
 use std::sync::Arc;
 use structopt::StructOpt;
-
 use wundergraph::scalar::WundergraphScalarValue;
 use wundergraph_example::mutations::Mutation;
 use wundergraph_example::*;
@@ -64,17 +57,17 @@ struct AppState {
     pool: Arc<Pool<ConnectionManager<DBConnection>>>,
 }
 
-fn graphiql() -> Result<HttpResponse, Error> {
+fn graphiql() -> HttpResponse {
     let html = graphiql_source("/graphql");
-    Ok(HttpResponse::Ok()
+    HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(html))
+        .body(html)
 }
 
 fn graphql(
     Json(GraphQLData(data)): Json<GraphQLData>,
     st: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> Result<HttpResponse, failure::Error> {
     let ctx = MyContext::new(st.get_ref().pool.get()?);
     let res = data.execute(&st.get_ref().schema, &ctx);
     Ok(HttpResponse::Ok()
@@ -92,8 +85,8 @@ fn main() {
         .max_size(1)
         .build(manager)
         .expect("Failed to init pool");
-    ::diesel_migrations::run_pending_migrations(&pool.get().expect("Failed to get db connection"))
-        .expect("Failed to run migrations");
+//    ::diesel_migrations::run_pending_migrations(&pool.get().expect("Failed to get db connection"))
+//        .expect("Failed to run migrations");
 
     let query = Query::<MyContext<DBConnection>>::default();
     let mutation = Mutation::<MyContext<DBConnection>>::default();

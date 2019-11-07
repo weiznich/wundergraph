@@ -1,6 +1,6 @@
 use super::{HandleBatchInsert, HandleInsert};
 use crate::context::WundergraphContext;
-use crate::helper::primary_keys::UnRef;
+use crate::helper::UnRef;
 use crate::query_builder::selection::fields::WundergraphFieldList;
 use crate::query_builder::selection::filter::build_filter::BuildFilter;
 use crate::query_builder::selection::order::BuildOrder;
@@ -36,7 +36,7 @@ where
     L::FieldList: WundergraphFieldList<Pg, L::PrimaryKeyIndex, T, Ctx>,
     I: Insertable<T>,
     I::Values: QueryFragment<Pg> + CanInsertInSingleQuery<Pg>,
-    T::PrimaryKey: QueryFragment<Pg>,
+    T::PrimaryKey: QueryFragment<Pg> + Default,
     T: BoxedDsl<
         'static,
         Pg,
@@ -64,13 +64,14 @@ where
             let look_ahead = executor.look_ahead();
             let inserted = insertable
                 .insert_into(Self::table())
-                .returning(Self::table().primary_key());
-            if cfg!(feature = "debug") {
-                println!("{}", ::diesel::debug_query(&inserted));
+                .returning(T::PrimaryKey::default());
+            #[cfg(feature = "debug")]
+            {
+                log::debug!("{}", ::diesel::debug_query(&inserted));
             }
             let inserted: Id = inserted.get_result(conn)?;
-            let q = L::build_query(&look_ahead)?;
-            let q = FilterDsl::filter(q, Self::table().primary_key().eq_all(inserted));
+            let q = L::build_query(&[], &look_ahead)?;
+            let q = FilterDsl::filter(q, T::PrimaryKey::default().eq_all(inserted));
             let items = L::load(&look_ahead, selection, executor, q)?;
             Ok(items.into_iter().next().unwrap_or(Value::Null))
         })
@@ -93,7 +94,7 @@ where
     L::FieldList: WundergraphFieldList<Pg, L::PrimaryKeyIndex, T, Ctx>,
     Vec<I>: Insertable<T>,
     <Vec<I> as Insertable<T>>::Values: QueryFragment<Pg> + CanInsertInSingleQuery<Pg>,
-    T::PrimaryKey: QueryFragment<Pg>,
+    T::PrimaryKey: QueryFragment<Pg> + Default,
     T: BoxedDsl<
         'static,
         Pg,
@@ -121,14 +122,15 @@ where
             let look_ahead = executor.look_ahead();
             let inserted = batch
                 .insert_into(Self::table())
-                .returning(Self::table().primary_key());
-            if cfg!(feature = "debug") {
-                println!("{}", ::diesel::debug_query(&inserted));
+                .returning(T::PrimaryKey::default());
+            #[cfg(feature = "debug")]
+            {
+                log::debug!("{}", ::diesel::debug_query(&inserted));
             }
             let inserted: Vec<Id> = inserted.get_results(conn)?;
-            let mut q = L::build_query(&look_ahead)?;
+            let mut q = L::build_query(&[], &look_ahead)?;
             for i in inserted {
-                q = OrFilterDsl::or_filter(q, Self::table().primary_key().eq_all(i));
+                q = OrFilterDsl::or_filter(q, T::PrimaryKey::default().eq_all(i));
             }
             let items = L::load(&look_ahead, selection, executor, q)?;
             Ok(Value::list(items))

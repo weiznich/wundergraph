@@ -9,9 +9,9 @@ pub struct Model {
     pub name: syn::Ident,
     fields: Vec<Field>,
     flags: MetaItem,
-    table_name: Option<syn::Ident>,
+    table_name: Option<syn::Path>,
     pub docs: Option<String>,
-    primary_keys: Vec<syn::Ident>,
+    primary_keys: Vec<syn::Path>,
 }
 
 impl Model {
@@ -23,8 +23,13 @@ impl Model {
             .unwrap_or_else(|| MetaItem::empty("wundergraph"));
         let docs = MetaItem::get_docs(&item.attrs);
         let primary_keys = MetaItem::with_name(&item.attrs, "primary_key").map_or_else(
-            || Ok(vec![syn::Ident::new("id", Span::call_site())]),
-            |m| m.nested()?.map(|m| m.word()).collect(),
+            || {
+                Ok(vec![syn::Path::from(syn::Ident::new(
+                    "id",
+                    Span::call_site(),
+                ))])
+            },
+            |m| m.nested()?.map(|m| m.path()).collect(),
         )?;
         Ok(Self {
             name: item.ident.clone(),
@@ -40,7 +45,7 @@ impl Model {
         &self.fields
     }
 
-    pub fn table_type(&self) -> Result<syn::Ident, Diagnostic> {
+    pub fn table_type(&self) -> Result<syn::Path, Diagnostic> {
         self.table_name.clone().map_or_else(
             || {
                 self.flags
@@ -51,7 +56,7 @@ impl Model {
         )
     }
 
-    pub fn primary_key(&self) -> &[syn::Ident] {
+    pub fn primary_key(&self) -> &[syn::Path] {
         &self.primary_keys
     }
 

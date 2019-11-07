@@ -1,3 +1,6 @@
+//! This module contains several helper types used constructing the final
+//! graphql model
+
 pub(crate) mod field_value_resolver;
 mod has_many;
 mod has_one;

@@ -42,16 +42,15 @@ use diesel::r2d2::{ConnectionManager, PooledConnection};
 use diesel::serialize::{self, ToSql};
 use diesel::sql_types::SmallInt;
 use diesel::{Connection, Identifiable};
-use failure::Error;
 use juniper::LookAheadSelection;
 use std::io::Write;
-use wundergraph::context::WundergraphContext;
+use wundergraph::error::Result;
 use wundergraph::query_builder::selection::offset::ApplyOffset;
-use wundergraph::query_builder::selection::query_modifier::QueryModifier;
-use wundergraph::query_builder::selection::{LoadingHandler, BoxedQuery};
-use wundergraph::query_builder::types::{HasMany, HasOne};
+use wundergraph::query_builder::selection::{BoxedQuery, LoadingHandler, QueryModifier};
+use wundergraph::query_builder::types::{HasMany, HasOne, WundergraphValue};
 use wundergraph::scalar::WundergraphScalarValue;
-use wundergraph::{WundergraphEntity, WundergraphValue};
+use wundergraph::WundergraphContext;
+use wundergraph::WundergraphEntity;
 
 pub mod mutations;
 use self::mutations::*;
@@ -240,7 +239,7 @@ where
         &self,
         _select: &LookAheadSelection<'_, WundergraphScalarValue>,
         query: BoxedQuery<'a, T, DB, Self>,
-    ) -> Result<BoxedQuery<'a, T, DB, Self>, Error> {
+    ) -> Result<BoxedQuery<'a, T, DB, Self>> {
         match T::TYPE_NAME {
             //            "Heros" => Err(Error::from_boxed_compat(String::from("Is user").into())),
             _ => Ok(query),

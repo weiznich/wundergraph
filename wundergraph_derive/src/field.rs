@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
-use quote;
-use syn;
+use quote::quote_spanned;
+use syn::parse_quote;
 use syn::spanned::Spanned;
 
 use crate::diagnostic_shim::{Diagnostic, DiagnosticShim};
@@ -11,8 +11,8 @@ use crate::utils::*;
 pub struct Field {
     pub ty: syn::Type,
     rust_name: FieldName,
-    graphql_name: syn::Ident,
-    sql_name: syn::Ident,
+    graphql_name: syn::Path,
+    sql_name: syn::Path,
     pub span: Span,
     pub doc: Option<String>,
     pub deprecated: Option<String>,
@@ -26,7 +26,7 @@ impl Field {
                 let mut x = o.clone();
                 // https://github.com/rust-lang/rust/issues/47983#issuecomment-362817105
                 x.set_span(fix_span(o.span(), Span::call_site()));
-                FieldName::Named(x)
+                FieldName::Named(x.into())
             }
             None => FieldName::Unnamed(syn::Index {
                 index: index as u32,
@@ -51,7 +51,7 @@ impl Field {
             })?;
         let graphql_name = flags
             .nested_item("graphql_name")
-            .and_then(|i| i.ident_value())
+            .and_then(|i|i.ident_value())
             .or_else(|_| {
                 match rust_name {
                 FieldName::Named(ref x) => Ok(x.clone()),
@@ -74,18 +74,18 @@ impl Field {
         &self.rust_name
     }
 
-    pub fn graphql_name(&self) -> &syn::Ident {
+    pub fn graphql_name(&self) -> &syn::Path {
         &self.graphql_name
     }
 
-    pub fn sql_name(&self) -> &syn::Ident {
+    pub fn sql_name(&self) -> &syn::Path {
         &self.sql_name
     }
 }
 
 #[derive(Debug)]
 pub enum FieldName {
-    Named(syn::Ident),
+    Named(syn::Path),
     Unnamed(syn::Index),
 }
 

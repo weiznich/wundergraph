@@ -1,12 +1,12 @@
 use super::{FieldValueResolver, ResolveWundergraphFieldValue};
 use crate::context::WundergraphContext;
+use crate::error::Result;
 use crate::query_builder::selection::fields::WundergraphFieldList;
 use crate::query_builder::selection::filter::build_filter::BuildFilter;
 use crate::query_builder::selection::offset::ApplyOffset;
 use crate::query_builder::selection::{LoadingHandler, SqlTypeOfPlaceholder};
 use crate::query_builder::types::{HasOne, WundergraphValue};
 use crate::scalar::WundergraphScalarValue;
-use diesel::associations::HasTable;
 use diesel::backend::Backend;
 use diesel::dsl::SqlTypeOf;
 use diesel::expression::bound::Bound;
@@ -20,7 +20,6 @@ use diesel::{
     AppearsOnTable, Connection, ExpressionMethods, Identifiable, NullableExpressionMethods,
     QueryDsl, QuerySource, Queryable, Table,
 };
-use failure::Error;
 use juniper::{Executor, Selection};
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -66,7 +65,7 @@ where
             &'b Option<R>,
         >,
     >,
-    <T::Table as Table>::PrimaryKey: QueryFragment<DB>,
+    <T::Table as Table>::PrimaryKey: QueryFragment<DB> + Default,
     SqlTypeOf<<T::Table as Table>::PrimaryKey>: NotNull,
     DB::QueryBuilder: Default,
     Ctx: WundergraphContext,
@@ -85,27 +84,28 @@ where
         _look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         _selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         _executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-    ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
+    ) -> Result<Option<juniper::Value<WundergraphScalarValue>>> {
         self.values.push(value.into());
         Ok(None)
     }
 
     fn finalize(
         self,
+        global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
         look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-    ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
+    ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>> {
         use diesel::RunQueryDsl;
         let conn = executor.context().get_connection();
-        let q = T::build_query(look_ahead)?
+        let q = T::build_query(global_args, look_ahead)?
             .filter(
-                <T::Table as Table>::primary_key(&<T as HasTable>::table())
+                <T::Table as Table>::PrimaryKey::default()
                     .nullable()
                     .eq_any(&self.values),
             )
             .select((
-                <T::Table as Table>::primary_key(&<T as HasTable>::table()).nullable(),
+                <T::Table as Table>::PrimaryKey::default().nullable(),
                 T::get_select(look_ahead)?,
             ));
 
@@ -116,8 +116,14 @@ where
 
         let (keys, placeholder): (Vec<_>, Vec<_>) = items.into_iter().unzip();
 
-        let values =
-            T::FieldList::resolve(placeholder, look_ahead, selection, T::FIELD_NAMES, executor)?;
+        let values = T::FieldList::resolve(
+            placeholder,
+            global_args,
+            look_ahead,
+            selection,
+            T::FIELD_NAMES,
+            executor,
+        )?;
 
         let map = keys
             .into_iter()
@@ -154,19 +160,24 @@ where
         _look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         _selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         _executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-    ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
+    ) -> Result<Option<juniper::Value<WundergraphScalarValue>>> {
         self.values.push(value.into());
         Ok(None)
     }
 
     fn finalize(
         self,
+        global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
         look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-    ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
+    ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>> {
         <Self as FieldValueResolver<HasOne<R, T>, DB, Ctx>>::finalize(
-            self, look_ahead, selection, executor,
+            self,
+            global_args,
+            look_ahead,
+            selection,
+            executor,
         )
     }
 }

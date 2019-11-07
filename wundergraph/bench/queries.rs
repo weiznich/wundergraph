@@ -28,10 +28,10 @@ use wundergraph_bench::Schema;
 const QUERIES: &[&str] = &[
     r#"query albums_tracks_genre_all {
   Albums {
-    id
+    album_id
     title
     tracks {
-      id
+      track_id
       name
       genre_id {
         name
@@ -40,11 +40,11 @@ const QUERIES: &[&str] = &[
   }
 }"#,
     r#"query albums_tracks_genre_some {
-  Albums(filter: {artist_id: {id: {eq: 127}}}) {
-    id
+  Albums(filter: {artist_id: {artist_id: {eq: 127}}}) {
+    album_id
     title
     tracks {
-      id
+      track_id
       name
       genre_id {
         name
@@ -54,7 +54,7 @@ const QUERIES: &[&str] = &[
 }"#,
     r#"query tracks_media_all {
   Tracks {
-    id
+    track_id
     name
     media_type_id {
       name
@@ -63,10 +63,10 @@ const QUERIES: &[&str] = &[
 }"#,
     r#"query tracks_media_some {
   Tracks (filter: {composer: {eq: "Kurt Cobain"}}){
-    id
+    track_id
     name
     album_id {
-      id
+      album_id
       title
     }
     media_type_id {
@@ -77,13 +77,13 @@ const QUERIES: &[&str] = &[
         r#"query artists_collaboration {
       Artists(filter: {albums: {tracks: {composer: {eq: "Ludwig van Beethoven"}}}})
       {
-        id
+        artist_id
         name
       }
     }"#,
     r#"query artistByArtistId {
-  Artists(filter: {id: {eq:3}}) {
-    id
+  Artists(filter: {artist_id: {eq:3}}) {
+    artist_id
     name
   }
 }"#,
@@ -95,7 +95,6 @@ fn query(
     ctx: &PooledConnection<ConnectionManager<DbConnection>>,
 ) {
     let res = helper::execute_query(&schema, &ctx, query);
-
     assert!(res.is_ok());
 }
 

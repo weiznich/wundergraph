@@ -14,20 +14,20 @@ edition = "2018"
 [dependencies]
 diesel = { version = "1.4.0", features = ["r2d2", "sqlite", "chrono", "postgres"]}
 diesel_migrations = "1.4.0"
-juniper = "0.12"
-actix-web = "1.0.0-rc"
+juniper = "0.14"
+actix-web = "1.0.0"
 indexmap = "1"
-failure = "0.1"
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"
-env_logger = "0.6"
-structopt = "0.2"
+env_logger = "0.7"
+structopt = "0.3"
+failure = "0.1"
 
 [dependencies.wundergraph]
 path = "../wundergraph"
 default-features = false
 
 [features]
-default = ["sqlite", "wundergraph/debug"]
+default = ["postgres", "wundergraph/debug"]
 sqlite = ["wundergraph/sqlite"]
 postgres = ["wundergraph/postgres"]

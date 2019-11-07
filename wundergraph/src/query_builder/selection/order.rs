@@ -1,5 +1,6 @@
 use super::offset::ApplyOffset;
 use super::LoadingHandler;
+use crate::error::Result;
 use crate::error::WundergraphError;
 use crate::juniper_ext::FromLookAheadValue;
 use crate::query_builder::selection::fields::FieldListExtractor;
@@ -8,34 +9,42 @@ use diesel::backend::Backend;
 use diesel::expression::NonAggregate;
 use diesel::query_builder::QueryFragment;
 use diesel::{BoxableExpression, Column, ExpressionMethods, QuerySource, SelectableExpression};
-use failure::Error;
 use juniper::{
     meta, FromInputValue, GraphQLEnum, GraphQLType, LookAheadValue, Registry, ToInputValue,
 };
 use std::marker::PhantomData;
 
+/// Build a order clause out of a given GraphQL request
 pub trait BuildOrder<T, DB> {
+    /// Uses the given order argument to build a valid order
+    /// clause for the wundergraph entity `T`
     fn build_order(
         order: &[LookAheadValue<'_, WundergraphScalarValue>],
         field_name: impl Fn(usize) -> &'static str,
-    ) -> Result<Vec<Box<dyn BoxableExpression<T, DB, SqlType = ()>>>, Error>;
+    ) -> Result<Vec<Box<dyn BoxableExpression<T, DB, SqlType = ()>>>>;
 }
 
+/// Defines how to order the result of an query
 #[derive(Debug, GraphQLEnum, Copy, Clone, PartialEq)]
 pub enum Order {
+    /// Order elements in ascending order
     Asc,
+    /// Order elements in descending order
     Desc,
 }
 
 #[derive(Debug)]
 pub struct OrderBy<L, DB, Ctx>(PhantomData<(L, DB, Ctx)>);
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct OrderByTypeInfo<L, DB, Ctx>(String, PhantomData<(L, DB, Ctx)>);
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct GraphqlOrderWrapper<T, DB, Ctx>(PhantomData<(T, DB, Ctx)>);
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct OrderTypeInfo<L, DB, Ctx>(String, PhantomData<(L, DB, Ctx)>);
 
@@ -171,6 +180,7 @@ impl<T, DB, Ctx> FromInputValue<WundergraphScalarValue> for GraphqlOrderWrapper<
     }
 }
 
+#[doc(hidden)]
 pub trait WundergraphGraphqlOrderHelper<L, DB, Ctx> {
     fn order_meta<'r, T, F>(
         info: &T::TypeInfo,
@@ -199,7 +209,7 @@ macro_rules! impl_order_traits {
                 fn build_order(
                     fields: &[LookAheadValue<'_, WundergraphScalarValue>],
                     field_name: impl Fn(usize) -> &'static str,
-                ) -> Result<Vec<Box<dyn BoxableExpression<Table, DB, SqlType = ()>>>, Error>
+                ) -> Result<Vec<Box<dyn BoxableExpression<Table, DB, SqlType = ()>>>>
                 {
                     let mut ret = Vec::with_capacity(fields.len());
                     for f in fields {
@@ -224,17 +234,15 @@ macro_rules! impl_order_traits {
                                 }
                             )+
                                 x => {
-                                    return Err(Error::from(
-                                        WundergraphError::UnknownDatabaseField{
+                                    return Err(WundergraphError::UnknownDatabaseField {
                                             name: x.to_owned()
-                                        }
-                                    ))
+                                        });
                                 }
                             }
                         } else {
-                            return Err(Error::from(
+                            return Err(
                                 WundergraphError::CouldNotBuildFilterArgument
-                            ));
+                            );
                         }
                     }
                     Ok(ret)

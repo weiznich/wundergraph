@@ -2,7 +2,8 @@ use crate::diagnostic_shim::*;
 use crate::meta::MetaItem;
 use crate::utils::wrap_in_dummy_mod;
 use proc_macro2::{Span, TokenStream};
-use syn;
+use quote::quote;
+use syn::parse_quote;
 use syn::spanned::Spanned;
 
 pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
@@ -16,8 +17,8 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         "wundergraph_value",
         &item.ident,
         &quote! {
-            use wundergraph::query_builder::selection::filter::filter_value::FilterValue;
-            use wundergraph::query_builder::selection::filter::filter_helper::AsColumnFilter;
+            use wundergraph::query_builder::selection::filter::FilterValue;
+            use wundergraph::query_builder::selection::filter::AsColumnFilter;
             use wundergraph::query_builder::selection::filter::FilterOption;
             use wundergraph::juniper::{self, LookAheadValue};
             use wundergraph::juniper_ext::{FromLookAheadValue, Nameable};

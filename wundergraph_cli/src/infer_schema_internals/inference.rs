@@ -15,18 +15,16 @@ static RESERVED_NAMES: &[&str] = &[
 ];
 
 pub fn load_table_names(
-    database_url: &str,
+    connection: &InferConnection,
     schema_name: Option<&str>,
 ) -> Result<Vec<TableName>, Box<dyn Error>> {
-    let connection = r#try!(InferConnection::establish(database_url));
-
     match connection {
         #[cfg(feature = "sqlite")]
-        InferConnection::Sqlite(c) => super::sqlite::load_table_names(&c, schema_name),
+        InferConnection::Sqlite(c) => super::sqlite::load_table_names(c, schema_name),
         #[cfg(feature = "postgres")]
-        InferConnection::Pg(c) => super::information_schema::load_table_names(&c, schema_name),
+        InferConnection::Pg(c) => super::information_schema::load_table_names(c, schema_name),
         #[cfg(feature = "mysql")]
-        InferConnection::Mysql(c) => super::information_schema::load_table_names(&c, schema_name),
+        InferConnection::Mysql(c) => super::information_schema::load_table_names(c, schema_name),
     }
 }
 
@@ -67,42 +65,41 @@ pub(crate) fn get_primary_keys(
     conn: &InferConnection,
     table: &TableName,
 ) -> Result<Vec<String>, Box<dyn Error>> {
-    let primary_keys: Vec<String> = r#try!(match *conn {
+    let primary_keys: Vec<String> = match *conn {
         #[cfg(feature = "sqlite")]
         InferConnection::Sqlite(ref c) => super::sqlite::get_primary_keys(c, table),
         #[cfg(feature = "postgres")]
         InferConnection::Pg(ref c) => super::information_schema::get_primary_keys(c, table),
         #[cfg(feature = "mysql")]
         InferConnection::Mysql(ref c) => super::information_schema::get_primary_keys(c, table),
-    });
+    }?;
     if primary_keys.is_empty() {
         Err(format!(
             "Diesel only supports tables with primary keys. \
              Table {} has no primary key",
             table.to_string()
-        ).into())
+        )
+        .into())
     } else {
         Ok(primary_keys)
     }
 }
 
 pub fn load_foreign_key_constraints(
-    database_url: &str,
+    connection: &InferConnection,
     schema_name: Option<&str>,
 ) -> Result<Vec<ForeignKeyConstraint>, Box<dyn Error>> {
-    let connection = r#try!(InferConnection::establish(database_url));
-
     let constraints = match connection {
         #[cfg(feature = "sqlite")]
-        InferConnection::Sqlite(c) => super::sqlite::load_foreign_key_constraints(&c, schema_name),
+        InferConnection::Sqlite(c) => super::sqlite::load_foreign_key_constraints(c, schema_name),
         #[cfg(feature = "postgres")]
         InferConnection::Pg(c) => {
-            super::information_schema::load_foreign_key_constraints(&c, schema_name)
+            super::information_schema::load_foreign_key_constraints(c, schema_name)
                 .map_err(Into::into)
         }
         #[cfg(feature = "mysql")]
         InferConnection::Mysql(c) => {
-            super::mysql::load_foreign_key_constraints(&c, schema_name).map_err(Into::into)
+            super::mysql::load_foreign_key_constraints(c, schema_name).map_err(Into::into)
         }
     };
 
@@ -122,8 +119,10 @@ macro_rules! doc_comment {
     };
 }
 
-pub fn load_table_data(database_url: &str, name: TableName) -> Result<TableData, Box<dyn Error>> {
-    let connection = InferConnection::establish(database_url)?;
+pub fn load_table_data(
+    connection: &InferConnection,
+    name: TableName,
+) -> Result<TableData, Box<dyn Error>> {
     let docs = doc_comment!(
         "Representation of the `{}` table.
 
@@ -139,7 +138,8 @@ pub fn load_table_data(database_url: &str, name: TableName) -> Result<TableData,
             } else {
                 k.clone()
             }
-        }).collect();
+        })
+        .collect();
 
     let column_data = get_column_information(&connection, &name)?
         .into_iter()
@@ -167,7 +167,8 @@ pub fn load_table_data(database_url: &str, name: TableName) -> Result<TableData,
                 rust_name,
                 has_default: c.has_default,
             })
-        }).collect::<Result<_, Box<dyn Error>>>()?;
+        })
+        .collect::<Result<_, Box<dyn Error>>>()?;
 
     Ok(TableData {
         name,

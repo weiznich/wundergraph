@@ -2,7 +2,7 @@
 //! filter entities. The main entry point is the [`Filter`](struct.Filter.html) struct
 
 use crate::diesel_ext::BoxableFilter;
-use crate::juniper_ext::{NameBuilder, Nameable, FromLookAheadValue};
+use crate::juniper_ext::{FromLookAheadValue, NameBuilder, Nameable};
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::query_builder::{BoxedSelectStatement, QueryFragment};
@@ -20,24 +20,39 @@ use juniper::Registry;
 use juniper::ToInputValue;
 use std::marker::PhantomData;
 
-pub mod build_filter;
+pub(crate) mod build_filter;
 pub mod collector;
 mod common_filter;
-pub mod filter_helper;
-pub mod filter_value;
-pub mod inner_filter;
+pub(crate) mod filter_helper;
+pub(crate) mod filter_value;
+pub(crate) mod inner_filter;
 mod not;
 mod nullable_filter;
 mod reference_filter;
 mod string_filter;
 
-use self::build_filter::BuildFilter;
 use self::collector::{AndCollector, FilterCollector, OrCollector};
-use self::inner_filter::InnerFilter;
+use self::not::Not;
 
+#[doc(inline)]
+pub use self::build_filter::BuildFilter;
+#[doc(inline)]
 pub use self::common_filter::FilterOption;
-pub use self::not::Not;
-pub use self::reference_filter::ReferenceFilter;
+#[doc(inline)]
+pub use self::filter_helper::AsColumnFilter;
+#[doc(inline)]
+pub use self::filter_helper::AsNonColumnFilter;
+#[doc(inline)]
+pub use self::filter_helper::BuildFilterHelper;
+#[doc(inline)]
+pub use self::filter_helper::CreateFilter;
+#[doc(inline)]
+pub use self::filter_value::FilterValue;
+#[doc(inline)]
+pub use self::inner_filter::InnerFilter;
+
+#[doc(hidden)]
+pub use self::filter_helper::*;
 
 /// Main filter struct
 ///

@@ -6,19 +6,29 @@ use diesel::{Column, Identifiable, QuerySource, Table};
 use indexmap::IndexMap;
 use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
+use std::borrow::Cow;
 use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::marker::PhantomData;
 
+/// A helper trait to transform a tuple of references into a
+/// tuple of owned values at type system level
 pub trait UnRef<'a> {
+    /// The owned tuple type
     type UnRefed;
 
+    /// Do the inverse transformation, which means construct a tuple of references
+    /// from a given reference to a owned tuple
     fn as_ref(v: &'a Self::UnRefed) -> Self;
 }
 
+/// A helper trait to transform a tuple of references into a tuple of
+/// owned values at type system level
 pub trait UnRefClone {
+    /// The owned tuple type
     type UnRefed;
 
+    /// Construct a owned tuple from a tuple of references
     fn make_owned(self) -> Self::UnRefed;
 }
 
@@ -73,6 +83,7 @@ macro_rules! unref_impl {
 
 __diesel_for_each_tuple!(unref_impl);
 
+#[doc(hidden)]
 pub trait PrimaryKeyInputObject<V, I> {
     fn register<'r>(
         registry: &mut Registry<'r, WundergraphScalarValue>,
@@ -187,24 +198,78 @@ macro_rules! primary_key_input_object_impl {
 
 __diesel_for_each_tuple!(primary_key_input_object_impl);
 
+/// A marker trait for query sources with a name
+pub trait NamedTable {
+    /// The name of query source
+    fn name(&self) -> Cow<'static, str>;
+}
+
+impl NamedTable for Identifier<'static> {
+    fn name(&self) -> Cow<'static, str> {
+        Cow::Borrowed(self.0)
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl NamedTable
+    for diesel::query_builder::nodes::InfixNode<'static, Identifier<'static>, Identifier<'static>>
+{
+    fn name(&self) -> Cow<'static, str> {
+        // Find a better way …
+        Cow::Owned(
+            diesel::debug_query::<diesel::pg::Pg, _>(self)
+                .to_string()
+                .split("--")
+                .next()
+                .unwrap()
+                .replace("\"", "")
+                .replace(".", "_"),
+        )
+    }
+}
+
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct PrimaryKeyInfo<T>(String, PhantomData<T>);
 
 impl<T> Default for PrimaryKeyInfo<T>
 where
-    T: QuerySource<FromClause = Identifier<'static>> + HasTable<Table = T> + Table,
+    T: HasTable<Table = T> + Table + QuerySource,
+    T::FromClause: NamedTable,
 {
     fn default() -> Self {
-        let table = T::table();
-        Self(format!("{}Key", table.from_clause().0), PhantomData)
+        Self(
+            format!(
+                "{}PrimaryKey",
+                uppercase_first_letter(T::table().from_clause().name())
+            ),
+            PhantomData,
+        )
     }
 }
 
+fn uppercase_first_letter<'a>(s: Cow<'a, str>) -> Cow<'a, str> {
+    if s.chars().next().map(|c| c.is_uppercase()).unwrap_or(true) {
+        Cow::Owned(s.trim().to_string())
+    } else {
+        Cow::Owned(
+            s.chars()
+                .take(1)
+                .flat_map(|c| c.to_uppercase())
+                .chain(s.chars().skip(1))
+                .collect::<String>()
+                .trim()
+                .to_string(),
+        )
+    }
+}
+
+#[doc(hidden)]
 pub struct PrimaryKeyArgument<'a, T, Ctx, V>
 where
     V: UnRef<'a>,
 {
-    pub values: V::UnRefed,
+    pub(crate) values: V::UnRefed,
     _marker: PhantomData<(&'a T, Ctx)>,
 }
 

@@ -18,6 +18,7 @@ use diesel::sql_types::HasSqlType;
 use diesel::{AppearsOnTable, Connection, EqAll, QuerySource, RunQueryDsl, Table};
 use juniper::{Arguments, ExecutionResult, Executor, FieldError, FromInputValue, Selection, Value};
 
+#[doc(hidden)]
 pub fn handle_update<DB, U, R, Ctx>(
     selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
     executor: &Executor<'_, Ctx, WundergraphScalarValue>,
@@ -46,7 +47,20 @@ where
     }
 }
 
+/// A trait to handle update mutations for database entities
+///
+/// Type parameters:
+/// * `Self`: database table type for diesel
+/// * `U`: data to update into the table. This type should contain information
+///    which entry should be updated (by containing the primary key) and the data
+///    that should be actually updated
+/// * `DB`: Backend type from diesel, so one of `Pg` or `Sqlite`
+/// * `Ctx`: The used wundergraph context type
+///
+/// A default implementation is provided for all types implementing
+/// `diesel::AsChangeset`
 pub trait HandleUpdate<L, U, DB, Ctx> {
+    /// Actual function called to insert a database entity
     fn handle_update(
         selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<Ctx, WundergraphScalarValue>,
@@ -84,7 +98,7 @@ where
     Find<T, <&'static U as Identifiable>::Id>: IntoUpdateTarget<Table = T>,
     <Find<T, <&'static U as Identifiable>::Id> as IntoUpdateTarget>::WhereClause: QueryFragment<DB>,
     <&'static U as AsChangeset>::Changeset: QueryFragment<DB>,
-    T::PrimaryKey: EqAll<<&'static U as Identifiable>::Id>,
+    T::PrimaryKey: EqAll<<&'static U as Identifiable>::Id> + Default,
     DB: HasSqlType<SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T, Ctx>>,
     <T::PrimaryKey as EqAll<<&'static U as Identifiable>::Id>>::Output:
         AppearsOnTable<T> + NonAggregate + QueryFragment<DB>,
@@ -103,13 +117,14 @@ where
             // lifetime
             let change_set: &'static U = unsafe { &*(change_set as *const U) };
             let u = ::diesel::update(change_set).set(change_set);
-            if cfg!(feature = "debug") {
+            #[cfg(feature = "debug")]
+            {
                 log::debug!("{}", ::diesel::debug_query(&u));
             }
             u.execute(conn)?;
             let f = FilterDsl::filter(
-                L::build_query(&look_ahead)?,
-                Self::table().primary_key().eq_all(change_set.id()),
+                L::build_query(&[], &look_ahead)?,
+                T::PrimaryKey::default().eq_all(change_set.id()),
             );
             // We use identifiable so there should only be one element affected by this query
             let q = LimitDsl::limit(f, 1);

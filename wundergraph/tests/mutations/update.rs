@@ -21,7 +21,7 @@ fn update_existing() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -70,7 +70,7 @@ mutation updateHero {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "UpdateHero": {
@@ -87,7 +87,7 @@ mutation updateHero {
         &ctx,
         "
 {
-    Heros {
+    Heros(order: [{column: id, direction: ASC}]) {
         id
         heroName
         hair_color
@@ -97,39 +97,41 @@ mutation updateHero {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
-        res.as_json(), @r###"[
-  {
-    "Heros": [
+    assert_json_snapshot!(
+        res.as_json(), @r###"
+    [
       {
-        "hair_color": "blond",
-        "heroName": "Luke Skywalker",
-        "id": 1
+        "Heros": [
+          {
+            "hair_color": "blond",
+            "heroName": "Luke Skywalker",
+            "id": 1
+          },
+          {
+            "hair_color": null,
+            "heroName": "Darth Vader",
+            "id": 2
+          },
+          {
+            "hair_color": null,
+            "heroName": "Han Solo",
+            "id": 3
+          },
+          {
+            "hair_color": "dark",
+            "heroName": "Leia Organa",
+            "id": 4
+          },
+          {
+            "hair_color": null,
+            "heroName": "Wilhuff Tarkin",
+            "id": 5
+          }
+        ]
       },
-      {
-        "hair_color": null,
-        "heroName": "Darth Vader",
-        "id": 2
-      },
-      {
-        "hair_color": null,
-        "heroName": "Han Solo",
-        "id": 3
-      },
-      {
-        "hair_color": null,
-        "heroName": "Wilhuff Tarkin",
-        "id": 5
-      },
-      {
-        "hair_color": "dark",
-        "heroName": "Leia Organa",
-        "id": 4
-      }
+      []
     ]
-  },
-  []
-]"###
+    "###
     );
 }
 
@@ -153,7 +155,7 @@ fn update_non_existing() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -202,7 +204,7 @@ mutation updateHero {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "UpdateHero": null
@@ -226,7 +228,7 @@ mutation updateHero {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [

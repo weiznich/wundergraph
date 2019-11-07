@@ -1,5 +1,4 @@
 PRAGMA foreign_keys=OFF;
-BEGIN TRANSACTION;
 CREATE TABLE IF NOT EXISTS "albums"
 (
     [AlbumId] INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -15764,6 +15763,5 @@ CREATE INDEX [IFK_PlaylistTrackTrackId] ON "playlist_track" ([TrackId]);
 CREATE INDEX [IFK_TrackAlbumId] ON "tracks" ([AlbumId]);
 CREATE INDEX [IFK_TrackGenreId] ON "tracks" ([GenreId]);
 CREATE INDEX [IFK_TrackMediaTypeId] ON "tracks" ([MediaTypeId]);
-COMMIT;
 
 PRAGMA foreign_keys=OFF;

@@ -1,19 +1,25 @@
+use crate::error::Result;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
 use crate::error::WundergraphError;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
 use crate::juniper_ext::FromLookAheadValue;
 use crate::query_builder::selection::{BoxedQuery, LoadingHandler};
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 #[cfg(feature = "sqlite")]
 use diesel::query_dsl::methods::LimitDsl;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
 use diesel::query_dsl::methods::OffsetDsl;
-use failure::Error;
 use juniper::LookAheadSelection;
 
+/// A trait abstracting over the different behaviour of limit/offset
+/// clauses in different database systems
 pub trait ApplyOffset: Backend {
+    /// Add a offset clause to the given query if requested
     fn apply_offset<'a, L, Ctx>(
         query: BoxedQuery<'a, L, Self, Ctx>,
         select: &LookAheadSelection<'_, WundergraphScalarValue>,
-    ) -> Result<BoxedQuery<'a, L, Self, Ctx>, Error>
+    ) -> Result<BoxedQuery<'a, L, Self, Ctx>>
     where
         L: LoadingHandler<Self, Ctx>;
 }
@@ -23,7 +29,7 @@ impl ApplyOffset for diesel::pg::Pg {
     fn apply_offset<'a, L, Ctx>(
         query: BoxedQuery<'a, L, Self, Ctx>,
         select: &LookAheadSelection<'_, WundergraphScalarValue>,
-    ) -> Result<BoxedQuery<'a, L, Self, Ctx>, Error>
+    ) -> Result<BoxedQuery<'a, L, Self, Ctx>>
     where
         L: LoadingHandler<Self, Ctx>,
     {
@@ -45,7 +51,7 @@ impl ApplyOffset for diesel::sqlite::Sqlite {
     fn apply_offset<'a, L, Ctx>(
         query: BoxedQuery<'a, L, Self, Ctx>,
         select: &LookAheadSelection<'_, WundergraphScalarValue>,
-    ) -> Result<BoxedQuery<'a, L, Self, Ctx>, Error>
+    ) -> Result<BoxedQuery<'a, L, Self, Ctx>>
     where
         L: LoadingHandler<Self, Ctx>,
     {

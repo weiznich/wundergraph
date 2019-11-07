@@ -9,7 +9,9 @@ use diesel::AppearsOnTable;
 mod and;
 mod or;
 
+#[doc(inline)]
 pub use self::and::AndCollector;
+#[doc(inline)]
 pub use self::or::OrCollector;
 
 /// A trait indicating that some type could collect multiple separate filter

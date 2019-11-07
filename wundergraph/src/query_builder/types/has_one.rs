@@ -1,5 +1,5 @@
 use crate::graphql_type::WundergraphGraphqlMapper;
-use crate::helper::primary_keys::*;
+use crate::helper::*;
 use crate::juniper_ext::FromLookAheadValue;
 use crate::scalar::WundergraphScalarValue;
 use diesel::associations::Identifiable;
@@ -12,10 +12,14 @@ use juniper::meta::Argument;
 use juniper::{FromInputValue, InputValue, LookAheadValue, Registry};
 use std::hash::{Hash, Hasher};
 
+/// Type used to indicate that a given field references a single
+/// other entity by id
 #[derive(Debug, Clone)]
-pub enum HasOne<R, T> {
-    Id(R),
-    Item(T),
+pub enum HasOne<K, O> {
+    #[doc(hidden)]
+    Id(K),
+    #[doc(hidden)]
+    Item(O),
 }
 
 impl<R, T> PartialEq for HasOne<R, T>
@@ -150,24 +154,6 @@ where
     fn build(row: Self::Row) -> Self {
         let row = Queryable::build(row);
         HasOne::Id(row)
-    }
-}
-
-impl<R, T> HasOne<R, T> {
-    pub fn expect_item(&self, msg: &str) -> &T {
-        if let HasOne::Item(ref i) = *self {
-            i
-        } else {
-            panic!("{}", msg)
-        }
-    }
-
-    pub fn expect_id(&self, msg: &str) -> &R {
-        if let HasOne::Id(ref i) = *self {
-            i
-        } else {
-            panic!("{}", msg)
-        }
     }
 }
 

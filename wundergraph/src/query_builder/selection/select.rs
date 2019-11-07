@@ -1,20 +1,23 @@
 use crate::diesel_ext::MaybeNull;
+use crate::error::Result;
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::expression::NonAggregate;
 use diesel::query_builder::QueryFragment;
 use diesel::{BoxableExpression, Column, Expression, ExpressionMethods, SelectableExpression};
-use failure::Error;
 use juniper::LookAheadMethods;
 use juniper::LookAheadSelection;
 
+/// A helper trait to construct a select clause for a given table out of
+/// a given graphql request
 pub trait BuildSelect<T: ::diesel::Table, DB, ST> {
+    /// Construct the select clause out of a given graphql request
     fn build_select(
         select: &LookAheadSelection<'_, WundergraphScalarValue>,
         get_field_name: impl Fn(usize) -> &'static str,
         is_primary_key_index: impl Fn(usize) -> bool,
         should_select_primary_key: bool,
-    ) -> Result<Box<dyn BoxableExpression<T, DB, SqlType = ST>>, Error>;
+    ) -> Result<Box<dyn BoxableExpression<T, DB, SqlType = ST>>>;
 }
 
 macro_rules! impl_select_builder {
@@ -44,9 +47,7 @@ macro_rules! impl_select_builder {
                     Table,
                 DB,
                 SqlType = ($(<MaybeNull<$T> as Expression>::SqlType,)+)>,
-                >,
-                Error,
-                >
+                >>
                 {
                     Ok(Box::new((
                         $(

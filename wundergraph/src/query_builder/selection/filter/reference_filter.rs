@@ -19,6 +19,7 @@ use juniper::meta::{Argument, MetaType};
 use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry, ToInputValue};
 use std::marker::PhantomData;
 
+/// A filter node representing a filter over a referenced entity
 #[derive(Debug)]
 pub struct ReferenceFilter<C, I, C2, A = ()> {
     inner: Box<I>,

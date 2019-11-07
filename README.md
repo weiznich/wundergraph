@@ -12,6 +12,8 @@ Wundergraph provides a platform to easily expose your database through a GraphQL
 For a full example application see the [example project](https://github.com/weiznich/wundergraph/tree/master/wundergraph_example/src/main.rs)
 
 ```rust
+#[macro_use] extern crate diesel;
+use wundergraph::prelude::*;
 
 table! {
     heros {
@@ -29,10 +31,8 @@ table! {
     }
 }
 
-#[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
-         WundergraphFilter, Associations)]
+#[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "heros"]
-#[belongs_to(Species, foreign_key = "species)]
 pub struct Hero {
     id: i32,
     name: String,
@@ -40,23 +40,20 @@ pub struct Hero {
     species: HasOne<i32, Species>,
 }
 
-#[derive(Clone, Debug, Identifiable, Hash, Eq, PartialEq, Queryable, WundergraphEntity,
-         WundergraphFilter)]
+#[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "species"]
 pub struct Species {
     id: i32,
     name: String,
-    #[diesel(default)]
-    heros: HasMany<Hero>,
+    heros: HasMany<Hero, heros::species>,
 }
 
-wundergraph_query_object!{
+wundergraph::query_object!{
     Query {
-        Heros(Hero, filter = HeroFilter),
-        Species(Species, filter = SpeciesFilter),
-    }
+       Hero,
+       Species,
+   }
 }
-
 ```
 
 ## License

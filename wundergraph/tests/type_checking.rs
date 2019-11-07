@@ -26,7 +26,7 @@ fn test_type_decoration() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "__type": {

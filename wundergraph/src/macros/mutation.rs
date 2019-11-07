@@ -7,7 +7,7 @@ macro_rules! __expand_register_delete {
     ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, true) => {
         $crate::__expand_register_delete!(
             $entity_name, $registry, $fields, $info,
-            $crate::helper::primary_keys::PrimaryKeyArgument<
+            $crate::helper::PrimaryKeyArgument<
                 'static,
                  <$entity_name as $crate::diesel::associations::HasTable>::Table,
                  Ctx,
@@ -38,7 +38,7 @@ macro_rules! __expand_resolve_delete {
     ($entity_name: ident, $executor: ident, $arguments: ident, true) => {
         $crate::__expand_resolve_delete!(
             $entity_name, $executor, $arguments,
-            $crate::helper::primary_keys::PrimaryKeyArgument<
+            $crate::helper::PrimaryKeyArgument<
                 'static,
                  <$entity_name as $crate::diesel::associations::HasTable>::Table,
                  Ctx,
@@ -125,7 +125,7 @@ macro_rules! __build_mutation_trait_bounds {
         $crate::__build_mutation_trait_bounds! {
             input = {
                 $entity_name(
-                    delete = {$crate::helper::primary_keys::PrimaryKeyArgument<
+                    delete = {$crate::helper::PrimaryKeyArgument<
                         'static,
                         <$entity_name as $crate::diesel::associations::HasTable>::Table,
                         Ctx,
@@ -207,7 +207,6 @@ macro_rules! __build_mutation_trait_bounds {
     };
 }
 
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __impl_graphql_obj_for_mutation {
@@ -249,14 +248,14 @@ macro_rules! __impl_graphql_obj_for_mutation {
         $crate::paste::item! {
             impl<$($lt,)? Ctx, DB, $([<$entity_name _table>],)* $([<$entity_name _id>],)*> $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
                 for $($mutation_name)*<$($lt,)? Ctx>
-            where Ctx: $crate::context::WundergraphContext,
+            where Ctx: $crate::WundergraphContext,
                   DB: $crate::diesel::backend::Backend + $crate::query_builder::selection::offset::ApplyOffset + 'static,
                   DB::QueryBuilder: std::default::Default,
                   Ctx::Connection: $crate::diesel::Connection<Backend = DB>,
                   $($entity_name: $crate::query_builder::selection::LoadingHandler<DB, Ctx> + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
                   $([<$entity_name _table>]: $crate::diesel::Table + 'static +
-                      $crate::diesel::QuerySource<FromClause = $crate::diesel::query_builder::nodes::Identifier<'static>> +  $crate::diesel::Table + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
-                  $([<$entity_name _table>]::FromClause: $crate::diesel::query_builder::QueryFragment<DB>,)*
+                      $crate::diesel::QuerySource +  $crate::diesel::Table + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
+                  $([<$entity_name _table>]::FromClause: $crate::helper::NamedTable + $crate::diesel::query_builder::QueryFragment<DB>,)*
                   $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Columns: $crate::query_builder::selection::order::BuildOrder<[<$entity_name _table>], DB>,)*
                   $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Columns: $crate::query_builder::selection::select::BuildSelect<
                       [<$entity_name _table>],
@@ -279,9 +278,9 @@ macro_rules! __impl_graphql_obj_for_mutation {
                       $crate::graphql_type::WundergraphGraphqlHelper<$entity_name, DB, Ctx> +
                     $crate::query_builder::selection::fields::FieldListExtractor,)*
                   $(&'static $entity_name: $crate::diesel::Identifiable<Id = [<$entity_name _id>]>,)*
-                  $([<$entity_name _id>]: std::hash::Hash + std::cmp::Eq + $crate::helper::primary_keys::UnRef<'static>,)*
-                  $([<$entity_name _table>]::PrimaryKey: $crate::helper::primary_keys::PrimaryKeyInputObject<
-                    <[<$entity_name _id>] as $crate::helper::primary_keys::UnRef<'static>>::UnRefed, ()
+                  $([<$entity_name _id>]: std::hash::Hash + std::cmp::Eq + $crate::helper::UnRef<'static>,)*
+                  $([<$entity_name _table>]::PrimaryKey: $crate::helper::PrimaryKeyInputObject<
+                    <[<$entity_name _id>] as $crate::helper::UnRef<'static>>::UnRefed, ()
                   >,)*
                   $($([<$entity_name _table>]: $crate::query_builder::mutations::HandleInsert<$entity_name, $insert, DB, Ctx>,)*)*
                   $($([<$entity_name _table>]: $crate::query_builder::mutations::HandleBatchInsert<$entity_name, $insert, DB, Ctx>,)*)*
@@ -295,17 +294,105 @@ macro_rules! __impl_graphql_obj_for_mutation {
     }
 }
 
+/// Macro to register the main mutation object
+///
+/// # Annotated example
+/// ```
+/// ##[macro_use]
+/// # extern crate diesel;
+/// # use wundergraph::WundergraphEntity;
+/// # use wundergraph::query_builder::types::HasOne;
+/// # use juniper::GraphQLInputObject;
+/// #
+/// # table! {
+/// #     species {
+/// #         id -> Integer,
+/// #         name -> Text,
+/// #     }
+/// # }
+/// #
+/// # table! {
+/// #     heros {
+/// #          id -> Integer,
+/// #          name -> Text,
+/// #          species -> Integer,
+/// #     }
+/// # }
+/// #
+/// # #[derive(WundergraphEntity, Identifiable)]
+/// # #[table_name = "species"]
+/// # pub struct Species {
+/// #     id: i32,
+/// #     name: String,
+/// # }
+/// #
+/// #[derive(WundergraphEntity, Identifiable)]
+/// #[table_name = "heros"]
+/// pub struct Hero {
+///     id: i32,
+///     name: String,
+///     species: HasOne<i32, Species>,
+/// }
+///
+/// #[derive(Insertable, GraphQLInputObject)]
+/// #[table_name = "heros"]
+/// pub struct NewHero {
+///     name: String,
+///     species: i32,
+/// }
+///
+/// #[derive(AsChangeset, Identifiable, GraphQLInputObject)]
+/// #[table_name = "heros"]
+/// pub struct HeroChangeset {
+///     id: i32,
+///     name: String,
+/// }
+///
+/// wundergraph::mutation_object! {
+///     // The main mutation object. The provided name
+///     // maps directly to the generated struct which
+///     // could be used then as juniper GraphQL struct
+///
+///     /// An optional doc comment describing the main mutation object
+///     /// Rendered as GraphQL description
+///     Mutation {
+///         // Register mutations for a wundergraph GraphQL entity
+///         //
+///         // Each field has a set of optional arguments:
+///         //  * insert: Specifies the used insert handler.
+///         //    Possible values: a struct implementing
+///         //    HandleInsert and HandleBatchInsert
+///         //    If not set or set to false no insert mutation is
+///         //    generated for the current entity
+///         //  * update: Specifies the used update handler.
+///         //    Possible values: a struct implementing
+///         //    HandleUpdate.
+///         //    If not set or set to false no update mutation is
+///         //    generated for the current entity
+///         //  * delete: Specifies the used delete handler.
+///         //    Possible values: true, false or a struct implementing
+///         //    HandleDelete.
+///         //    If not set or set to fals no delete mutation is generatet,
+///         //    if set to true a default delete mutation based on the
+///         //    primary keys is generated
+///         //
+///         // At least on of the arguments in required
+///         Hero(insert = NewHero, update = HeroChangeset, delete = true)
+///     }
+/// }
+/// # fn main() {}
+/// ```
 #[macro_export]
 macro_rules! mutation_object {
     (
         $(#[doc = $glob_doc: expr])*
         $mutation_name: ident {
             $($entity_name: ident (
-                $(insert = $insert: ident,)?
-                $(update = $update: ident,)?
-                $(delete = $($delete: tt)*)?
+                $(insert = $insert: ident)?
+                $($(,)? update = $update: ident)?
+                $($(,)? delete = $($delete: tt)*)?
                 $(,)?
-            ),)*
+            )$(,)?)*
         }
     ) => {
         // Use Arc<Mutex<C>> here to force make this Sync

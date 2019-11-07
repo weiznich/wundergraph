@@ -18,7 +18,7 @@ fn simple_query_single_field() {
 ",
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -62,7 +62,7 @@ fn simple_query_multiple_field() {
 ",
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -113,7 +113,7 @@ fn simple_query_nested() {
 ",
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [

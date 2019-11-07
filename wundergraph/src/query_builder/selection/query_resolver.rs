@@ -1,24 +1,37 @@
+use crate::error::Result;
 use crate::query_builder::selection::fields::WundergraphFieldList;
 use crate::query_builder::types::field_value_resolver::FieldValueResolver;
 use crate::query_builder::types::placeholder::{PlaceHolder, PlaceHolderMarker};
 use crate::query_builder::types::{ResolveWundergraphFieldValue, WundergraphValue};
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
-use failure::Error;
 use juniper::parser::SourcePosition;
 use juniper::{Executor, LookAheadMethods, Selection};
 
+/// A helper type that represents the diesel sql type of a given entity
+///
+/// # Generic Arguments:
+/// * `T`: Wundergraph field list (Just a tuple of all table field types
+///    of an entity)
+/// * `DB`: Diesel backend
+/// * `K`: Type level index of the primary key
+/// * `Table`: Table this field list corresponds to
+/// * `Ctx`: Used wundergraph context type
 pub type SqlTypeOfPlaceholder<T, DB, K, Table, Ctx> =
     <T as WundergraphFieldList<DB, K, Table, Ctx>>::SqlType;
 
+/// An internal trait used to resolve a wundergraph field list into
+/// an actuall GraphQL query response
 pub trait WundergraphResolvePlaceHolderList<R, DB: Backend, Ctx> {
+    /// Resolve the field list by executing the required sql queries
     fn resolve(
         self,
         get_name: impl Fn(usize) -> &'static str,
+        global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
         look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<Ctx, WundergraphScalarValue>,
-    ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>, Error>;
+    ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>>;
 }
 
 macro_rules! wundergraph_add_one_to_index {
@@ -47,10 +60,11 @@ macro_rules! wundergraph_value_impl {
                 fn resolve(
                     self,
                     get_name: impl Fn(usize) -> &'static str,
+                    global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
                     look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
                     selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
                     executor: &Executor<Ctx, WundergraphScalarValue>,
-                ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>, Error>
+                ) -> Result<Vec<juniper::Object<WundergraphScalarValue>>>
                 {
                     let mut resolver = (
                         $(<$ST as ResolveWundergraphFieldValue<Back, Ctx>>::Resolver::new(self.len()),)*
@@ -74,12 +88,12 @@ macro_rules! wundergraph_value_impl {
                             }
                         )*
                         Ok(())
-                    }).collect::<Result<Vec<_>, Error>>()?;
+                    }).collect::<Result<Vec<_>>>()?;
                     $(
                         if let Some(look_ahead) = look_ahead.select_child(get_name($idx)) {
                             let (name, alias, pos, selection) = get_sub_field(get_name($idx), selection);
                             let executor = executor.field_sub_executor(alias, name, pos, selection);
-                            let vals = resolver.$idx.finalize(look_ahead, selection, &executor)?;
+                            let vals = resolver.$idx.finalize(global_args, look_ahead, selection, &executor)?;
                             if let Some(vals) = vals {
                                 for (obj, val) in objs.iter_mut().zip(vals.into_iter()) {
                                     obj.add_field(alias, val);

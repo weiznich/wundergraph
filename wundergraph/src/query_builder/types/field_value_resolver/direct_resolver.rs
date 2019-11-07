@@ -1,9 +1,9 @@
 use super::{FieldValueResolver, ResolveWundergraphFieldValue};
+use crate::error::Result;
 use crate::error::WundergraphError;
 use crate::query_builder::types::WundergraphValue;
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
-use failure::Error;
 use juniper::{Executor, FromContext, GraphQLType, Selection};
 
 #[derive(Debug, Clone, Copy)]
@@ -26,7 +26,7 @@ where
         _look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         _selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-    ) -> Result<Option<juniper::Value<WundergraphScalarValue>>, Error> {
+    ) -> Result<Option<juniper::Value<WundergraphScalarValue>>> {
         Ok(Some(
             executor
                 .resolve_with_ctx(&(), &value.into().expect("Loading should not fail"))
@@ -36,10 +36,11 @@ where
 
     fn finalize(
         self,
+        _global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
         _look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         _selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         _executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-    ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>, Error> {
+    ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>> {
         Ok(None)
     }
 }

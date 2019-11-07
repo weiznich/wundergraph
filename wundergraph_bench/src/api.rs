@@ -4,8 +4,8 @@ use wundergraph::query_builder::types::{HasMany, HasOne};
 use wundergraph::scalar::WundergraphScalarValue;
 
 table! {
-    actors (id) {
-        id -> Int4,
+    actors (actor_id) {
+        actor_id -> Int4,
         first_name -> Varchar,
         last_name -> Varchar,
         last_update -> Timestamp,
@@ -13,31 +13,31 @@ table! {
 }
 
 table! {
-    albums (id) {
-        id -> Int4,
+    albums (album_id) {
+        album_id -> Int4,
         title -> Varchar,
         artist_id -> Int4,
     }
 }
 
 table! {
-    artists (id) {
-        id -> Int4,
+    artists (artist_id) {
+        artist_id -> Int4,
         name -> Nullable<Varchar>,
     }
 }
 
 table! {
-    categories (id) {
-        id -> Int4,
+    categories (category_id) {
+        category_id -> Int4,
         name -> Varchar,
         last_update -> Timestamp,
     }
 }
 
 table! {
-    customers (id) {
-        id -> Int4,
+    customers (customer_id) {
+        customer_id -> Int4,
         first_name -> Varchar,
         last_name -> Varchar,
         company -> Nullable<Varchar>,
@@ -54,8 +54,8 @@ table! {
 }
 
 table! {
-    employees (id) {
-        id -> Int4,
+    employees (employee_id) {
+        employee_id -> Int4,
         last_name -> Varchar,
         first_name -> Varchar,
         title -> Nullable<Varchar>,
@@ -83,8 +83,8 @@ table! {
 
 #[cfg(feature = "postgres")]
 table! {
-    films (id) {
-        id -> Int4,
+    films (film_id) {
+        film_id -> Int4,
         title -> Varchar,
         description -> Nullable<Text>,
         release_year -> Nullable<Int4>,
@@ -102,8 +102,8 @@ table! {
 
 #[cfg(feature = "sqlite")]
 table! {
-    films (id) {
-        id -> Int4,
+    films (film_id) {
+        film_id -> Int4,
         title -> Varchar,
         description -> Nullable<Text>,
         release_year -> Nullable<Int4>,
@@ -120,15 +120,15 @@ table! {
 }
 
 table! {
-    genres (id) {
-        id -> Int4,
+    genres (genre_id) {
+        genre_id -> Int4,
         name -> Nullable<Varchar>,
     }
 }
 
 table! {
-    invoice_lines (id) {
-        id -> Int4,
+    invoice_lines (invoice_line_id) {
+        invoice_line_id -> Int4,
         invoice_id -> Int4,
         track_id -> Int4,
 //        unit_price -> Numeric,
@@ -137,8 +137,8 @@ table! {
 }
 
 table! {
-    invoices (id) {
-        id -> Int4,
+    invoices (invoice_id) {
+        invoice_id -> Int4,
         customer_id -> Int4,
         invoice_date -> Timestamp,
         billing_address -> Nullable<Varchar>,
@@ -151,15 +151,15 @@ table! {
 }
 
 table! {
-    media_types (id) {
-        id -> Int4,
+    media_types (media_type_id) {
+        media_type_id -> Int4,
         name -> Nullable<Varchar>,
     }
 }
 
 table! {
-    playlists (id) {
-        id -> Int4,
+    playlists (playlist_id) {
+        playlist_id -> Int4,
         name -> Nullable<Varchar>,
     }
 }
@@ -172,8 +172,8 @@ table! {
 }
 
 table! {
-    tracks (id) {
-        id -> Int4,
+    tracks (track_id) {
+        track_id -> Int4,
         name -> Varchar,
         album_id -> Nullable<Int4>,
         media_type_id -> Int4,
@@ -205,9 +205,9 @@ allow_tables_to_appear_in_same_query!(
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "actors"]
-#[primary_key(id)]
+#[primary_key(actor_id)]
 pub struct Actor {
-    id: i32,
+    actor_id: i32,
     first_name: String,
     last_name: String,
     last_update: NaiveDateTime,
@@ -215,9 +215,9 @@ pub struct Actor {
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "albums"]
-#[primary_key(id)]
+#[primary_key(album_id)]
 pub struct Album {
-    id: i32,
+    album_id: i32,
     title: String,
     artist_id: HasOne<i32, Artist>,
     tracks: HasMany<Track, tracks::album_id>,
@@ -225,27 +225,27 @@ pub struct Album {
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "artists"]
-#[primary_key(id)]
+#[primary_key(artist_id)]
 pub struct Artist {
-    id: i32,
+    artist_id: i32,
     name: Option<String>,
     albums: HasMany<Album, albums::artist_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "categories"]
-#[primary_key(id)]
+#[primary_key(category_id)]
 pub struct Category {
-    id: i32,
+    category_id: i32,
     name: String,
     last_update: NaiveDateTime,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "customers"]
-#[primary_key(id)]
+#[primary_key(customer_id)]
 pub struct Customer {
-    id: i32,
+    customer_id: i32,
     first_name: String,
     last_name: String,
     company: Option<String>,
@@ -263,9 +263,9 @@ pub struct Customer {
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "employees"]
-#[primary_key(id)]
+#[primary_key(employee_id)]
 pub struct Employe {
-    id: i32,
+    employee_id: i32,
     last_name: String,
     first_name: String,
     title: Option<String>,
@@ -294,9 +294,9 @@ pub struct FilmActor {
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "films"]
-#[primary_key(id)]
+#[primary_key(film_id)]
 pub struct Film {
-    id: i32,
+    film_id: i32,
     title: String,
     description: Option<String>,
     release_year: Option<i32>,
@@ -314,18 +314,18 @@ pub struct Film {
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "genres"]
-#[primary_key(id)]
+#[primary_key(genre_id)]
 pub struct Genre {
-    id: i32,
+    genre_id: i32,
     name: Option<String>,
     tracks: HasMany<Track, tracks::genre_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "invoice_lines"]
-#[primary_key(id)]
+#[primary_key(invoice_line_id)]
 pub struct InvoiceLine {
-    id: i32,
+    invoice_line_id: i32,
     invoice_id: HasOne<i32, Invoice>,
     track_id: HasOne<i32, Track>,
     //    unit_price: BigDecimal,
@@ -334,9 +334,9 @@ pub struct InvoiceLine {
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "invoices"]
-#[primary_key(id)]
+#[primary_key(invoice_id)]
 pub struct Invoice {
-    id: i32,
+    invoice_id: i32,
     customer_id: HasOne<i32, Customer>,
     invoice_date: NaiveDateTime,
     billing_address: Option<String>,
@@ -350,18 +350,18 @@ pub struct Invoice {
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "media_types"]
-#[primary_key(id)]
+#[primary_key(media_type_id)]
 pub struct MediaType {
-    id: i32,
+    media_type_id: i32,
     name: Option<String>,
     tracks: HasMany<Track, tracks::media_type_id>,
 }
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "playlists"]
-#[primary_key(id)]
+#[primary_key(playlist_id)]
 pub struct Playlist {
-    id: i32,
+    playlist_id: i32,
     name: Option<String>,
     playlist_track: HasMany<PlaylistTrack, playlist_track::playlist_id>,
 }
@@ -376,9 +376,9 @@ pub struct PlaylistTrack {
 
 #[derive(Clone, Debug, Identifiable, WundergraphEntity)]
 #[table_name = "tracks"]
-#[primary_key(id)]
+#[primary_key(track_id)]
 pub struct Track {
-    id: i32,
+    track_id: i32,
     name: String,
     album_id: Option<HasOne<i32, Album>>,
     media_type_id: HasOne<i32, MediaType>,
@@ -420,9 +420,9 @@ pub struct NewActor {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "actors"]
-#[primary_key(id)]
+#[primary_key(actor_id)]
 pub struct ActorChangeset {
-    id: i32,
+    actor_id: i32,
     first_name: String,
     last_name: String,
     last_update: NaiveDateTime,
@@ -437,9 +437,9 @@ pub struct NewAlbum {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "albums"]
-#[primary_key(id)]
+#[primary_key(album_id)]
 pub struct AlbumChangeset {
-    id: i32,
+    album_id: i32,
     title: String,
     artist_id: i32,
 }
@@ -452,9 +452,9 @@ pub struct NewArtist {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "artists"]
-#[primary_key(id)]
+#[primary_key(artist_id)]
 pub struct ArtistChangeset {
-    id: i32,
+    artist_id: i32,
     name: Option<String>,
 }
 
@@ -467,9 +467,9 @@ pub struct NewCategorie {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "categories"]
-#[primary_key(id)]
+#[primary_key(category_id)]
 pub struct CategorieChangeset {
-    id: i32,
+    category_id: i32,
     name: String,
     last_update: NaiveDateTime,
 }
@@ -493,9 +493,9 @@ pub struct NewCustomer {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "customers"]
-#[primary_key(id)]
+#[primary_key(customer_id)]
 pub struct CustomerChangeset {
-    id: i32,
+    customer_id: i32,
     first_name: String,
     last_name: String,
     company: Option<String>,
@@ -531,9 +531,9 @@ pub struct NewEmployee {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "employees"]
-#[primary_key(id)]
+#[primary_key(employee_id)]
 pub struct EmployeeChangeset {
-    id: i32,
+    employee_id: i32,
     last_name: String,
     first_name: String,
     title: Option<String>,
@@ -587,10 +587,10 @@ pub struct NewFilm {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "films"]
-#[primary_key(id)]
+#[primary_key(film_id)]
 #[graphql(scalar = "WundergraphScalarValue")]
 pub struct FilmChangeset {
-    id: i32,
+    film_id: i32,
     title: String,
     description: Option<String>,
     release_year: Option<i32>,
@@ -614,9 +614,9 @@ pub struct NewGenre {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "genres"]
-#[primary_key(id)]
+#[primary_key(genre_id)]
 pub struct GenreChangeset {
-    id: i32,
+    genre_id: i32,
     name: Option<String>,
 }
 
@@ -631,9 +631,9 @@ pub struct NewInvoiceLine {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug, Copy)]
 #[table_name = "invoice_lines"]
-#[primary_key(id)]
+#[primary_key(invoice_line_id)]
 pub struct InvoiceLineChangeset {
-    id: i32,
+    invoice_line_id: i32,
     invoice_id: i32,
     track_id: i32,
     //    unit_price: BigDecimal,
@@ -655,9 +655,9 @@ pub struct NewInvoice {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "invoices"]
-#[primary_key(id)]
+#[primary_key(invoice_id)]
 pub struct InvoiceChangeset {
-    id: i32,
+    invoice_id: i32,
     customer_id: i32,
     invoice_date: NaiveDateTime,
     billing_address: Option<String>,
@@ -676,9 +676,9 @@ pub struct NewMediaType {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "media_types"]
-#[primary_key(id)]
+#[primary_key(media_type_id)]
 pub struct MediaTypeChangeset {
-    id: i32,
+    media_type_id: i32,
     name: Option<String>,
 }
 
@@ -690,9 +690,9 @@ pub struct NewPlaylist {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "playlists"]
-#[primary_key(id)]
+#[primary_key(playlist_id)]
 pub struct PlaylistChangeset {
-    id: i32,
+    playlist_id: i32,
     name: Option<String>,
 }
 
@@ -711,9 +711,9 @@ pub struct NewTrack {
 
 #[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "tracks"]
-#[primary_key(id)]
+#[primary_key(track_id)]
 pub struct TrackChangeset {
-    id: i32,
+    track_id: i32,
     name: String,
     album_id: Option<i32>,
     media_type_id: i32,

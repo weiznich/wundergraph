@@ -1,19 +1,46 @@
+/// A marker trait that says a given type could be used
+/// as type level index into a tuple
 pub trait IsPrimaryKeyIndex {
+    /// Check if this type represents the index with the given value
     fn is_index(v: usize) -> bool;
 }
 
+/// A trait to have a type level index into a tuple
+///
+/// `Self` represents the tuple to index into, `N` the type level index
+///
+/// ```
+/// # use wundergraph::helper::{TupleIndex, TupleIndex1};
+/// #
+/// let _a: <(i32, &str, f64) as TupleIndex<TupleIndex1>>::Value = "foo";
+/// ```
 pub trait TupleIndex<N> {
+
+    /// The type of the indexed tuple value
     type Value;
 
+    /// Get the actual value at the given index
     fn get(&self) -> Self::Value;
 }
 
+/// A type level helper to concat two tuples
+///
+/// `Self` represents the existing tuple, `Other` the tuple that should be
+/// appended
 pub trait ConcatTuples<Other> {
+
+    /// The resulting tuple type
     type Out;
 }
 
+/// A type level helper trait to append another element to a tuple
+///
+/// `Self` is the existing tuple, `T` the element that is appended
 pub trait AppendToTuple<T> {
+    /// The resulting tuple type
     type Out;
+
+    /// The length of the resulting tuple
     const LENGHT: usize;
 }
 
@@ -23,6 +50,9 @@ impl<T> AppendToTuple<T> for () {
     const LENGHT: usize = 1;
 }
 
+/// A type level marker to be used as index into tuples
+///
+/// Basically equivalent to `tuple.0`, but at type system level
 #[derive(Default, Debug, Clone, Copy)]
 pub struct TupleIndex0;
 
@@ -119,6 +149,7 @@ macro_rules! create_tuple_index {
         name_from_idx!($idx, impl_tuple_index, $idx, $($T,)*);
     };
     ($name: ident, $tuple_idx: tt, $($T: ident,)*, $($idx: tt)*) => {
+        /// A type level marker to be used as index into tuples
         #[derive(Default, Debug, Clone, Copy)]
         pub struct $name;
 

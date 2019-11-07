@@ -5,7 +5,7 @@ use crate::query_builder::selection::filter::FilterOption;
 use crate::query_builder::types::{PlaceHolder, WundergraphValue};
 use crate::scalar::WundergraphScalarValue;
 use chrono_internal::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
-use diesel::sql_types::{Date, Nullable, Timestamp, Timestamptz};
+use diesel::sql_types::{Date, Nullable, Timestamp};
 use juniper::{FromInputValue, LookAheadValue, ToInputValue};
 
 impl From<NaiveDateTime> for WundergraphScalarValue {
@@ -82,9 +82,10 @@ impl WundergraphValue for NaiveDateTime {
     type SqlType = Nullable<Timestamp>;
 }
 
+#[cfg(feature = "postgres")]
 impl WundergraphValue for DateTime<Utc> {
     type PlaceHolder = PlaceHolder<Self>;
-    type SqlType = Nullable<Timestamptz>;
+    type SqlType = Nullable<diesel::sql_types::Timestamptz>;
 }
 
 impl WundergraphValue for NaiveDate {

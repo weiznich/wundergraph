@@ -40,6 +40,12 @@ impl<'a> Display for TableDefinitions<'a> {
             writeln!(f, ");")?;
         }
 
+        // for table in self.tables {
+        //     if let Some(schema) = &table.name.schema {
+        //         writeln!(f, "use self::{}::{};", schema, table.name.name)?;
+        //     }
+        // }
+
         Ok(())
     }
 }
@@ -288,7 +294,7 @@ impl<'a> Display for GraphqlData<'a> {
                     "{}: HasMany<{}, {}::{}>,",
                     f.child_table.name,
                     fix_table_name(&f.child_table.name),
-                    f.child_table,
+                    f.child_table.name,
                     f.foreign_key,
                 )?;
             }
@@ -455,10 +461,17 @@ impl<'a> Display for GraphqlInsertable<'a> {
         if self.table.primary_key.len() == self.table.column_data.len() {
             return Ok(());
         }
-        writeln!(f, "#[derive(Insertable, GraphQLInputObject, Clone, Debug)]")?;
+        writeln!(
+            f,
+            "#[derive(Insertable, juniper::GraphQLInputObject, Clone, Debug)]"
+        )?;
         writeln!(f, "#[graphql(scalar = \"WundergraphScalarValue\")]")?;
-        writeln!(f, "#[table_name = \"{}\"]", self.table.name)?;
-        write!(f, "pub struct New{} {{", fix_table_name(&self.table.name.name))?;
+        writeln!(f, "#[table_name = \"{}\"]", self.table.name.name)?;
+        write!(
+            f,
+            "pub struct New{} {{",
+            fix_table_name(&self.table.name.name)
+        )?;
         {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
@@ -487,10 +500,10 @@ impl<'a> Display for GraphqlChangeSet<'a> {
         }
         writeln!(
             f,
-            "#[derive(AsChangeset, Identifiable, GraphQLInputObject, Clone, Debug)]"
+            "#[derive(AsChangeset, Identifiable, juniper::GraphQLInputObject, Clone, Debug)]"
         )?;
         writeln!(f, "#[graphql(scalar = \"WundergraphScalarValue\")]")?;
-        writeln!(f, "#[table_name = \"{}\"]", self.table.name)?;
+        writeln!(f, "#[table_name = \"{}\"]", self.table.name.name)?;
         write_primary_key_section(f, self.table)?;
         write!(
             f,

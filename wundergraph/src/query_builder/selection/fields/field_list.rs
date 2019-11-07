@@ -5,28 +5,44 @@ use crate::query_builder::types::WundergraphValue;
 use crate::query_builder::selection::query_resolver::WundergraphResolvePlaceHolderList;
 use crate::helper::tuple::TupleIndex;
 use crate::scalar::WundergraphScalarValue;
+use crate::error::Result;
 use diesel::backend::Backend;
 use diesel::{Connection, Queryable};
-use failure::Error;
 use juniper::{Executor, Selection};
 use std::hash::Hash;
 
+/// A internal trait
 pub trait WundergraphFieldList<DB: Backend, Key, Table, Ctx> {
+    /// Placeholder type
+    ///
+    /// Normally a tuple with `TABLE_FIELD_COUNT` entries of type
+    /// `PlaceHolder<RustFieldType>` for the corresponding entry in `SqlType`
     type PlaceHolder: Queryable<Self::SqlType, DB> + 'static;
+    /// The sql type of the field list
+    /// Normally a tuple with `TABLE_FIELD_COUNT` entries representing
+    /// the (diesel) sql type of the executed query
     type SqlType: 'static;
 
+    /// Number of fields representing a database column
     const TABLE_FIELD_COUNT: usize;
+    /// Number of fields not representing a database column
     const NON_TABLE_FIELD_COUNT: usize;
 
+    /// Resolve all fields in an already executed graphql request
+    ///
+    /// The results of the executed sql query are contained in `placeholder`
     fn resolve(
         placeholder: Vec<Self::PlaceHolder>,
+        global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
         select: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         name_list: &'static [&'static str],
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-    ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error>;
+    ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>>;
 
+    #[doc(hidden)]
     fn map_table_field<F: Fn(usize) -> R, R>(local_index: usize, callback: F) -> Option<R>;
+    #[doc(hidden)]
     fn map_non_table_field<Func: Fn(usize) -> Ret, Ret>(
         local_index: usize,
         callback: Func,
@@ -63,13 +79,14 @@ macro_rules! wundergraph_impl_field_list {
 
                 fn resolve(
                     placeholder: Vec<Self::PlaceHolder>,
+                    global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
                     look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
                     selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
                     name_list: &'static [&'static str],
                     executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-                ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>, Error> {
+                ) -> Result<Vec<juniper::Value<WundergraphScalarValue>>> {
                     let extern_values = {
-                        let keys = ||{
+                        let keys = || {
                             placeholder.iter()
                                 .map(TupleIndex::<Key>::get)
                                 .map(<_ as PlaceHolderMarker>::into_inner)
@@ -83,7 +100,7 @@ macro_rules! wundergraph_impl_field_list {
                             ).expect("Name is there")
                         };
                         <($($T,)*) as NonTableFieldExtractor>::Out::resolve(
-                            look_ahead, selection, name, keys, executor,
+                            global_args, look_ahead, selection, name, keys, executor,
                         )?
                     };
                     let name = |local_pos| {
@@ -93,6 +110,7 @@ macro_rules! wundergraph_impl_field_list {
                     };
                     let objs = placeholder.resolve(
                         name,
+                        global_args,
                         look_ahead,
                         selection,
                         executor,
@@ -101,10 +119,12 @@ macro_rules! wundergraph_impl_field_list {
                      Ok(extern_values.merge_with_object_list(objs))
                 }
 
+                #[inline(always)]
                 fn map_table_field<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
                     <($($T,)*) as FieldListExtractor>::map(local_index, callback)
                 }
 
+                #[inline(always)]
                 fn map_non_table_field<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
                     <($($T,)*) as NonTableFieldExtractor>::map(local_index, callback)
                 }

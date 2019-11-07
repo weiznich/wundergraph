@@ -21,7 +21,7 @@ fn check_alias() {
 ",
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [

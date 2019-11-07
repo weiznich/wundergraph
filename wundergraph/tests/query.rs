@@ -19,7 +19,7 @@ fn query_filter_eq() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -51,7 +51,7 @@ fn query_filter_not_eq() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -92,7 +92,7 @@ fn query_filter_like() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -144,7 +144,7 @@ fn query_filter_eq_any() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -179,7 +179,7 @@ fn query_filter_and() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -211,7 +211,7 @@ fn query_filter_or() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -246,7 +246,7 @@ fn query_filter_is_null() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -287,7 +287,7 @@ fn query_filter_is_not_null() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -339,7 +339,7 @@ fn query_filter_type_could_have_2_modifiers() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -370,7 +370,7 @@ fn query_filter_not() {
 ",
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -414,7 +414,7 @@ fn filter_on_field() {
 "#,
     );
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Speciess": [

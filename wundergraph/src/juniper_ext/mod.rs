@@ -1,3 +1,5 @@
+//! A module containing juniper specific extension traits
+
 mod from_lookahead;
 mod nameable;
 

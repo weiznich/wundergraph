@@ -1,3 +1,4 @@
+//! A module containing extension traits for various diesel types
 
 use diesel::backend::Backend;
 use diesel::expression::{AppearsOnTable, Expression, NonAggregate, SelectableExpression};
@@ -5,6 +6,16 @@ use diesel::query_builder::{AstPass, QueryFragment, QueryId};
 use diesel::result::QueryResult;
 use diesel::sql_types::IntoNullable;
 
+/// A helper trait used when boxing filters
+///
+/// In Rust you cannot create a trait object with more than one trait.
+/// This type has all of the additional traits you would want when using
+/// `Box<Expression>` as a single trait object. This type is comparable to
+/// diesels `BoxableExpression`, but allows to use non select able expressions,
+/// which is mainly useful for constructing filters.
+///
+/// This is typically used as the return type of a function or as associated
+/// types in traits.
 pub trait BoxableFilter<QS, DB>
 where
     DB: Backend,
@@ -25,9 +36,12 @@ where
 {
 }
 
+/// A diesel helper type that indicates if null or some expression selected
 #[derive(Debug)]
 pub enum MaybeNull<T> {
+    /// Select the expression
     Expr(T),
+    /// Select a null value
     Null,
 }
 

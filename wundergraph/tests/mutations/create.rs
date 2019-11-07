@@ -19,7 +19,7 @@ fn create_one() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -60,7 +60,7 @@ mutation NewHero {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "CreateHero": {
@@ -87,7 +87,7 @@ mutation NewHero {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -134,7 +134,7 @@ fn create_multiple() {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [
@@ -175,7 +175,7 @@ mutation NewHeros {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "CreateHeros": [
@@ -210,7 +210,7 @@ mutation NewHeros {
     );
 
     assert!(res.is_ok());
-    assert_json_snapshot_matches!(
+    assert_json_snapshot!(
         res.as_json(), @r###"[
   {
     "Heros": [

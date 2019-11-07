@@ -1,4 +1,5 @@
 use proc_macro2::{Ident, Span, TokenStream};
+use quote::quote;
 use syn::*;
 
 pub fn wrap_in_dummy_mod(

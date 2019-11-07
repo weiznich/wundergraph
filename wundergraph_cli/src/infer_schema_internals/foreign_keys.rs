@@ -4,13 +4,10 @@ use super::table_data::TableName;
 use crate::database::InferConnection;
 
 pub fn remove_unsafe_foreign_keys_for_codegen(
-    database_url: &str,
+    connection: &InferConnection,
     foreign_keys: &[ForeignKeyConstraint],
     safe_tables: &[TableName],
 ) -> Vec<ForeignKeyConstraint> {
-    let conn = InferConnection::establish(database_url)
-        .unwrap_or_else(|_| panic!("Could not connect to `{}`", database_url));
-
     let duplicates = foreign_keys
         .iter()
         .map(ForeignKeyConstraint::ordered_tables)
@@ -29,7 +26,7 @@ pub fn remove_unsafe_foreign_keys_for_codegen(
         .filter(|fk| safe_tables.contains(&fk.parent_table))
         .filter(|fk| safe_tables.contains(&fk.child_table))
         .filter(|fk| {
-            let pk_columns = get_primary_keys(&conn, &fk.parent_table)
+            let pk_columns = get_primary_keys(connection, &fk.parent_table)
                 .unwrap_or_else(|_| panic!("Error loading primary keys for `{}`", fk.parent_table));
             pk_columns.len() == 1 && pk_columns[0] == fk.primary_key
         })

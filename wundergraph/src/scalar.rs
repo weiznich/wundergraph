@@ -1,16 +1,36 @@
+//! A module containing a wundergraph specific juniper scalar value implementation
+//!
+//! A specific scalar value representation is required because the default
+//! implementation does not support some commonly used types like smaller
+//! integers
+
 use juniper::parser::{ParseError, ScalarToken, Token};
-use juniper::{graphql_scalar, InputValue, ParseScalarResult, ScalarValue, Value};
+use juniper::{graphql_scalar, InputValue, ParseScalarResult, ScalarValue, Value, GraphQLScalarValue};
 use serde::de;
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, ScalarValue)]
+/// This enum is used as scalar value representation for juniper.
+///
+/// Main usecase here is to represent some more scalar values correctly,
+/// especially several integer types.
+///
+/// See [their](https://docs.rs/juniper/0.12.0/juniper/trait.ScalarValue.html)
+/// documentation for motivation and details
+#[derive(Debug, Clone, PartialEq, GraphQLScalarValue)]
 pub enum WundergraphScalarValue {
+    /// Represents a 16 bit integer
     SmallInt(i16),
+    /// Represents a 32 bit integer
     Int(i32),
+    /// Represents a 64 bit integer
     BigInt(i64),
+    /// Represents a 32 bit floating point number
     Float(f32),
+    /// Represents a 64 bit floating point number
     Double(f64),
+    /// Represents a string scalar value
     String(String),
+    /// Represents a boolean scalar value
     Boolean(bool),
 }
 

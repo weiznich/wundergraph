@@ -8,6 +8,8 @@ pub trait PlaceHolderMarker {
     fn into_inner(self) -> Option<Self::InnerType>;
 }
 
+/// A wrapper type used inside of wundergraph to load values of the type T
+/// from the database
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, FromSqlRow, Hash)]
 pub struct PlaceHolder<T>(Option<T>);
 
