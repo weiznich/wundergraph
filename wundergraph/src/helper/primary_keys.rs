@@ -221,7 +221,7 @@ impl NamedTable
                 .to_string()
                 .split("--")
                 .next()
-                .unwrap()
+                .expect("It's there otherwise diesel changed the debug output")
                 .replace("\"", "")
                 .replace(".", "_"),
         )
@@ -248,8 +248,9 @@ where
     }
 }
 
-fn uppercase_first_letter<'a>(s: Cow<'a, str>) -> Cow<'a, str> {
-    if s.chars().next().map(|c| c.is_uppercase()).unwrap_or(true) {
+#[allow(clippy::needless_pass_by_value)]
+fn uppercase_first_letter(s: Cow<'_, str>) -> Cow<'_, str> {
+    if s.chars().next().map_or(true, |c| c.is_uppercase()) {
         Cow::Owned(s.trim().to_string())
     } else {
         Cow::Owned(

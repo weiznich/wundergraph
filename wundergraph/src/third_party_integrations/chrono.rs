@@ -34,8 +34,8 @@ impl Nameable for NaiveDate {
     }
 }
 
-static RFC3339_PARSE_FORMAT: &'static str = "%+";
-static RFC3339_FORMAT: &'static str = "%Y-%m-%dT%H:%M:%S%.f%:z";
+static RFC3339_PARSE_FORMAT: &str = "%+";
+static RFC3339_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.f%:z";
 
 impl FromLookAheadValue for NaiveDateTime {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {

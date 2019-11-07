@@ -1,7 +1,5 @@
 #![deny(missing_debug_implementations, missing_copy_implementations)]
 #![warn(
-    clippy::option_unwrap_used,
-    clippy::result_unwrap_used,
     clippy::print_stdout,
     clippy::wrong_pub_self_convention,
     clippy::mut_mut,
@@ -19,7 +17,6 @@
     clippy::map_flatten,
     clippy::match_same_arms,
     clippy::needless_borrow,
-    clippy::needless_pass_by_value,
     clippy::option_map_unwrap_or,
     clippy::option_map_unwrap_or_else,
     clippy::redundant_clone,

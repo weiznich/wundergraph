@@ -48,7 +48,7 @@ pub fn derive_belonging_to(
         .map(|(parent_ty, (key_ty, f))| {
             let pg = if cfg!(feature = "postgres") {
                 Some(derive_belongs_to(
-                    &model,
+                    model,
                     item,
                     parent_ty,
                     &key_ty,
@@ -60,7 +60,7 @@ pub fn derive_belonging_to(
             };
             let sqlite = if cfg!(feature = "sqlite") {
                 Some(derive_belongs_to(
-                    &model,
+                    model,
                     item,
                     parent_ty,
                     &key_ty,

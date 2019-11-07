@@ -8,4 +8,4 @@ members = [
 ]
 
 [patch.crates-io]
-wundergraph_derive = { path = "wundergraph_derive"}
+#wundergraph_derive = { path = "wundergraph_derive"}

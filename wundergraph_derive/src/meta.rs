@@ -112,7 +112,7 @@ impl MetaItem {
                 self.span()
                     .warning(format!(
                         "The form `{0}(value)` is deprecated. Use `{0} = \"value\"` instead",
-                        self.name().get_ident().unwrap(),
+                        self.name().get_ident().expect("Failed to get ident"),
                     ))
                     .emit();
                 Ok(x)
@@ -132,7 +132,7 @@ impl MetaItem {
             let meta = &self.meta;
             Err(self.span().error(format!(
                 "Expected `{}` found `{}`",
-                self.name().get_ident().unwrap(),
+                self.name().get_ident().expect("Failed to get ident"),
                 quote!(#meta)
             )))
         }
@@ -145,7 +145,7 @@ impl MetaItem {
             List(ref list) => Ok(Nested(list.nested.iter())),
             _ => Err(self.span().error(format!(
                 "`{0}` must be in the form `{0}(...)`",
-                self.name().get_ident().unwrap()
+                self.name().get_ident().expect("Failed to get ident")
             ))),
         }
     }
@@ -165,7 +165,7 @@ impl MetaItem {
             Str(ref s) => Ok(s),
             _ => Err(self.span().error(format!(
                 "`{0}` must be in the form `{0} = \"value\"`",
-                self.name().get_ident().unwrap()
+                self.name().get_ident().expect("Failed to get ident")
             ))),
         }
     }
@@ -177,7 +177,7 @@ impl MetaItem {
             NameValue(ref name_value) => Ok(&name_value.lit),
             _ => Err(self.span().error(format!(
                 "`{0}` must be in the form `{0} = \"value\"`",
-                self.name().get_ident().unwrap()
+                self.name().get_ident().expect("Failed to get ident")
             ))),
         }
     }
@@ -188,14 +188,20 @@ impl MetaItem {
             Ok(x) => x,
             Err(_) => return,
         };
-        let unrecognized_options = nested
-            .filter(|n| !options.contains(&(&n.name().get_ident().unwrap().to_string() as _)));
+        let unrecognized_options = nested.filter(|n| {
+            !options.contains(
+                &(&n.name()
+                    .get_ident()
+                    .expect("Failed to get ident")
+                    .to_string() as _),
+            )
+        });
         for ignored in unrecognized_options {
             ignored
                 .span()
                 .warning(format!(
                     "Option {} has no effect",
-                    ignored.name().get_ident().unwrap()
+                    ignored.name().get_ident().expect("Failed to get ident")
                 ))
                 .emit();
         }
