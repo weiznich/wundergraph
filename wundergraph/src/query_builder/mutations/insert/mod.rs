@@ -103,7 +103,6 @@ pub trait HandleInsert<L, I, DB, Ctx> {
 /// A default implementation is provided for all types implementing
 /// `diesel::Insertable`
 pub trait HandleBatchInsert<L, I, DB, Ctx> {
-
     /// Actual function called to insert a batch of database entity
     fn handle_batch_insert(
         selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,

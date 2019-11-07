@@ -3,7 +3,7 @@ use super::collector::{AndCollector, FilterCollector};
 use super::filter_value::FilterValue;
 use super::inner_filter::InnerFilter;
 use crate::diesel_ext::BoxableFilter;
-use crate::juniper_ext::{NameBuilder, Nameable, FromLookAheadValue};
+use crate::juniper_ext::{FromLookAheadValue, NameBuilder, Nameable};
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::expression::array_comparison::{In, Many};

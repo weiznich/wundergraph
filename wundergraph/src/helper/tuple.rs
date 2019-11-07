@@ -15,7 +15,6 @@ pub trait IsPrimaryKeyIndex {
 /// let _a: <(i32, &str, f64) as TupleIndex<TupleIndex1>>::Value = "foo";
 /// ```
 pub trait TupleIndex<N> {
-
     /// The type of the indexed tuple value
     type Value;
 
@@ -28,7 +27,6 @@ pub trait TupleIndex<N> {
 /// `Self` represents the existing tuple, `Other` the tuple that should be
 /// appended
 pub trait ConcatTuples<Other> {
-
     /// The resulting tuple type
     type Out;
 }

@@ -79,11 +79,7 @@ where
     T::FromClause: QueryFragment<DB>,
     L: LoadingHandler<DB, Ctx, Table = T>,
     L::Columns: BuildOrder<T, DB>
-        + BuildSelect<
-            T,
-            DB,
-            SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T, Ctx>,
-        >,
+        + BuildSelect<T, DB, SqlTypeOfPlaceholder<L::FieldList, DB, L::PrimaryKeyIndex, T, Ctx>>,
     Ctx: WundergraphContext + QueryModifier<L, DB>,
     Ctx::Connection: Connection<Backend = DB>,
     L::FieldList: WundergraphFieldList<DB, L::PrimaryKeyIndex, T, Ctx>,

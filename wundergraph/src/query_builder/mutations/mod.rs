@@ -81,6 +81,6 @@ pub use self::update::HandleUpdate;
 #[doc(hidden)]
 pub use self::delete::handle_delete;
 #[doc(hidden)]
-pub use self::insert::{handle_insert, handle_batch_insert};
+pub use self::insert::{handle_batch_insert, handle_insert};
 #[doc(hidden)]
 pub use self::update::handle_update;

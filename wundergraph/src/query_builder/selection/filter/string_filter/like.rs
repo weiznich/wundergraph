@@ -19,7 +19,7 @@ impl<C> Like<C> {
     }
 }
 
-impl<C> Clone for Like<C> where {
+impl<C> Clone for Like<C> {
     fn clone(&self) -> Self {
         Self(self.0.clone(), PhantomData)
     }

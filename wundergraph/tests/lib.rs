@@ -12,14 +12,14 @@ extern crate insta;
 
 mod helper;
 
+mod alias;
+mod limit_offset;
+mod mutations;
+mod order;
 mod query;
 mod query_nested;
 mod simple;
-mod order;
-mod limit_offset;
 mod type_checking;
-mod alias;
-mod mutations;
 
 #[cfg(feature = "postgres")]
 type DbConnection = diesel::pg::PgConnection;

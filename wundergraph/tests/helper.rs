@@ -12,7 +12,7 @@ use wundergraph::scalar::WundergraphScalarValue;
 use wundergraph_bench::api::{Mutation as BenchMutation, Query as BenchQuery};
 use wundergraph_bench::Schema as BenchSchema;
 use wundergraph_example::mutations::Mutation as ExampleMutation;
-use wundergraph_example::{Query as ExampleQuery, Schema as ExampleSchema, MyContext};
+use wundergraph_example::{MyContext, Query as ExampleQuery, Schema as ExampleSchema};
 
 lazy_static! {
     static ref MIGRATION_LOCK: Mutex<()> = Mutex::new(());

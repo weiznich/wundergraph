@@ -32,7 +32,6 @@ macro_rules! __expand_limit {
     };
 }
 
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __expand_offset {

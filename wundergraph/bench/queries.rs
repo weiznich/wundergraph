@@ -74,7 +74,7 @@ const QUERIES: &[&str] = &[
     }
   }
 }"#,
-        r#"query artists_collaboration {
+    r#"query artists_collaboration {
       Artists(filter: {albums: {tracks: {composer: {eq: "Ludwig van Beethoven"}}}})
       {
         artist_id

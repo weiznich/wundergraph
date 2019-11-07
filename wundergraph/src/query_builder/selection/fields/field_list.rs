@@ -1,11 +1,11 @@
 use super::{FieldListExtractor, NonTableFieldExtractor, WundergraphResolveAssociations};
 use crate::context::WundergraphContext;
+use crate::error::Result;
+use crate::helper::tuple::TupleIndex;
+use crate::query_builder::selection::query_resolver::WundergraphResolvePlaceHolderList;
 use crate::query_builder::types::placeholder::PlaceHolderMarker;
 use crate::query_builder::types::WundergraphValue;
-use crate::query_builder::selection::query_resolver::WundergraphResolvePlaceHolderList;
-use crate::helper::tuple::TupleIndex;
 use crate::scalar::WundergraphScalarValue;
-use crate::error::Result;
 use diesel::backend::Backend;
 use diesel::{Connection, Queryable};
 use juniper::{Executor, Selection};

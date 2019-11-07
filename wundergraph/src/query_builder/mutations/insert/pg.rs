@@ -26,11 +26,7 @@ where
     T::FromClause: QueryFragment<Pg>,
     L: LoadingHandler<Pg, Ctx, Table = T> + 'static,
     L::Columns: BuildOrder<T, Pg>
-        + BuildSelect<
-            T,
-            Pg,
-            SqlTypeOfPlaceholder<L::FieldList, Pg, L::PrimaryKeyIndex, T, Ctx>,
-        >,
+        + BuildSelect<T, Pg, SqlTypeOfPlaceholder<L::FieldList, Pg, L::PrimaryKeyIndex, T, Ctx>>,
     Ctx: WundergraphContext + QueryModifier<L, Pg>,
     Ctx::Connection: Connection<Backend = Pg>,
     L::FieldList: WundergraphFieldList<Pg, L::PrimaryKeyIndex, T, Ctx>,
@@ -42,9 +38,8 @@ where
         Pg,
         Output = BoxedSelectStatement<'static, SqlTypeOf<<T as Table>::AllColumns>, T, Pg>,
     >,
-    <Ctx::Connection as Connection>::Backend:
-        HasSqlType<SqlTypeOf<T::PrimaryKey>>
-            + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Pg, L::PrimaryKeyIndex, T, Ctx>>,
+    <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<T::PrimaryKey>>
+        + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Pg, L::PrimaryKeyIndex, T, Ctx>>,
     <L::Filter as BuildFilter<Pg>>::Ret: AppearsOnTable<T>,
     T::PrimaryKey: EqAll<Id>,
     &'static L: Identifiable,
@@ -84,11 +79,7 @@ where
     T::FromClause: QueryFragment<Pg>,
     L: LoadingHandler<Pg, Ctx, Table = T> + 'static,
     L::Columns: BuildOrder<T, Pg>
-        + BuildSelect<
-            T,
-            Pg,
-            SqlTypeOfPlaceholder<L::FieldList, Pg, L::PrimaryKeyIndex, T, Ctx>,
-        >,
+        + BuildSelect<T, Pg, SqlTypeOfPlaceholder<L::FieldList, Pg, L::PrimaryKeyIndex, T, Ctx>>,
     Ctx: WundergraphContext + QueryModifier<L, Pg>,
     Ctx::Connection: Connection<Backend = Pg>,
     L::FieldList: WundergraphFieldList<Pg, L::PrimaryKeyIndex, T, Ctx>,
@@ -100,9 +91,8 @@ where
         Pg,
         Output = BoxedSelectStatement<'static, SqlTypeOf<<T as Table>::AllColumns>, T, Pg>,
     >,
-    <Ctx::Connection as Connection>::Backend:
-        HasSqlType<SqlTypeOf<T::PrimaryKey>>
-            + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Pg, L::PrimaryKeyIndex, T, Ctx>>,
+    <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<T::PrimaryKey>>
+        + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Pg, L::PrimaryKeyIndex, T, Ctx>>,
     <L::Filter as BuildFilter<Pg>>::Ret: AppearsOnTable<T>,
     T::PrimaryKey: EqAll<Id>,
     &'static L: Identifiable,

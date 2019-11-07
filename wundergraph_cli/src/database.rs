@@ -77,7 +77,8 @@ impl InferConnection {
             }
             #[cfg(feature = "mysql")]
             Backend::Mysql => MysqlConnection::establish(database_url).map(InferConnection::Mysql),
-        }.map_err(Into::into)
+        }
+        .map_err(Into::into)
     }
 }
 

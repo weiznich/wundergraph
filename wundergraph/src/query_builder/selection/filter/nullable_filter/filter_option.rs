@@ -1,5 +1,5 @@
 use crate::diesel_ext::BoxableFilter;
-use crate::juniper_ext::{NameBuilder, Nameable, FromLookAheadValue};
+use crate::juniper_ext::{FromLookAheadValue, NameBuilder, Nameable};
 use crate::query_builder::selection::filter::build_filter::BuildFilter;
 use crate::query_builder::selection::filter::collector::{AndCollector, FilterCollector};
 use crate::query_builder::selection::filter::filter_value::FilterValue;

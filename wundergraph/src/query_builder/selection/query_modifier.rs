@@ -1,8 +1,8 @@
 use super::{BoxedQuery, LoadingHandler};
 use crate::context::WundergraphContext;
+use crate::error::Result;
 use crate::query_builder::selection::offset::ApplyOffset;
 use crate::scalar::WundergraphScalarValue;
-use crate::error::Result;
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
 use diesel::{Connection, QuerySource};

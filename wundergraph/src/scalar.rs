@@ -5,7 +5,9 @@
 //! integers
 
 use juniper::parser::{ParseError, ScalarToken, Token};
-use juniper::{graphql_scalar, InputValue, ParseScalarResult, ScalarValue, Value, GraphQLScalarValue};
+use juniper::{
+    graphql_scalar, GraphQLScalarValue, InputValue, ParseScalarResult, ScalarValue, Value,
+};
 use serde::de;
 use std::fmt;
 

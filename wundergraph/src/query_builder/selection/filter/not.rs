@@ -1,5 +1,5 @@
 use super::BuildFilter;
-use crate::juniper_ext::{NameBuilder, Nameable, FromLookAheadValue};
+use crate::juniper_ext::{FromLookAheadValue, NameBuilder, Nameable};
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::dsl;

@@ -2,7 +2,6 @@ use diesel::Connection;
 
 /// A trait for types that could be used as context types for wundergraph
 pub trait WundergraphContext {
-
     /// The underlying connection type
     type Connection: Connection + 'static;
 
