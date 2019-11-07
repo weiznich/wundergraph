@@ -6,3 +6,6 @@ members = [
     "wundergraph_cli",
     "wundergraph_bench",
 ]
+
+[patch.crates-io]
+wundergraph_derive = { path = "wundergraph_derive"}
