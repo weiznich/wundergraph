@@ -20,17 +20,17 @@ matrix:
   allow_failures:
     - rust: nightly
   include:
-  - rust: nightly-2019-10-03
-    env: CLIPPY=YESPLEASE
-    script:
-      - rustup component add clippy
-      - (cd wundergraph_derive && cargo clippy --no-default-features --features "postgres sqlite")
-      - (cd wundergraph && cargo clippy --no-default-features --features "lint postgres sqlite extras")
-      - (cd wundergraph_example && cargo clippy --no-default-features --features "sqlite")
-      - (cd wundergraph_example && cargo clippy --no-default-features --features "postgres")
-      - (cd wundergraph_bench && cargo clippy --no-default-features --features "postgres" )
-      - (cd wundergraph_bench && cargo clippy --no-default-features --features "sqlite" )
-      - (cd wundergraph_cli && cargo clippy --no-default-features --features "postgres sqlite")
+      #  - rust: nightly-2019-10-03
+      #    env: CLIPPY=YESPLEASE
+      #    script:
+      #      - rustup component add clippy
+      #      - (cd wundergraph_derive && cargo clippy --no-default-features --features "postgres sqlite")
+      #      - (cd wundergraph && cargo clippy --no-default-features --features "postgres sqlite extras")
+      #      - (cd wundergraph_example && cargo clippy --no-default-features --features "sqlite")
+      #      - (cd wundergraph_example && cargo clippy --no-default-features --features "postgres")
+      #      - (cd wundergraph_bench && cargo clippy --no-default-features --features "postgres" )
+      #      - (cd wundergraph_bench && cargo clippy --no-default-features --features "sqlite" )
+      #      - (cd wundergraph_cli && cargo clippy --no-default-features --features "postgres sqlite")
   - rust: nightly-2019-10-03
     env: RUSTFMT=YESPLEASE
     script:
