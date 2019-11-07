@@ -1,0 +1,12 @@
+---
+source: wundergraph_cli/src/print_schema/mod.rs
+expression: "r.json::<serde_json::Value>().unwrap()"
+---
+{
+  "data": {
+    "CreateUser": {
+      "id": 1,
+      "name": "Max"
+    }
+  }
+}
