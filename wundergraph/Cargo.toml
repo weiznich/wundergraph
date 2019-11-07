@@ -16,7 +16,7 @@ serde = "1"
 diesel = { version = "1.4", features = ["r2d2"]}
 juniper = "0.14"
 indexmap = "1"
-wundergraph_derive = { path = "../wundergraph_derive" }
+wundergraph_derive = "0.1"
 uuid_internal = { version = "0.7", optional = true, package = "uuid" }
 chrono_internal = { version = "0.4", optional = true, package = "chrono" }
 log = { version = "0.4", optional = true }
@@ -24,8 +24,8 @@ paste = "0.1"
 thiserror = "1"
 
 [dev-dependencies]
-wundergraph_example = { path = "../wundergraph_example", default-features = false }
-wundergraph_bench = { path = "../wundergraph_bench", default-features = false }
+#wundergraph_example = { path = "../wundergraph_example", default-features = false }
+#wundergraph_bench = { path = "../wundergraph_bench", default-features = false }
 diesel_migrations = "1.4.0"
 serde_json = "1"
 criterion = "0.3"
