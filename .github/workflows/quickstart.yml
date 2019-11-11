@@ -11,7 +11,7 @@ name: Quickstart
 jobs:
   check:
     name: Check
-    stratgey:
+    strategy:
       matrix:
         rust: ["1.34.0", "stable", "beta", "nightly"]
         backend: ["postgres", "sqlite"]
@@ -37,7 +37,7 @@ jobs:
 
   test:
     name: Test Suite
-    stratgey:
+    strategy:
       matrix:
         rust: ["1.34.0", "stable", "beta", "nightly"]
         backend: ["postgres", "sqlite"]
