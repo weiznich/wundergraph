@@ -6,7 +6,7 @@
 
 on: [pull_request]
 
-name: Quickstart
+name: Wundergraph CI
 
 jobs:
   check:
@@ -26,6 +26,11 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v1
+
+      - name: Setup System
+        if: matrix.os == 'ubuntu-18.04'
+        run: |
+          sudo apt-get update && sudo apt-get install -yy libsqlite3-dev libpq-dev
 
       - uses: harmon758/postgresql-action@v1
         if: matrix.backend == 'postgres'
