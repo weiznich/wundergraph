@@ -1,4 +1,4 @@
 #[cfg(feature = "chrono")]
 mod chrono;
-#[cfg(feature = "uuid")]
+#[cfg(all(feature = "uuid", feature = "postgres"))]
 mod uuid;
