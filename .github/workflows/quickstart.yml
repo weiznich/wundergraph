@@ -4,7 +4,7 @@
 # for simplicity we are compiling and testing everything on the Ubuntu environment only.
 # For multi-OS testing see the `cross.yml` workflow.
 
-on: [push, pull_request]
+on: [pull_request]
 
 name: Quickstart
 
@@ -20,6 +20,11 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v1
+
+      - uses: harmon758/postgresql-action@v1
+        if: matrix.backend == 'postgres'
+        with:
+          postgresql version: '11'
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
@@ -46,6 +51,12 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v1
+
+      - uses: harmon758/postgresql-action@v1
+        if: matrix.backend == 'postgres'
+        with:
+          postgresql version: '11'
+
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
