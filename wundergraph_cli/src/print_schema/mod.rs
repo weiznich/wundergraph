@@ -90,6 +90,7 @@ mod tests {
             id SERIAL PRIMARY KEY,
             author INTEGER REFERENCES infer_test.users(id),
             title TEXT NOT NULL,
+            datetime TIMESTAMP,
             content TEXT
         );"#,
         r#"CREATE TABLE infer_test.comments(
@@ -102,17 +103,18 @@ mod tests {
 
     #[cfg(feature = "sqlite")]
     const MIGRATION: &[&str] = &[
-        "CREATE TABLE users(id INTEGER AUTOINCREMENT PRIMARY KEY, name TEXT NOT NULL);",
-        r#"CREATE TABLEposts(
-            id INTEGER AUTOINCREMENT PRIMARY KEY,
+        "CREATE TABLE users(id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);",
+        r#"CREATE TABLE posts(
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
             author INTEGER REFERENCES users(id),
             title TEXT NOT NULL,
+            datetime TIMESTAMP,
             content TEXT
         );"#,
-        r#"CREATE TABLE infer_test.comments(
-            id INTEGER AUTOINCREMENT PRIMARY KEY,
-            post INTEGER REFERENCES infer_test.posts(id),
-            commenter INTEGER REFERENCES infer_test.users(id),
+        r#"CREATE TABLE comments(
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            post INTEGER REFERENCES posts(id),
+            commenter INTEGER REFERENCES users(id),
             content TEXT NOT NULL
         );"#,
     ];
@@ -130,7 +132,7 @@ mod tests {
             #[cfg(feature = "sqlite")]
             InferConnection::Sqlite(conn) => {
                 for m in MIGRATION {
-                    sql_query(m).execute(conn).unwrap();
+                    sql_query(*m).execute(conn).unwrap();
                 }
             }
         }
@@ -143,7 +145,10 @@ mod tests {
 
         let mut out = Vec::<u8>::new();
 
+        #[cfg(feature = "postgres")]
         print(&conn, Some("infer_test"), &mut out).unwrap();
+        #[cfg(feature = "sqlite")]
+        print(&conn, None, &mut out).unwrap();
 
         let s = String::from_utf8(out).unwrap();
         insta::assert_snapshot!(&s);
@@ -171,7 +176,10 @@ mod tests {
 
         let api = tmp_dir.path().join("wundergraph_roundtrip_test/src/api.rs");
         let mut api_file = File::create(api).unwrap();
+        #[cfg(feature = "postgres")]
         print(&conn, Some("infer_test"), &mut api_file).unwrap();
+        #[cfg(feature = "sqlite")]
+        print(&conn, None, &mut api_file).unwrap();
 
         let main = tmp_dir
             .path()
@@ -196,6 +204,17 @@ mod tests {
         )
         .unwrap();
 
+        #[cfg(feature = "sqlite")]
+        write!(
+            main_file,
+            include_str!("template_main.rs"),
+            conn = "SqliteConnection",
+            db_url = std::env::var("DATABASE_URL").unwrap(),
+            migrations = migrations,
+            listen_url = listen_url
+        )
+        .unwrap();
+
         let cargo_toml = tmp_dir.path().join("wundergraph_roundtrip_test/Cargo.toml");
         let mut cargo_toml_file = std::fs::OpenOptions::new()
             .write(true)
@@ -210,12 +229,12 @@ mod tests {
             writeln!(
                 cargo_toml_file,
                 "{}",
-                r#"diesel = {version = "1.4", features = ["postgres"]}"#
+                r#"diesel = {version = "1.4", features = ["postgres", "chrono"]}"#
             )
             .unwrap();
             writeln!(
                 cargo_toml_file,
-                "wundergraph = {{path = \"{}/../wundergraph/\", features = [\"postgres\"] }}",
+                "wundergraph = {{path = \"{}/../wundergraph/\", features = [\"postgres\", \"chrono\"] }}",
                 current_root
             )
             .unwrap();
@@ -225,12 +244,12 @@ mod tests {
             writeln!(
                 cargo_toml_file,
                 "{}",
-                r#"diesel = {version = "1.4", features = ["sqlite"]}"#
+                r#"diesel = {version = "1.4", features = ["sqlite", "chrono"]}"#
             )
             .unwrap();
             writeln!(
                 cargo_toml_file,
-                "wundergraph = {{path = \"{}/../wundergraph\", features = [\"sqlite\"] }}",
+                "wundergraph = {{path = \"{}/../wundergraph\", features = [\"sqlite\", \"chrono\"] }}",
                 current_root
             )
             .unwrap();
@@ -238,6 +257,7 @@ mod tests {
         writeln!(cargo_toml_file, "{}", r#"juniper = "0.14""#).unwrap();
         writeln!(cargo_toml_file, "{}", r#"failure = "0.1""#).unwrap();
         writeln!(cargo_toml_file, "{}", r#"actix-web = "1""#).unwrap();
+        writeln!(cargo_toml_file, "{}", r#"chrono = "0.4""#).unwrap();
         writeln!(
             cargo_toml_file,
             "{}",

@@ -396,16 +396,16 @@ impl<'a> Display for GraphqlType<'a> {
                 write!(f, "bool")?;
             }
             ColumnType { ref rust_name, .. } if rust_name == "Timestamptz" => {
-                write!(f, "DateTime<Utc>")?;
+                write!(f, "chrono::DateTime<chrono::offset::Utc>")?;
             }
             ColumnType { ref rust_name, .. } if rust_name == "Timestamp" => {
-                write!(f, "NaiveDateTime")?;
+                write!(f, "chrono::naive::NaiveDateTime")?;
             }
             ColumnType { ref rust_name, .. } if rust_name == "Uuid" => {
-                write!(f, "Uuid")?;
+                write!(f, "uuid::Uuid")?;
             }
             ColumnType { ref rust_name, .. } if rust_name == "Numeric" => {
-                write!(f, "BigDecimal")?;
+                write!(f, "bigdecimal::BigDecimal")?;
             }
             ColumnType { ref rust_name, .. } => write!(f, "{}", fix_table_name(rust_name))?,
         }
