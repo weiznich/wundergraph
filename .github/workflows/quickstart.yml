@@ -15,7 +15,7 @@ jobs:
       matrix:
         rust: ["1.34.0", "stable", "beta", "nightly"]
         backend: ["postgres", "sqlite"]
-        os: [ubuntu-18.04, macros-latest, windows-lastest]
+        os: [ubuntu-18.04, macos-latest, windows-lastest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
