@@ -40,36 +40,36 @@ jobs:
           args: --features "$BACKEND"
 
 
-  test:
-    name: Test Suite
-    strategy:
-      matrix:
-        rust: ["1.34.0", "stable", "beta", "nightly"]
-        backend: ["postgres", "sqlite"]
-        os: [ubuntu-18.04, macros-latest, windows-lastest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v1
+  # test:
+  #   name: Test Suite
+  #   strategy:
+  #     matrix:
+  #       rust: ["1.34.0", "stable", "beta", "nightly"]
+  #       backend: ["postgres", "sqlite"]
+  #       os: [ubuntu-18.04, macros-latest, windows-lastest]
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - name: Checkout sources
+  #       uses: actions/checkout@v1
 
-      - uses: harmon758/postgresql-action@v1
-        if: matrix.backend == 'postgres'
-        with:
-          postgresql version: '11'
+  #     - uses: harmon758/postgresql-action@v1
+  #       if: matrix.backend == 'postgres'
+  #       with:
+  #         postgresql version: '11'
 
 
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
+  #     - name: Install stable toolchain
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         profile: minimal
+  #         toolchain: ${{ matrix.rust }}
+  #         override: true
 
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features "$BACKEND"
+  #     - name: Run cargo test
+  #       uses: actions-rs/cargo@v1
+  #       with:
+  #         command: test
+  #         args: --features "$BACKEND"
 
   # lints:
   #   name: Lints
