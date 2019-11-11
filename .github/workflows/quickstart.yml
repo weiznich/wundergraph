@@ -16,6 +16,12 @@ jobs:
         rust: ["1.35.0", "stable", "beta", "nightly"]
         backend: ["postgres", "sqlite"]
         os: [ubuntu-18.04, macos-latest, windows-lastest]
+        exclude:
+        # excludes postgres on OSX and Windows (unsupported in postgresql-action)
+        - os: macos-latest
+          backend: "postgres"
+        - os: windows-latest
+          backend: "postgres"
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
