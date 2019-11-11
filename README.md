@@ -56,6 +56,10 @@ wundergraph::query_object!{
 }
 ```
 
+## Building
+
+Just install some dependencies (`libsqlite3-dev` and `libpq-dev` in Debian) and `cargo build`.
+
 ## License
 
 Licensed under either of these:
