@@ -3,8 +3,6 @@ Wundergraph
 
 Wundergraph provides a platform to easily expose your database through a GraphQL interface.
 
-**This library is currently a prof of concept. Expect bugs and crashes everywhere**
-
 [![Build Status](https://travis-ci.org/weiznich/wundergraph.svg?branch=master)](https://travis-ci.org/weiznich/wundergraph)
 
 
@@ -58,7 +56,7 @@ wundergraph::query_object!{
 
 ## Building
 
-Just install some dependencies (`libsqlite3-dev` and `libpq-dev` in Debian) and `cargo build`.
+Depending on your backend choice you need to install a native library. `libpq` is required for the postgresql feature, `libsqlite3` for the sqlite feature.
 
 ## License
 
