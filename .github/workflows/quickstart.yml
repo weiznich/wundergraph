@@ -54,8 +54,8 @@ jobs:
         if: runner.os == 'Windows' && matrix.backend == 'sqlite'
         run: |
           choco install 7zip
-          mkdir C:\sqlite
-          CD /D C:\sqlite
+          mkdir /sqlite
+          cd /sqlite
           curl -fsS --retry 3 --retry-connrefused -o sqlite3.zip https://sqlite.org/2017/sqlite-dll-win64-x64-3160200.zip
           7z e sqlite3.zip -y
           call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
