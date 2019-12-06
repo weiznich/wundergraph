@@ -21,8 +21,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v1
 
-      - name: "Install libpq (Linux)"
-        if: runner.os == "Linux" && matrix.backend == "postgres"
+      - name: Install libpq (Linux)
+        if: runner.os == 'Linux' && matrix.backend == 'postgres'
         run: |
           sudo apt-get update && apt-get install -y libpq-dev &&
           echo "host    all             all             127.0.0.1/32            md5" > sudo tee -a /etc/postgresql/9.5/main/pg_hba.conf &&
@@ -30,26 +30,27 @@ jobs:
           sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" &&
           sudo service postgresql restart && sleep 3
 
-      - name: "Install sqlite (Linux)"
-        if: runner.os == "Linux" && matrix.backend = "sqlite"
+      - name: Install sqlite (Linux)
+        if: runner.os == 'Linux' && matrix.backend = 'sqlite'
         run: sudo apt-get update && apt-get install -y libsqlite3-dev sqlite3
 
-      - name: "Install libpq (MacOs)"
-        if: runner.os == "macOS" && matrix.backend == "postgres"
+      - name: Install libpq (MacOs)
+        if: runner.os == 'macOS' && matrix.backend == 'postgres'
         run: |
           brew update &&
           brew install postgres &&
           brew service start postgres &&
           sleep 3 &&
           /usr/local/opt/postgres/bin/createuser -s postgres
-      - name: "Install sqlite (MacOS)"
-        if: runner.os == "macOS" && matrix.backend == "sqlite"
+
+      - name: Install sqlite (MacOS)
+        if: runner.os == 'macOS' && matrix.backend == 'sqlite'
         run: |
           brew update &&
           brew install sqlite
 
-      - name: "Install sqlite (Windows)"
-        if: runner.os == "Windows" && matrix.backend == "sqlite"
+      - name: Install sqlite (Windows)
+        if: runner.os == 'Windows' && matrix.backend == 'sqlite'
         run: |
           choco install 7zip
           mkdir C:\sqlite
@@ -61,8 +62,8 @@ jobs:
           set PATH=%PATH%;C:\sqlite
           echo "##vso[task.setvariable variable=PATH;]%PATH%;C:\sqlite"
 
-      - name: "Install libpq (Windows)"
-        if: runner.os == "Windows" && matrix.backend == "postgres"
+      - name: Install libpq (Windows)
+        if: runner.os == 'Windows' && matrix.backend == 'postgres'
         run: |
           choco install postgresql10 --force --params '/Password:password'
           set PATH=%PATH%;C:\Program Files\PostgreSQL\10\bin;C:\Program Files\PostgreSQL\10\lib"
