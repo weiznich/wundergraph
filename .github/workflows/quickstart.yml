@@ -24,7 +24,7 @@ jobs:
       - name: Install libpq (Linux)
         if: runner.os == 'Linux' && matrix.backend == 'postgres'
         run: |
-          sudo apt-get update && apt-get install -y libpq-dev &&
+          sudo apt-get update && sudo apt-get install -y libpq-dev &&
           echo "host    all             all             127.0.0.1/32            md5" > sudo tee -a /etc/postgresql/9.5/main/pg_hba.conf &&
           sudo service postgresql restart && sleep 3 &&
           sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" &&
@@ -32,14 +32,14 @@ jobs:
 
       - name: Install sqlite (Linux)
         if: runner.os == 'Linux' && matrix.backend == 'sqlite'
-        run: sudo apt-get update && apt-get install -y libsqlite3-dev sqlite3
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev sqlite3
 
       - name: Install libpq (MacOs)
         if: runner.os == 'macOS' && matrix.backend == 'postgres'
         run: |
           brew update &&
           brew install postgres &&
-          brew service start postgres &&
+          /usr/local/opt/postgres/bin/pg_ctl -D /usr/local/var/postgres start &&
           sleep 3 &&
           /usr/local/opt/postgres/bin/createuser -s postgres
 
@@ -81,7 +81,7 @@ jobs:
         with:
           name: "Check wundergraph_derives"
           command: test
-          args: --manifest-path wundergraph_derives/Cargo.toml --features "$BACKEND"
+          args: --manifest-path wundergraph_derive/Cargo.toml --features "$BACKEND"
 
 
   # test:
