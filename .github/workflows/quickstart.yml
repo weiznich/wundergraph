@@ -31,7 +31,7 @@ jobs:
           sudo service postgresql restart && sleep 3
 
       - name: Install sqlite (Linux)
-        if: runner.os == 'Linux' && matrix.backend = 'sqlite'
+        if: runner.os == 'Linux' && matrix.backend == 'sqlite'
         run: sudo apt-get update && apt-get install -y libsqlite3-dev sqlite3
 
       - name: Install libpq (MacOs)
