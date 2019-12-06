@@ -24,7 +24,8 @@ jobs:
       - name: Install libpq (Linux)
         if: runner.os == 'Linux' && matrix.backend == 'postgres'
         run: |
-          sudo apt-get update && sudo apt-get install -y libpq-dev &&
+          sudo apt-get update &&
+          sudo apt-get install -y libpq-dev postgresql &&
           echo "host    all             all             127.0.0.1/32            md5" > sudo tee -a /etc/postgresql/9.5/main/pg_hba.conf &&
           sudo service postgresql restart && sleep 3 &&
           sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" &&
@@ -81,7 +82,7 @@ jobs:
         with:
           name: "Check wundergraph_derives"
           command: test
-          args: --manifest-path wundergraph_derive/Cargo.toml --features "$BACKEND"
+          args: --manifest-path wundergraph_derive/Cargo.toml --features "${{ matrix.backend }}"
 
 
   # test:
