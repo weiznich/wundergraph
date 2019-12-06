@@ -21,23 +21,66 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v1
 
-      - uses: harmon758/postgresql-action@v1
-        if: matrix.backend == 'postgres'
-        with:
-          postgresql version: '11'
+      - name: "Install libpq (Linux)"
+        if: runner.os == "Linux" && matrix.backend == "postgres"
+        run: |
+          sudo apt-get update && apt-get install -y libpq-dev &&
+          echo "host    all             all             127.0.0.1/32            md5" > sudo tee -a /etc/postgresql/9.5/main/pg_hba.conf &&
+          sudo service postgresql restart && sleep 3 &&
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" &&
+          sudo service postgresql restart && sleep 3
 
-      - name: Install stable toolchain
+      - name: "Install sqlite (Linux)"
+        if: runner.os == "Linux" && matrix.backend = "sqlite"
+        run: sudo apt-get update && apt-get install -y libsqlite3-dev sqlite3
+
+      - name: "Install libpq (MacOs)"
+        if: runner.os == "macOS" && matrix.backend == "postgres"
+        run: |
+          brew update &&
+          brew install postgres &&
+          brew service start postgres &&
+          sleep 3 &&
+          /usr/local/opt/postgres/bin/createuser -s postgres
+      - name: "Install sqlite (MacOS)"
+        if: runner.os == "macOS" && matrix.backend == "sqlite"
+        run: |
+          brew update &&
+          brew install sqlite
+
+      - name: "Install sqlite (Windows)"
+        if: runner.os == "Windows" && matrix.backend == "sqlite"
+        run: |
+          choco install 7zip
+          mkdir C:\sqlite
+          CD /D C:\sqlite
+          curl -fsS --retry 3 --retry-connrefused -o sqlite3.zip https://sqlite.org/2017/sqlite-dll-win64-x64-3160200.zip
+          7z e sqlite3.zip -y
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          lib /machine:x64 /def:sqlite3.def /out:sqlite3.lib
+          set PATH=%PATH%;C:\sqlite
+          echo "##vso[task.setvariable variable=PATH;]%PATH%;C:\sqlite"
+
+      - name: "Install libpq (Windows)"
+        if: runner.os == "Windows" && matrix.backend == "postgres"
+        run: |
+          choco install postgresql10 --force --params '/Password:password'
+          set PATH=%PATH%;C:\Program Files\PostgreSQL\10\bin;C:\Program Files\PostgreSQL\10\lib"
+          echo "##vso[task.setvariable variable=PATH;]%PATH%;C:\Program Files\PostgreSQL\10\bin;C:\Program Files\PostgreSQL\10\lib"
+
+      - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
 
-      - name: Run cargo check
+      - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
-          command: check
-          args: --features "$BACKEND"
+          name: "Check wundergraph_derives"
+          command: test
+          args: --manifest-path wundergraph_derives/Cargo.toml --features "$BACKEND"
 
 
   # test:
