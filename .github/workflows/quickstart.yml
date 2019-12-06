@@ -99,7 +99,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --manifest-path wundergraph_bench/Cargo.toml --features "${{ matrix.backend }"
+          args: --manifest-path wundergraph_bench/Cargo.toml --features "${{ matrix.backend }}"
 
       - name: Run cargo check for wundergraph_cli
         uses: actions-rs/cargo@v1
