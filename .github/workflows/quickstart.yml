@@ -22,13 +22,13 @@ jobs:
         uses: actions/checkout@v1
       - name: Set environment variables
         shell: bash
-        if: matrix.backend = 'postgres'
+        if: matrix.backend == 'postgres'
         run: |
           echo '::set-env name=DATABASE_URL::postgres://postgres:postgres@localhost/wundergraph_test'
 
       - name: Set environment variables
         shell: bash
-        if: matrix.backend = 'sqlite'
+        if: matrix.backend == 'sqlite'
         run: |
           echo '::set-env name=DATABASE_URL::./test.db'
 
