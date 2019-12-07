@@ -90,31 +90,31 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --manifest-path wundergraph_example/Cargo.toml --features "${{ matrix.backend }}"
+          args: --manifest-path wundergraph_example/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
 
       - name: Run cargo check for wundergraph_bench
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --manifest-path wundergraph_bench/Cargo.toml --features "${{ matrix.backend }}"
+          args: --manifest-path wundergraph_bench/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
 
       - name: Run cargo check for wundergraph_cli
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}"
+          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
 
       - name: Run cargo test for wundergraph
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path wundergraph/Cargo.toml --features "${{ matrix.backend }}"
+          args: --manifest-path wundergraph/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
 
       - name: Run test check for wundergraph_cli
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}"
+          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
 
   clippy_check:
     runs-on: ubuntu-latest
