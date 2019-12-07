@@ -59,6 +59,7 @@ jobs:
           cd C:\sqlite
           curl -fsS --retry 3 --retry-connrefused -o sqlite3.zip https://sqlite.org/2017/sqlite-dll-win64-x64-3160200.zip
           7z e sqlite3.zip -y
+          export PATH="$PATH;C:\sqlite"
 #          set PATH=%PATH%;C:\sqlite
  #         echo "##vso[task.setvariable variable=PATH;]%PATH%;C:\sqlite"
 
