@@ -20,6 +20,17 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v1
+      - name: Set environment variables
+        shell: bash
+        if: matrix.backend = 'postgres'
+        run: |
+          echo '::set-env name=DATABASE_URL::postgres://postgres:postgres@localhost/wundergraph_test'
+
+      - name: Set environment variables
+        shell: bash
+        if: matrix.backend = 'sqlite'
+        run: |
+          echo '::set-env name=DATABASE_URL::./test.db'
 
       - name: Install libpq (Linux)
         if: runner.os == 'Linux' && matrix.backend == 'postgres'
@@ -102,7 +113,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path wundergraph/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
+          args: --manifest-path wundergraph/Cargo.toml --features "${{ matrix.backend }} wundergraph_example/${{ matrix.backend }} wundergraph_bench/${{ matrix.backend }}" --no-default-features
 
       - name: Run test check for wundergraph_cli
         uses: actions-rs/cargo@v1
