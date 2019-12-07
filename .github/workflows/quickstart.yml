@@ -52,15 +52,17 @@ jobs:
 
       - name: Install sqlite (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'sqlite'
+        shell: bash
         run: |
           choco install 7zip
-          mkdir /sqlite
-          cd /sqlite
+          mkdir C:\sqlite
+          CD /D C:\sqlite
           curl -fsS --retry 3 --retry-connrefused -o sqlite3.zip https://sqlite.org/2017/sqlite-dll-win64-x64-3160200.zip
           7z e sqlite3.zip -y
           call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           lib /machine:x64 /def:sqlite3.def /out:sqlite3.lib
-
+          set PATH=%PATH%;C:\sqlite
+          echo "##vso[task.setvariable variable=PATH;]%PATH%;C:\sqlite"
 
       - name: Install libpq (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'postgres'
