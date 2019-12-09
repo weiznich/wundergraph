@@ -57,12 +57,11 @@ jobs:
 
       - name: Install sqlite (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'sqlite'
-        shell: bash
+        shell: cmd
         run: |
           choco install sqlite
-          cd C:\\ProgramData\\chocolatey\\lib\\SQLite\\tools
-          C:\\Program\ Files\ \(x86\)\\Microsoft\ Visual\ Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat
-          C:\\Program\ Files\ \(x86\)\\Microsoft\ Visual\ Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\lib.exe /def:sqlite3.def /out:sqlite3.lib
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          lib /machine:x64 /def:sqlite3.def /out:sqlite3.lib
           echo '::set-env name=PATH::$PATH;C:\\ProgramData\\chocolatey\\lib\\SQLite\\tools'
 
       - name: Install libpq (Windows)
