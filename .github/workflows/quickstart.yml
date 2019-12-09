@@ -62,7 +62,7 @@ jobs:
           choco install sqlite
           cd C:\\ProgramData\\chocolatey\\lib\\SQLite\\tools
           C:\\Program\ Files\ \(x86\)\\Microsoft\ Visual\ Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat
-          lib /def:sqlite3.def /out:sqlite3.lib
+          lib.exe /def:sqlite3.def /out:sqlite3.lib
           echo '::set-env name=PATH::$PATH;C:\\ProgramData\\chocolatey\\lib\\SQLite\\tools'
 
       - name: Install libpq (Windows)
