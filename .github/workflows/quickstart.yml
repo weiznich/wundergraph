@@ -60,9 +60,9 @@ jobs:
         shell: bash
         run: |
           choco install sqlite
-          cd C:\ProgramData\chocolatey\lib\SQLite\tools
+          cd C:\\ProgramData\\chocolatey\\lib\\SQLite\\tools
           lib /def:sqlite3.def /out:sqlite3.lib
-          echo '::set-env name=PATH::$PATH;C:\ProgramData\chocolatey\lib\SQLite\tools'
+          echo '::set-env name=PATH::$PATH;C:\\ProgramData\\chocolatey\\lib\\SQLite\\tools'
 
       - name: Install libpq (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'postgres'
