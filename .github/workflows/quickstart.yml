@@ -1,9 +1,3 @@
-# Based on https://github.com/actions-rs/meta/blob/master/recipes/quickstart.md
-#
-# While our "example" application has the platform-specific code,
-# for simplicity we are compiling and testing everything on the Ubuntu environment only.
-# For multi-OS testing see the `cross.yml` workflow.
-
 on: [pull_request]
 
 name: Quickstart
@@ -66,6 +60,9 @@ jobs:
         shell: bash
         run: |
           choco install sqlite
+          cd C:\ProgramData\chocolatey\lib\SQLite\tools
+          lib /def:sqlite3.def /out:sqlite3.lib
+          echo '::set-env name=PATH::$PATH;C:\ProgramData\chocolatey\lib\SQLite\tools'
 
       - name: Install libpq (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'postgres'
