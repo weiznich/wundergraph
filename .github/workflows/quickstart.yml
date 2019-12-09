@@ -64,7 +64,10 @@ jobs:
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           lib /machine:x64 /def:sqlite3.def /out:sqlite3.lib
           dir
-          echo '::set-env name=PATH::$PATH;C:\\ProgramData\\chocolatey\\lib\\SQLite\\tools'
+          echo '::set-env name=PATH::%PATH%;C:\ProgramData\chocolatey\lib\SQLite\tools'
+          echo '::set-env name=SQLITE3_LIB_DIR::C:\ProgramData\chocolatey\lib\SQLite\tools'
+          echo '%PATH%'
+          echo '%SQLITE3_LIB_DIR%'
 
       - name: Install libpq (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'postgres'
