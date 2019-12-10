@@ -67,16 +67,16 @@ jobs:
           cd /D C:\ProgramData\chocolatey\lib\SQLite\tools
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           lib /machine:x64 /def:sqlite3.def /out:sqlite3.lib
-          dir
           echo '::add-path::C:\ProgramData\chocolatey\lib\SQLite\tools'
           echo ::set-env name=SQLITE3_LIB_DIR::C:\ProgramData\chocolatey\lib\SQLite\tools
-          echo %PATH%
-          echo %SQLITE3_LIB_DIR%
 
       - name: Install libpq (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'postgres'
+        shell: cmd
         run: |
           choco install postgresql10 --force --params '/Password:postgres'
+          echo ::add-path::C:\Program Files\PostgreSQL\10\bin;C:\Program Files\PostgreSQL\10\lib
+          echo ::set-env name=PQ_LIB_DIR::C:\Program Files\PostgreSQL\10\bin;C:\Program Files\PostgreSQL\10\lib
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
