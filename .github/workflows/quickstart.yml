@@ -25,6 +25,7 @@ jobs:
         if: matrix.backend == 'sqlite'
         run: |
           echo '::set-env name=DATABASE_URL::./test.db'
+          echo '::set-env name=RUST_TEST_THREADS::1'
 
       - name: Install libpq (Linux)
         if: runner.os == 'Linux' && matrix.backend == 'postgres'
