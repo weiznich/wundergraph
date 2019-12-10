@@ -65,9 +65,9 @@ jobs:
           lib /machine:x64 /def:sqlite3.def /out:sqlite3.lib
           dir
           echo '::add-path::C:\ProgramData\chocolatey\lib\SQLite\tools'
-          echo '::set-env name=SQLITE3_LIB_DIR::C:\ProgramData\chocolatey\lib\SQLite\tools'
-          echo '%PATH%'
-          echo '%SQLITE3_LIB_DIR%'
+          echo ::set-env name=SQLITE3_LIB_DIR::C:\ProgramData\chocolatey\lib\SQLite\tools
+          echo %PATH%
+          echo %SQLITE3_LIB_DIR%
 
       - name: Install libpq (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'postgres'
