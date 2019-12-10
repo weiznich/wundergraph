@@ -35,7 +35,7 @@ jobs:
           echo "host    all             all             127.0.0.1/32            md5" > sudo tee -a /etc/postgresql/9.5/main/pg_hba.conf
           sudo service postgresql restart && sleep 3
           sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
-          sudo -u postgres psql -c "CREATE DATABASE wundergraph_text WITH OWNER = 'postgres';"
+          sudo -u postgres psql -c "CREATE DATABASE wundergraph_test WITH OWNER = 'postgres';"
           sudo service postgresql restart && sleep 3
 
       - name: Install sqlite (Linux)
@@ -50,8 +50,8 @@ jobs:
           /usr/local/opt/postgres/bin/pg_ctl -D /usr/local/var/postgres start
           sleep 3
           /usr/local/opt/postgres/bin/createuser -s postgres
-          /usr/local/opt/postgres/bin/psql -c "ALTER USER postgres PASSWORD 'postgres';"
-          /usr/local/opt/postgres/bin/psql -c "CREATE DATABASE wundergraph_text WITH OWNER = 'postgres';"
+          /usr/local/opt/postgres/bin/createdb wundergraph_test -O postgres
+          /usr/local/opt/postgres/bin/psql -c  "ALTER USER postgres PASSWORD 'postgres';" wundergraph_test
 
       - name: Install sqlite (MacOS)
         if: runner.os == 'macOS' && matrix.backend == 'sqlite'
