@@ -77,6 +77,7 @@ jobs:
           choco install postgresql10 --force --params '/Password:postgres'
           echo ::add-path::C:\Program Files\PostgreSQL\10\bin;C:\Program Files\PostgreSQL\10\lib
           echo ::set-env name=PQ_LIB_DIR::C:\Program Files\PostgreSQL\10\bin;C:\Program Files\PostgreSQL\10\lib
+          refreshenv
           echo %PQ_LIB_DIR%
           cd /D %PQ_LIB_DIR%
           dir %PQ_LIB_DIR%
