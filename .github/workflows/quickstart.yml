@@ -30,11 +30,12 @@ jobs:
       - name: Install libpq (Linux)
         if: runner.os == 'Linux' && matrix.backend == 'postgres'
         run: |
-          sudo apt-get update &&
-          sudo apt-get install -y libpq-dev postgresql &&
-          echo "host    all             all             127.0.0.1/32            md5" > sudo tee -a /etc/postgresql/9.5/main/pg_hba.conf &&
-          sudo service postgresql restart && sleep 3 &&
-          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" &&
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev postgresql
+          echo "host    all             all             127.0.0.1/32            md5" > sudo tee -a /etc/postgresql/9.5/main/pg_hba.conf
+          sudo service postgresql restart && sleep 3
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+          sudo -u postgres psql -c "CREATE DATABASE wundergraph_text WITH ONWER = 'postgres';"
           sudo service postgresql restart && sleep 3
 
       - name: Install sqlite (Linux)
@@ -44,11 +45,13 @@ jobs:
       - name: Install libpq (MacOs)
         if: runner.os == 'macOS' && matrix.backend == 'postgres'
         run: |
-          brew update &&
-          brew install postgres &&
-          /usr/local/opt/postgres/bin/pg_ctl -D /usr/local/var/postgres start &&
-          sleep 3 &&
+          brew update
+          brew install postgres
+          /usr/local/opt/postgres/bin/pg_ctl -D /usr/local/var/postgres start
+          sleep 3
           /usr/local/opt/postgres/bin/createuser -s postgres
+          /usr/local/opt/postgres/bin/psql -c "ALTER USER postgres PASSWORD 'postgres';"
+          /usr/local/opt/postgres/bin/psql -c "CREATE DATABASE wundergraph_text WITH ONWER = 'postgres';"
 
       - name: Install sqlite (MacOS)
         if: runner.os == 'macOS' && matrix.backend == 'sqlite'
@@ -73,7 +76,7 @@ jobs:
       - name: Install libpq (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'postgres'
         run: |
-          choco install postgresql10 --force --params '/Password:password'
+          choco install postgresql10 --force --params '/Password:postgres'
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
