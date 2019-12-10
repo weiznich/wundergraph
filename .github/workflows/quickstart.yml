@@ -69,6 +69,7 @@ jobs:
           lib /machine:x64 /def:sqlite3.def /out:sqlite3.lib
           echo '::add-path::C:\ProgramData\chocolatey\lib\SQLite\tools'
           echo ::set-env name=SQLITE3_LIB_DIR::C:\ProgramData\chocolatey\lib\SQLite\tools
+          echo '%SQLITE3_LIB_DIR%'
 
       - name: Install libpq (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'postgres'
@@ -80,9 +81,6 @@ jobs:
           echo '::set-env name=PQ_LIB_DIR::C:\Program Files\PostgreSQL\10\lib'
           echo '%PQ_LIB_DIR%'
           echo '%PATH%'
-          cd /D %PQ_LIB_DIR%
-          dir
-          dir C:\Program Files\PostgreSQL\10\
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
