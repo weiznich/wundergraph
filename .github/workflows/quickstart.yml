@@ -85,7 +85,7 @@ jobs:
           echo $PQ_LIB_DIR
           echo $PATH
       - name: CHeck setup
-        run:|
+        run: |
           echo $PQ_LIB_DIR
           echo $PATH
           ls $PQ_LIB_DIR
