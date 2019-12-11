@@ -85,6 +85,7 @@ jobs:
           lib /machine:x64 /def:sqlite3.def /out:sqlite3.lib
           echo '::add-path::C:\ProgramData\chocolatey\lib\SQLite\tools'
           echo ::set-env name=SQLITE3_LIB_DIR::C:\ProgramData\chocolatey\lib\SQLite\tools
+          dir
 
       - name: Install libpq (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'postgres'
@@ -152,14 +153,18 @@ jobs:
 
 
   clippy_check:
+    name: Rustfmt + Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
             toolchain: 1.38.0
-            components: clippy
+            components: clippy, rustfmt
             override: true
+      - name: Rustfmt
+        run: |
+          cargo fmt --all -- --check
       - uses: actions-rs/clippy-check@v1
         name: Clippy wundergraph_derive
         with:
