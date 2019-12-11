@@ -83,7 +83,7 @@ jobs:
           cd /D C:\ProgramData\chocolatey\lib\SQLite\tools
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           lib /machine:x64 /def:sqlite3.def /out:sqlite3.lib
-          echo '::add-path::C:\ProgramData\chocolatey\lib\SQLite\tools'
+          echo ::add-path::C:\ProgramData\chocolatey\lib\SQLite\tools
           echo ::set-env name=SQLITE3_LIB_DIR::C:\ProgramData\chocolatey\lib\SQLite\tools
           dir
 
@@ -93,7 +93,7 @@ jobs:
         run: |
           choco install postgresql10 --force --params '/Password:postgres'
           echo '::add-path::C:\Program Files\PostgreSQL\10\bin'
-          echo '::add-path::C:\Program Files\PostgreSQL\10\lib"'
+          echo '::add-path::C:\Program Files\PostgreSQL\10\lib'
           echo '::set-env name=PQ_LIB_DIR::C:\Program Files\PostgreSQL\10\lib'
           ls C:\\Program\ Files\\
           ls C:\\Program\ Files\\PostgreSQL
@@ -145,7 +145,7 @@ jobs:
           command: test
           args: --manifest-path wundergraph/Cargo.toml --features "${{ matrix.backend }} wundergraph_example/${{ matrix.backend }} wundergraph_bench/${{ matrix.backend }}" --no-default-features
 
-      - name: Run test check for wundergraph_cli
+      - name: Run cargo test for wundergraph_cli
         uses: actions-rs/cargo@v1
         with:
           command: test
@@ -159,9 +159,7 @@ jobs:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
-            toolchain: 1.38.0
             components: clippy, rustfmt
-            override: true
       - name: Rustfmt
         run: |
           cargo fmt --all -- --check
