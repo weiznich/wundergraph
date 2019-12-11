@@ -84,6 +84,11 @@ jobs:
           ls C:\\Program\ Files\\PostgreSQL\\10\\lib
           echo $PQ_LIB_DIR
           echo $PATH
+      - name: CHeck setup
+        run:|
+          echo $PQ_LIB_DIR
+          echo $PATH
+          ls $PQ_LIB_DIR
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
