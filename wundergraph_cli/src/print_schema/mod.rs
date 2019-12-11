@@ -266,6 +266,16 @@ mod tests {
         .unwrap();
         writeln!(cargo_toml_file, "{}", r#"serde_json = "1""#).unwrap();
 
+        {
+            use std::io::Seek;
+            use std::io::SeekFrom;
+            cargo_toml_file.seek(SeekFrom::Start(0)).unwrap();
+
+            let mut toml = String::new();
+            cargo_toml_file.read_to_string(&mut toml).unwrap();
+            println!("{}", toml);
+        }
+
         std::mem::drop(conn);
         let mut child = Command::new("cargo")
             .arg("run")

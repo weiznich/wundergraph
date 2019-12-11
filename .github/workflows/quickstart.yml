@@ -137,7 +137,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
+          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}" --no-default-features -- --nocapture
 
       - name: Run cargo test for wundergraph
         uses: actions-rs/cargo@v1
@@ -159,6 +159,7 @@ jobs:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
+            toolchain: nightly-2019-10-03
             components: clippy, rustfmt
       - name: Rustfmt
         run: |
