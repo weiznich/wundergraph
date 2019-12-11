@@ -27,6 +27,22 @@ jobs:
           echo '::set-env name=DATABASE_URL::./test.db'
           echo '::set-env name=RUST_TEST_THREADS::1'
 
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-${{ matrix.rust }}-${{ matrix.backend }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-${{ matrix.rust }}-${{ matrix.backend }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.rust }}-${{ matrix.backend }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Install libpq (Linux)
         if: runner.os == 'Linux' && matrix.backend == 'postgres'
         run: |
@@ -84,11 +100,6 @@ jobs:
           ls C:\\Program\ Files\\PostgreSQL\\10\\lib
           echo $PQ_LIB_DIR
           echo $PATH
-      - name: CHeck setup
-        run: |
-          echo $PQ_LIB_DIR
-          echo $PATH
-          ls $PQ_LIB_DIR
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
@@ -138,6 +149,7 @@ jobs:
         with:
           command: test
           args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
+
 
   clippy_check:
     runs-on: ubuntu-latest
