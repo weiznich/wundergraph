@@ -3,13 +3,11 @@ Wundergraph
 
 Wundergraph provides a platform to easily expose your database through a GraphQL interface.
 
-**This library is currently a prof of concept. Expect bugs and crashes everywhere**
-
 [![Build Status](https://travis-ci.org/weiznich/wundergraph.svg?branch=master)](https://travis-ci.org/weiznich/wundergraph)
 
 
 ## Example
-For a full example application see the [example project](https://github.com/weiznich/wundergraph/tree/master/wundergraph_example/src/main.rs)
+For a full example application see the [example project](https://github.com/weiznich/wundergraph/blob/master/wundergraph_example/src/bin/main.rs)
 
 ```rust
 #[macro_use] extern crate diesel;
@@ -55,6 +53,10 @@ wundergraph::query_object!{
    }
 }
 ```
+
+## Building
+
+Depending on your backend choice you need to install a native library. `libpq` is required for the postgresql feature, `libsqlite3` for the sqlite feature.
 
 ## License
 

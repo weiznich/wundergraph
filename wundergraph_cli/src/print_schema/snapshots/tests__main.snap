@@ -1,0 +1,154 @@
+---
+source: wundergraph_cli/src/print_schema/mod.rs
+expression: "&s"
+---
+use wundergraph::query_builder::types::{HasMany, HasOne};
+use wundergraph::scalar::WundergraphScalarValue;
+use wundergraph::WundergraphEntity;
+
+table! {
+    comments (id) {
+        id -> Integer,
+        post -> Nullable<Integer>,
+        commenter -> Nullable<Integer>,
+        content -> Text,
+    }
+}
+
+table! {
+    posts (id) {
+        id -> Integer,
+        author -> Nullable<Integer>,
+        title -> Text,
+        datetime -> Nullable<Timestamp>,
+        content -> Nullable<Text>,
+    }
+}
+
+table! {
+    users (id) {
+        id -> Integer,
+        name -> Text,
+    }
+}
+
+allow_tables_to_appear_in_same_query!(
+    comments,
+    posts,
+    users,
+);
+
+
+#[derive(Clone, Debug, Identifiable, WundergraphEntity)]
+#[table_name = "comments"]
+#[primary_key(id)]
+pub struct Comment {
+    id: i32,
+    post: Option<HasOne<i32, Post>>,
+    commenter: Option<HasOne<i32, User>>,
+    content: String,
+}
+
+#[derive(Clone, Debug, Identifiable, WundergraphEntity)]
+#[table_name = "posts"]
+#[primary_key(id)]
+pub struct Post {
+    id: i32,
+    author: Option<HasOne<i32, User>>,
+    title: String,
+    datetime: Option<chrono::naive::NaiveDateTime>,
+    content: Option<String>,
+    comments: HasMany<Comment, comments::post>,
+}
+
+#[derive(Clone, Debug, Identifiable, WundergraphEntity)]
+#[table_name = "users"]
+#[primary_key(id)]
+pub struct User {
+    id: i32,
+    name: String,
+    comments: HasMany<Comment, comments::commenter>,
+    posts: HasMany<Post, posts::author>,
+}
+
+
+
+wundergraph::query_object!{
+    Query {
+        Comment,
+        Post,
+        User,
+    }
+}
+
+
+#[derive(Insertable, juniper::GraphQLInputObject, Clone, Debug)]
+#[graphql(scalar = "WundergraphScalarValue")]
+#[table_name = "comments"]
+pub struct NewComment {
+    id: i32,
+    post: Option<i32>,
+    commenter: Option<i32>,
+    content: String,
+}
+
+#[derive(AsChangeset, Identifiable, juniper::GraphQLInputObject, Clone, Debug)]
+#[graphql(scalar = "WundergraphScalarValue")]
+#[table_name = "comments"]
+#[primary_key(id)]
+pub struct CommentChangeset {
+    id: i32,
+    post: Option<i32>,
+    commenter: Option<i32>,
+    content: String,
+}
+
+#[derive(Insertable, juniper::GraphQLInputObject, Clone, Debug)]
+#[graphql(scalar = "WundergraphScalarValue")]
+#[table_name = "posts"]
+pub struct NewPost {
+    id: i32,
+    author: Option<i32>,
+    title: String,
+    datetime: Option<chrono::naive::NaiveDateTime>,
+    content: Option<String>,
+}
+
+#[derive(AsChangeset, Identifiable, juniper::GraphQLInputObject, Clone, Debug)]
+#[graphql(scalar = "WundergraphScalarValue")]
+#[table_name = "posts"]
+#[primary_key(id)]
+pub struct PostChangeset {
+    id: i32,
+    author: Option<i32>,
+    title: String,
+    datetime: Option<chrono::naive::NaiveDateTime>,
+    content: Option<String>,
+}
+
+#[derive(Insertable, juniper::GraphQLInputObject, Clone, Debug)]
+#[graphql(scalar = "WundergraphScalarValue")]
+#[table_name = "users"]
+pub struct NewUser {
+    id: i32,
+    name: String,
+}
+
+#[derive(AsChangeset, Identifiable, juniper::GraphQLInputObject, Clone, Debug)]
+#[graphql(scalar = "WundergraphScalarValue")]
+#[table_name = "users"]
+#[primary_key(id)]
+pub struct UserChangeset {
+    id: i32,
+    name: String,
+}
+
+wundergraph::mutation_object!{
+    Mutation{
+        Comment(insert = NewComment, update = CommentChangeset, ),
+        Post(insert = NewPost, update = PostChangeset, ),
+        User(insert = NewUser, update = UserChangeset, ),
+    }
+}
+
+

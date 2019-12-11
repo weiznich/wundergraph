@@ -25,6 +25,6 @@ num_cpus = "1.8"
 structopt = "0.3"
 
 [features]
-default = []
+default = ["postgres"]
 postgres = ["wundergraph/postgres", "diesel/postgres"]
 sqlite = ["wundergraph/sqlite", "diesel/sqlite"]
