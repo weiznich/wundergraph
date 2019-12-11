@@ -20,6 +20,7 @@ table! {
         id -> Int4,
         author -> Nullable<Int4>,
         title -> Text,
+        datetime -> Nullable<Timestamp>,
         content -> Nullable<Text>,
     }
 }
@@ -55,6 +56,7 @@ pub struct Post {
     id: i32,
     author: Option<HasOne<i32, User>>,
     title: String,
+    datetime: Option<chrono::naive::NaiveDateTime>,
     content: Option<String>,
     comments: HasMany<Comment, comments::post>,
 }
@@ -106,6 +108,7 @@ pub struct CommentChangeset {
 pub struct NewPost {
     author: Option<i32>,
     title: String,
+    datetime: Option<chrono::naive::NaiveDateTime>,
     content: Option<String>,
 }
 
@@ -117,6 +120,7 @@ pub struct PostChangeset {
     id: i32,
     author: Option<i32>,
     title: String,
+    datetime: Option<chrono::naive::NaiveDateTime>,
     content: Option<String>,
 }
 
