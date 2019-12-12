@@ -158,6 +158,7 @@ mod tests {
     fn round_trip() {
         use std::fs::File;
         use std::io::{BufRead, BufReader, Read, Write};
+        use std::path::PathBuf;
         use std::process::Command;
 
         let conn = get_connection();
@@ -224,6 +225,10 @@ mod tests {
             .open(cargo_toml)
             .unwrap();
         let current_root = env!("CARGO_MANIFEST_DIR");
+        let mut wundergraph_dir = PathBuf::from(current_root);
+        wundergraph_dir.push("..");
+        wundergraph_dir.push("wundergraph");
+
         #[cfg(feature = "postgres")]
         {
             writeln!(
@@ -233,14 +238,10 @@ mod tests {
             )
             .unwrap();
 
-            let mut wundergraph_dir = Path::from(current_root);
-            wundergraph_dir.join("..");
-            wundergraph_dir.join("wundergraph");
-
             writeln!(
                 cargo_toml_file,
                 "wundergraph = {{path = \"{}\", features = [\"postgres\", \"chrono\"] }}",
-                wundergraph_dir
+                wundergraph_dir.display()
             )
             .unwrap();
         }
@@ -252,10 +253,11 @@ mod tests {
                 r#"diesel = {version = "1.4", features = ["sqlite", "chrono"]}"#
             )
             .unwrap();
+
             writeln!(
                 cargo_toml_file,
-                "wundergraph = {{path = \"{}/../wundergraph\", features = [\"sqlite\", \"chrono\"] }}",
-                current_root
+                "wundergraph = {{path = \"{}\", features = [\"sqlite\", \"chrono\"] }}",
+                wundergraph_dir.display()
             )
             .unwrap();
         }
