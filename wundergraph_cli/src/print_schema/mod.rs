@@ -229,6 +229,8 @@ mod tests {
         wundergraph_dir.push("..");
         wundergraph_dir.push("wundergraph");
 
+        let wundergraph_dir = wundergraph_dir.to_str().unwrap().replace(r"\", r"\\");
+
         #[cfg(feature = "postgres")]
         {
             writeln!(
@@ -241,7 +243,7 @@ mod tests {
             writeln!(
                 cargo_toml_file,
                 "wundergraph = {{path = \"{}\", features = [\"postgres\", \"chrono\"] }}",
-                wundergraph_dir.display()
+                wundergraph_dir
             )
             .unwrap();
         }
@@ -257,7 +259,7 @@ mod tests {
             writeln!(
                 cargo_toml_file,
                 "wundergraph = {{path = \"{}\", features = [\"sqlite\", \"chrono\"] }}",
-                wundergraph_dir.display()
+                wundergraph_dir
             )
             .unwrap();
         }
