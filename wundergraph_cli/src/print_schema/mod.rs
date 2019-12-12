@@ -232,10 +232,15 @@ mod tests {
                 r#"diesel = {version = "1.4", features = ["postgres", "chrono"]}"#
             )
             .unwrap();
+
+            let mut wundergraph_dir = current_root;
+            wundergraph_dir.join("..");
+            wundergraph_dir.join("wundergraph");
+
             writeln!(
                 cargo_toml_file,
-                "wundergraph = {{path = \"{}/../wundergraph/\", features = [\"postgres\", \"chrono\"] }}",
-                current_root
+                "wundergraph = {{path = \"{}\", features = [\"postgres\", \"chrono\"] }}",
+                wundergraph_dir
             )
             .unwrap();
         }
