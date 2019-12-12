@@ -280,7 +280,7 @@ mod tests {
 
             let mut toml = String::new();
             cargo_toml_file.read_to_string(&mut toml).unwrap();
-            println!("{}", toml);
+            println!("{:?}", toml);
         }
 
         std::mem::drop(conn);
