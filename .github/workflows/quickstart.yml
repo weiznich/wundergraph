@@ -31,12 +31,12 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-${{ matrix.rust }}-${{ matrix.backend }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ matrix.backend }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
       - name: Cache cargo index
         uses: actions/cache@v1
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-${{ matrix.rust }}-${{ matrix.backend }}-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ matrix.backend }}-cargo-index-${{ hashFiles('**/Cargo.toml') }}
       - name: Cache cargo build
         uses: actions/cache@v1
         with:
@@ -157,6 +157,21 @@ jobs:
         with:
             toolchain: nightly-2019-10-03
             components: clippy, rustfmt
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: clippy-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: clippy-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: clippy-all-target-cargo-build-target-${{ hashFiles('**/Cargo.toml') }}
       - name: Rustfmt
         run: |
           cargo fmt --all -- --check
