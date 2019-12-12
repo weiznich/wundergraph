@@ -95,8 +95,7 @@ jobs:
           echo '::add-path::C:\Program Files\PostgreSQL\10\bin'
           echo '::add-path::C:\Program Files\PostgreSQL\10\lib'
           echo '::set-env name=PQ_LIB_DIR::C:\Program Files\PostgreSQL\10\lib'
-          "C:\Program Files\PostgreSQL\10\bin\psql" -c "ALTER USER postgres PASSWORD 'postgres';"
-          "C:\Program Files\PostgreSQL\10\bin\psql" -c "CREATE DATABASE wundergraph_test WITH OWNER = 'postgres';"
+          "C:\Program Files\PostgreSQL\10\bin\createdb.exe" wundergraph_test -O postgres
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
