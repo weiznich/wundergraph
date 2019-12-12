@@ -233,7 +233,7 @@ mod tests {
             )
             .unwrap();
 
-            let mut wundergraph_dir = current_root;
+            let mut wundergraph_dir = Path::from(current_root);
             wundergraph_dir.join("..");
             wundergraph_dir.join("wundergraph");
 
