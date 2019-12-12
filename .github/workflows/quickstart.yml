@@ -137,7 +137,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}" --no-default-features -- --nocapture
+          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
 
       - name: Run cargo test for wundergraph
         uses: actions-rs/cargo@v1
@@ -149,7 +149,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}" --no-default-features
+          args: --manifest-path wundergraph_cli/Cargo.toml --features "${{ matrix.backend }}" --no-default-features -- --nocapture
 
 
   clippy_check:
