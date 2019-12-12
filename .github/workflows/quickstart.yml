@@ -1,6 +1,6 @@
 on: [pull_request]
 
-name: Quickstart
+name: CI Tests
 
 jobs:
   check_and_test:
@@ -95,12 +95,8 @@ jobs:
           echo '::add-path::C:\Program Files\PostgreSQL\10\bin'
           echo '::add-path::C:\Program Files\PostgreSQL\10\lib'
           echo '::set-env name=PQ_LIB_DIR::C:\Program Files\PostgreSQL\10\lib'
-          ls C:\\Program\ Files\\
-          ls C:\\Program\ Files\\PostgreSQL
-          ls C:\\Program\ Files\\PostgreSQL\\10
-          ls C:\\Program\ Files\\PostgreSQL\\10\\lib
-          echo $PQ_LIB_DIR
-          echo $PATH
+          psql -c "ALTER USER postgres PASSWORD 'postgres';"
+          psql -c "CREATE DATABASE wundergraph_test WITH OWNER = 'postgres';"
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
