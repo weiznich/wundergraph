@@ -95,7 +95,7 @@ jobs:
           echo '::add-path::C:\Program Files\PostgreSQL\12\bin'
           echo '::add-path::C:\Program Files\PostgreSQL\12\lib'
           echo '::set-env name=PQ_LIB_DIR::C:\Program Files\PostgreSQL\10\lib'
-          "C:\Program Files\PostgreSQL\10\bin\createdb.exe" -O postgres wundergraph_test
+          "C:\Program Files\PostgreSQL\12\bin\createdb.exe" -O postgres wundergraph_test
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
