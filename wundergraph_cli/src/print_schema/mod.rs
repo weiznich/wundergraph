@@ -185,7 +185,7 @@ mod tests {
         let main = tmp_dir
             .path()
             .join("wundergraph_roundtrip_test/src/main.rs");
-        std::fs::remove_file(&main);
+        std::fs::remove_file(&main).unwrap();
         let mut main_file = File::create(main).unwrap();
 
         let migrations = MIGRATION.iter().fold(String::new(), |mut acc, s| {
@@ -235,8 +235,7 @@ mod tests {
         {
             writeln!(
                 cargo_toml_file,
-                "{}",
-                r#"diesel = {version = "1.4", features = ["postgres", "chrono"]}"#
+                r#"diesel = {{version = "1.4", features = ["postgres", "chrono"]}}"#
             )
             .unwrap();
 
@@ -251,8 +250,7 @@ mod tests {
         {
             writeln!(
                 cargo_toml_file,
-                "{}",
-                r#"diesel = {version = "1.4", features = ["sqlite", "chrono"]}"#
+                r#"diesel = {{version = "1.4", features = ["sqlite", "chrono"]}}"#
             )
             .unwrap();
 
@@ -263,17 +261,16 @@ mod tests {
             )
             .unwrap();
         }
-        writeln!(cargo_toml_file, "{}", r#"juniper = "0.14""#).unwrap();
-        writeln!(cargo_toml_file, "{}", r#"failure = "0.1""#).unwrap();
-        writeln!(cargo_toml_file, "{}", r#"actix-web = "1""#).unwrap();
-        writeln!(cargo_toml_file, "{}", r#"chrono = "0.4""#).unwrap();
+        writeln!(cargo_toml_file, r#"juniper = "0.14""#).unwrap();
+        writeln!(cargo_toml_file, r#"failure = "0.1""#).unwrap();
+        writeln!(cargo_toml_file, r#"actix-web = "1""#).unwrap();
+        writeln!(cargo_toml_file, r#"chrono = "0.4""#).unwrap();
         writeln!(
             cargo_toml_file,
-            "{}",
-            r#"serde = {version = "1", features = ["derive"]}"#
+            r#"serde = {{version = "1", features = ["derive"]}}"#
         )
         .unwrap();
-        writeln!(cargo_toml_file, "{}", r#"serde_json = "1""#).unwrap();
+        writeln!(cargo_toml_file, r#"serde_json = "1""#).unwrap();
 
         {
             use std::io::Seek;
