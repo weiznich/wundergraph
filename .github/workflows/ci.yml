@@ -27,6 +27,16 @@ jobs:
           echo '::set-env name=DATABASE_URL::./test.db'
           echo '::set-env name=RUST_TEST_THREADS::1'
 
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-${{ matrix.backend }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-${{ matrix.backend }}-cargo-index-${{ hashFiles('**/Cargo.toml') }}
       - name: Install libpq (Linux)
         if: runner.os == 'Linux' && matrix.backend == 'postgres'
         run: |
@@ -139,6 +149,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
             toolchain: nightly-2019-10-03
+            profile: minimal
             components: clippy, rustfmt
       - name: Cache cargo registry
         uses: actions/cache@v1
@@ -150,26 +161,24 @@ jobs:
         with:
           path: ~/.cargo/git
           key: clippy-cargo-index-${{ hashFiles('**/Cargo.toml') }}
-      - name: Cache cargo build
-        uses: actions/cache@v1
-        with:
-          path: target
-          key: clippy-all-target-cargo-build-target-${{ hashFiles('**/Cargo.toml') }}
       - name: Rustfmt
         run: |
           cargo fmt --all -- --check
       - uses: actions-rs/clippy-check@v1
         name: Clippy wundergraph_derive
         with:
+          name: Clippy wundergraph_derive
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path wundergraph_derive/Cargo.toml --features "postgres sqlite"
       - uses: actions-rs/clippy-check@v1
         name: Clippy wundergraph
         with:
+          name: Clippy wundergraph
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path wundergraph/Cargo.toml --features "postgres sqlite"
       - uses: actions-rs/clippy-check@v1
         name: Clippy wundergraph_cli
         with:
+          name: Clippy wundergraph_cli
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path wundergraph_cli/Cargo.toml --features "postgres sqlite"
