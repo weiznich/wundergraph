@@ -41,6 +41,7 @@ use crate::database::InferConnection;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "wundergraph")]
+#[allow(clippy::result_unwrap_used)]
 enum Wundergraph {
     #[structopt(name = "print-schema")]
     PrintSchema {

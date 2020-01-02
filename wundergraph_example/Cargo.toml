@@ -12,7 +12,7 @@ description = "A GraphQL ORM build on top of diesel"
 edition = "2018"
 
 [dependencies]
-diesel = { version = "1.4.0", features = ["r2d2", "sqlite", "chrono", "postgres"]}
+diesel = { version = "1.4.0", features = ["r2d2", "chrono"]}
 diesel_migrations = "1.4.0"
 juniper = "0.14"
 actix-web = "1.0.0"
@@ -29,5 +29,5 @@ default-features = false
 
 [features]
 default = ["postgres", "wundergraph/debug"]
-sqlite = ["wundergraph/sqlite"]
-postgres = ["wundergraph/postgres"]
+sqlite = ["wundergraph/sqlite", "diesel/sqlite"]
+postgres = ["wundergraph/postgres", "diesel/postgres"]

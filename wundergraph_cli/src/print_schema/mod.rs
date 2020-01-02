@@ -158,6 +158,7 @@ mod tests {
     fn round_trip() {
         use std::fs::File;
         use std::io::{BufRead, BufReader, Read, Write};
+        use std::path::PathBuf;
         use std::process::Command;
 
         let conn = get_connection();
@@ -184,7 +185,7 @@ mod tests {
         let main = tmp_dir
             .path()
             .join("wundergraph_roundtrip_test/src/main.rs");
-        std::fs::remove_file(&main);
+        std::fs::remove_file(&main).unwrap();
         let mut main_file = File::create(main).unwrap();
 
         let migrations = MIGRATION.iter().fold(String::new(), |mut acc, s| {
@@ -224,18 +225,24 @@ mod tests {
             .open(cargo_toml)
             .unwrap();
         let current_root = env!("CARGO_MANIFEST_DIR");
+        let mut wundergraph_dir = PathBuf::from(current_root);
+        wundergraph_dir.push("..");
+        wundergraph_dir.push("wundergraph");
+
+        let wundergraph_dir = wundergraph_dir.to_str().unwrap().replace(r"\", r"\\");
+
         #[cfg(feature = "postgres")]
         {
             writeln!(
                 cargo_toml_file,
-                "{}",
-                r#"diesel = {version = "1.4", features = ["postgres", "chrono"]}"#
+                r#"diesel = {{version = "1.4", features = ["postgres", "chrono"]}}"#
             )
             .unwrap();
+
             writeln!(
                 cargo_toml_file,
-                "wundergraph = {{path = \"{}/../wundergraph/\", features = [\"postgres\", \"chrono\"] }}",
-                current_root
+                "wundergraph = {{path = \"{}\", features = [\"postgres\", \"chrono\"] }}",
+                wundergraph_dir
             )
             .unwrap();
         }
@@ -243,28 +250,37 @@ mod tests {
         {
             writeln!(
                 cargo_toml_file,
-                "{}",
-                r#"diesel = {version = "1.4", features = ["sqlite", "chrono"]}"#
+                r#"diesel = {{version = "1.4", features = ["sqlite", "chrono"]}}"#
             )
             .unwrap();
+
             writeln!(
                 cargo_toml_file,
-                "wundergraph = {{path = \"{}/../wundergraph\", features = [\"sqlite\", \"chrono\"] }}",
-                current_root
+                "wundergraph = {{path = \"{}\", features = [\"sqlite\", \"chrono\"] }}",
+                wundergraph_dir
             )
             .unwrap();
         }
-        writeln!(cargo_toml_file, "{}", r#"juniper = "0.14""#).unwrap();
-        writeln!(cargo_toml_file, "{}", r#"failure = "0.1""#).unwrap();
-        writeln!(cargo_toml_file, "{}", r#"actix-web = "1""#).unwrap();
-        writeln!(cargo_toml_file, "{}", r#"chrono = "0.4""#).unwrap();
+        writeln!(cargo_toml_file, r#"juniper = "0.14""#).unwrap();
+        writeln!(cargo_toml_file, r#"failure = "0.1""#).unwrap();
+        writeln!(cargo_toml_file, r#"actix-web = "1""#).unwrap();
+        writeln!(cargo_toml_file, r#"chrono = "0.4""#).unwrap();
         writeln!(
             cargo_toml_file,
-            "{}",
-            r#"serde = {version = "1", features = ["derive"]}"#
+            r#"serde = {{version = "1", features = ["derive"]}}"#
         )
         .unwrap();
-        writeln!(cargo_toml_file, "{}", r#"serde_json = "1""#).unwrap();
+        writeln!(cargo_toml_file, r#"serde_json = "1""#).unwrap();
+
+        {
+            use std::io::Seek;
+            use std::io::SeekFrom;
+            cargo_toml_file.seek(SeekFrom::Start(0)).unwrap();
+
+            let mut toml = String::new();
+            cargo_toml_file.read_to_string(&mut toml).unwrap();
+            println!("{:?}", toml);
+        }
 
         std::mem::drop(conn);
         let mut child = Command::new("cargo")
