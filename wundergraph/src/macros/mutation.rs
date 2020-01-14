@@ -64,6 +64,160 @@ macro_rules! __expand_resolve_delete {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __expand_register_insert {
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident,) => {
+        $crate::__expand_register_insert!($entity_name, $registry, $fields, $info, false)
+    };
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, false) => {};
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, $($insert:tt)*) => {{
+        let new = $registry.arg::<$($insert)*>(concat!("New", stringify!($entity_name)), $info);
+        let new = $registry
+            .field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
+                concat!("Create", stringify!($entity_name)),
+                $info,
+            )
+            .argument(new);
+        $fields.push(new);
+        let new =
+            $registry.arg::<Vec<$($insert)*>>(concat!("New", stringify!($entity_name), "s"), $info);
+        let new = $registry
+            .field::<Vec<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
+                concat!("Create", stringify!($entity_name), "s"),
+                $info,
+            )
+            .argument(new);
+        $fields.push(new);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __expand_resolve_insert {
+    (
+        $tpe: expr,
+        $entity_name: ident,
+        $executor: ident,
+        $arguments: ident,
+        $selection: expr,
+    ) => {
+        $crate::__expand_resolve_insert!(
+            $tpe,
+            $entity_name,
+            $executor,
+            $arguments,
+            $selection,
+            false
+        )
+    };
+    (
+        $tpe: expr,
+        $entity_name: ident,
+        $executor: ident,
+        $arguments: ident,
+        $selection: expr,
+        false
+    ) => {
+        Err($crate::juniper::FieldError::new(
+            "Unknown field:",
+            $crate::juniper::Value::scalar($tpe),
+        ))
+    };
+    (
+        $tpe: expr,
+        $entity_name: ident,
+        $executor: ident,
+        $arguments: ident,
+        $selection: expr,
+        $($insert:tt)*
+    ) => {
+        if $tpe == concat!("Create", stringify!($entity_name)) {
+            $crate::query_builder::mutations::handle_insert::<
+                DB,
+                $($insert)*,
+                $entity_name,
+                Self::Context,
+            >(
+                $selection,
+                $executor,
+                $arguments,
+                concat!("New", stringify!($entity_name)),
+            )
+        } else {
+            $crate::query_builder::mutations::handle_batch_insert::<
+                DB,
+                $($insert)*,
+                $entity_name,
+                Self::Context,
+            >(
+                $selection,
+                $executor,
+                $arguments,
+                concat!("New", stringify!($entity_name), "s"),
+            )
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __expand_register_update {
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident,) => {
+        $crate::__expand_register_update!($entity_name, $registry, $fields, $info, false)
+    };
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, false) => {};
+    ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, $($update:tt)*) => {{
+        let update = $registry.arg::<$($update)*>(concat!("Update", stringify!($entity_name)), $info);
+        let update = $registry
+            .field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
+                concat!("Update", stringify!($entity_name)),
+                $info,
+            )
+            .argument(update);
+        $fields.push(update);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __expand_resolve_update {
+    (
+        $entity_name: ident,
+        $executor: ident,
+        $arguments: ident,
+        $selection: expr,
+    ) => {
+        $crate::__expand_resolve_update!($entity_name, $executor, $arguments, $selection, false)
+    };
+    (
+        $entity_name: ident,
+        $executor: ident,
+        $arguments: ident,
+        $selection: expr,
+        false
+    ) => {
+        Err($crate::juniper::FieldError::new(
+            "Unknown field:",
+            $crate::juniper::Value::scalar(concat!("Update", stringify!($entity_name))),
+        ))
+    };
+    (
+        $entity_name: ident,
+        $executor: ident,
+        $arguments: ident,
+        $selection: expr,
+        $($update:tt)*
+    ) => {
+        $crate::query_builder::mutations::handle_update::<DB, $($update)*, $entity_name, Self::Context>(
+            $selection,
+            $executor,
+            $arguments,
+            concat!("Update", stringify!($entity_name)),
+        )
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __build_mutation_trait_bounds {
     (
         mutation_name = {$($mutation_name:tt)*},
@@ -80,14 +234,16 @@ macro_rules! __build_mutation_trait_bounds {
         $crate::paste::item! {
             $crate::__build_mutation_trait_bounds! {
                 input = {
-                    $($entity_name($(delete = {$($delete)*},)? table = {[<$entity_name _table>]},),)*
+                    $($entity_name(
+                        table = {[<$entity_name _table>]},
+                        $(insert = $insert,)?
+                        $(update = $update,)?
+                        $(delete = {$($delete)*},)?
+                    ),)*
                 },
                 original = [
                     mutation_name = {$($mutation_name)*},
-                    structs = [$($entity_name(
-                        $(insert = $insert,)?
-                            $(update = $update,)?
-                    ),)*],
+                    structs = [$($entity_name,)*],
                     $(lt = $lt,)?
                         body = {
                             $($inner)*
@@ -95,6 +251,103 @@ macro_rules! __build_mutation_trait_bounds {
                 ],
                 additional_bound = [],
             }
+        }
+    };
+    (
+        input = {
+            $entity_name: ident (
+                table = {$($table:tt)*},
+                insert = false,
+                $($other:tt)*
+            ),
+            $($rest:tt)*
+        },
+        original = [ $($orig: tt)* ],
+        additional_bound = [$({$($bounds:tt)*},)*],
+    ) => {
+        $crate::__build_mutation_trait_bounds! {
+            input = {
+                $entity_name(table = {$($table)*}, $($other)*),
+                $($rest)*
+            },
+            original = [ $($orig)*],
+            additional_bound = [$({$($bounds)*},)*],
+        }
+    };
+    (
+        input = {
+            $entity_name: ident (
+                table = {$($table:tt)*},
+                insert = $insert: ident,
+                $($other:tt)*
+            ),
+            $($rest:tt)*
+        },
+        original = [ $($orig: tt)* ],
+        additional_bound = [$({$($bounds:tt)*},)*],
+    ) => {
+        $crate::__build_mutation_trait_bounds! {
+            input = {
+                $entity_name(table = {$($table)*}, $($other)*),
+                $($rest)*
+            },
+            original = [$($orig)*],
+            additional_bound = [
+                $({$($bounds)*},)*
+                {
+                    $($table)*: $crate::query_builder::mutations::HandleInsert<$entity_name, $insert, DB, Ctx>
+                },
+                {
+                    $($table)*: $crate::query_builder::mutations::HandleBatchInsert<$entity_name, $insert, DB, Ctx>
+                },
+            ],
+        }
+    };
+    (
+        input = {
+            $entity_name: ident (
+                table = {$($table:tt)*},
+                update = false,
+                $($other:tt)*
+            ),
+            $($rest:tt)*
+        },
+        original = [ $($orig: tt)* ],
+        additional_bound = [$({$($bounds:tt)*},)*],
+    ) => {
+        $crate::__build_mutation_trait_bounds! {
+            input = {
+                $entity_name(table = {$($table)*}, $($other)*),
+                $($rest)*
+            },
+            original = [ $($orig)*],
+            additional_bound = [$({$($bounds)*},)*],
+        }
+    };
+    (
+        input = {
+            $entity_name: ident (
+                table = {$($table: tt)*},
+                update = $update: ident,
+                $($other:tt)*
+            ),
+            $($rest:tt)*
+        },
+        original = [ $($orig: tt)* ],
+        additional_bound = [$({$($bounds:tt)*},)*],
+    ) => {
+        $crate::__build_mutation_trait_bounds! {
+            input = {
+                $entity_name(table = {$($table)*}, $($other)*),
+                $($rest)*
+            },
+            original = [ $($orig)*],
+            additional_bound = [
+                $({$($bounds)*},)*
+                {
+                    $($table)*: $crate::query_builder::mutations::HandleUpdate<$entity_name, $update, DB, Ctx>
+                },
+            ],
         }
     };
     (
@@ -107,7 +360,7 @@ macro_rules! __build_mutation_trait_bounds {
     ) => {
         $crate::__build_mutation_trait_bounds! {
             input = {
-                $entity_name(delete = {true}, table = {$($table)*},),
+                $entity_name(table = {$($table)*}, delete = {true},),
                 $($rest)*
             },
             original = [$($orig)*],
@@ -116,7 +369,7 @@ macro_rules! __build_mutation_trait_bounds {
     };
     (
         input = {
-            $entity_name: ident (delete = {true}, table = {$($table:tt)*},),
+            $entity_name: ident (table = {$($table:tt)*}, delete = {true},),
             $($rest:tt)*
         },
         original = [ $($orig: tt)*],
@@ -125,13 +378,13 @@ macro_rules! __build_mutation_trait_bounds {
         $crate::__build_mutation_trait_bounds! {
             input = {
                 $entity_name(
+                    table = {$($table)*},
                     delete = {$crate::helper::PrimaryKeyArgument<
                         'static,
                         <$entity_name as $crate::diesel::associations::HasTable>::Table,
                         Ctx,
                         <&'static $entity_name as $crate::diesel::Identifiable>::Id
                     >},
-                    table = {$($table)*},
                 ),
                 $($rest)*
             },
@@ -141,7 +394,7 @@ macro_rules! __build_mutation_trait_bounds {
     };
     (
         input = {
-            $entity_name: ident (delete = {false}, table = {$($table:tt)*},),
+            $entity_name: ident (table = {$($table:tt)*}, delete = {false},),
             $($rest:tt)*
         },
         original = [ $($orig: tt)*],
@@ -157,7 +410,7 @@ macro_rules! __build_mutation_trait_bounds {
     };
     (
         input = {
-            $entity_name: ident (delete = {$($delete:tt)*}, table = {$($table:tt)*},),
+            $entity_name: ident (table = {$($table:tt)*}, delete = {$($delete:tt)*},),
             $($rest:tt)*
         },
         original = [ $($orig: tt)*],
@@ -179,14 +432,10 @@ macro_rules! __build_mutation_trait_bounds {
         input = {},
         original = [
             mutation_name = {$($mutation_name:tt)*},
-           structs = [
-
-                $($entity_name: ident(
-                   $(insert = $insert: ident,)?
-                   $(update = $update: ident,)?
-                ),)*
-           ],
-           $(lt = $lt: tt,)?
+            structs = [
+                $($entity_name: ident,)*
+            ],
+            $(lt = $lt: tt,)?
             body = {
                 $($inner: tt)*
             }
@@ -196,7 +445,7 @@ macro_rules! __build_mutation_trait_bounds {
         $crate::__impl_graphql_obj_for_mutation! {
             mutation_name = {$($mutation_name)*},
             structs = [
-                $($entity_name($(insert = $insert,)? $(update = $update,)?),)*
+                $($entity_name,)*
             ],
             additional_bound = [$({$($bounds)*},)*],
             $(lt = $lt,)?
@@ -215,7 +464,7 @@ macro_rules! __impl_graphql_obj_for_mutation {
         structs = [$($entity_name: ident(
             $(insert = $insert: ident,)?
             $(update = $update: ident,)?
-            $(delete = ($($delete:tt)*))?
+            $(delete = $($delete:tt)*)?
         ),)*],
         $(lt = $lt: tt,)?
         body = {
@@ -235,10 +484,7 @@ macro_rules! __impl_graphql_obj_for_mutation {
     };
     (
         mutation_name = {$($mutation_name:tt)*},
-        structs = [$($entity_name: ident(
-            $(insert = $insert: ident,)?
-            $(update = $update: ident,)?
-        ),)*],
+        structs = [$($entity_name: ident,)*],
         additional_bound = [$({$($bounds:tt)*},)*],
         $(lt = $lt: tt,)?
         body = {
@@ -282,9 +528,6 @@ macro_rules! __impl_graphql_obj_for_mutation {
                   $([<$entity_name _table>]::PrimaryKey: $crate::helper::PrimaryKeyInputObject<
                     <[<$entity_name _id>] as $crate::helper::UnRef<'static>>::UnRefed, ()
                   >,)*
-                  $($([<$entity_name _table>]: $crate::query_builder::mutations::HandleInsert<$entity_name, $insert, DB, Ctx>,)*)*
-                  $($([<$entity_name _table>]: $crate::query_builder::mutations::HandleBatchInsert<$entity_name, $insert, DB, Ctx>,)*)*
-                  $($([<$entity_name _table>]: $crate::query_builder::mutations::HandleUpdate<$entity_name, $update, DB, Ctx>,)*)*
                   $($($bounds)*,)*
 
             {
@@ -377,7 +620,8 @@ macro_rules! __impl_graphql_obj_for_mutation {
 ///         //    primary keys is generated
 ///         //
 ///         // At least on of the arguments in required
-///         Hero(insert = NewHero, update = HeroChangeset, delete = true)
+///         Hero(insert = NewHero, update = HeroChangeset, delete = true),
+///         Species(insert = false, update = false, delete = true)
 ///     }
 /// }
 /// # fn main() {}
@@ -390,7 +634,7 @@ macro_rules! mutation_object {
             $($entity_name: ident (
                 $(insert = $insert: ident)?
                 $($(,)? update = $update: ident)?
-                $($(,)? delete = $($delete: tt)*)?
+                $($(,)? delete = $delete: ident)?
                 $(,)?
             )$(,)?)*
         }
@@ -413,7 +657,7 @@ macro_rules! mutation_object {
                 structs = [$($entity_name(
                     $(insert = $insert,)?
                     $(update = $update,)?
-                    $(delete = ($($delete)*))?
+                    $(delete = $delete)?
                 ),)*],
                 body = {
                     type Context = Ctx;
@@ -466,7 +710,7 @@ macro_rules! mutation_object {
                 structs = [$($entity_name(
                     $(insert = $insert,)?
                     $(update = $update,)?
-                    $(delete = ($($delete)*))?
+                    $(delete = $delete)?
                 ),)*],
                 lt = 'a,
                 body = {
@@ -531,7 +775,7 @@ macro_rules! mutation_object {
                 structs = [$($entity_name(
                     $(insert = $insert,)?
                     $(update = $update,)?
-                    $(delete = ($($delete)*))?
+                    $(delete = $delete)?
                 ),)*],
                 lt = 'a,
                 body = {
@@ -550,37 +794,34 @@ macro_rules! mutation_object {
                     where $crate::scalar::WundergraphScalarValue: 'r
                     {
                         let mut fields = Vec::new();
-                        $(
-                            $(
-                                let new = registry.arg::<$insert>(concat!("New", stringify!($entity_name)), info);
-                                let new = registry.field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
-                                    concat!("Create", stringify!($entity_name)),
-                                    info
-                                ).argument(new);
-                                fields.push(new);
-                                let new = registry.arg::<Vec<$insert>>(concat!("New", stringify!($entity_name), "s"), info);
-                                let new = registry.field::<Vec<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
-                                    concat!("Create", stringify!($entity_name), "s"),
-                                    info
-                                )
-                                    .argument(new);
-                                fields.push(new);
-                            )*
+                       $(
+                            $crate::__expand_register_insert!(
+                                $entity_name,
+                                registry,
+                                fields,
+                                info,
+                                $($insert)?
+                            );
                         )*
-                            $(
-                                $(
-                                    let update = registry.arg::<$update>(concat!("Update", stringify!($entity_name)), info);
-                                    let update = registry.field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
-                                        concat!("Update", stringify!($entity_name)),
-                                        info
-                                    ).argument(update);
-                                    fields.push(update);
-                                )*
-                            )*
-                            $(
-                                $crate::__expand_register_delete!($entity_name, registry, fields, info, $($($delete)*)?);
-                            )*
-                            let mut mutation = registry.build_object_type::<Self>(info, &fields);
+                        $(
+                            $crate::__expand_register_update!(
+                                $entity_name,
+                                registry,
+                                fields,
+                                info,
+                                $($update)?
+                            );
+                        )*
+                        $(
+                            $crate::__expand_register_delete!(
+                                $entity_name,
+                                registry,
+                                fields,
+                                info,
+                                $($delete)?
+                            );
+                        )*
+                        let mut mutation = registry.build_object_type::<Self>(info, &fields);
                         mutation = mutation.description(concat!($($glob_doc, "\n",)* ""));
                         $crate::juniper::meta::MetaType::Object(mutation)
                     }
@@ -594,61 +835,43 @@ macro_rules! mutation_object {
                     ) -> $crate::juniper::ExecutionResult<$crate::scalar::WundergraphScalarValue> {
                         match field_name {
                             $(
-                                $(
-                                    concat!("Create", stringify!($entity_name)) => {
-                                        $crate::query_builder::mutations::handle_insert::<
-                                            DB,
-                                        $insert,
+                                c @ concat!("Create", stringify!($entity_name)) |
+                                c @ concat!("Create", stringify!($entity_name), "s") => {
+                                    $crate::__expand_resolve_insert!(
+                                        c,
                                         $entity_name,
-                                        Self::Context>
-                                            (
-                                                self.1,
-                                                executor,
-                                                arguments,
-                                                concat!("New", stringify!($entity_name))
-                                            )
-                                    }
-                                    concat!("Create", stringify!($entity_name), "s") => {
-                                        $crate::query_builder::mutations::handle_batch_insert::<
-                                            DB,
-                                        $insert,
-                                        $entity_name,
-                                        Self::Context>
-                                            (
-                                                self.1,
-                                                executor,
-                                                arguments,
-                                                concat!("New", stringify!($entity_name), "s")
-                                            )
-                                    }
-                                )*
+                                        executor,
+                                        arguments,
+                                        self.1,
+                                        $($insert)?
+                                    )
+                                }
                             )*
-                                $(
-                                    $(
-                                        concat!("Update", stringify!($entity_name)) => {
-                                            $crate::query_builder::mutations::handle_update::<
-                                                DB,
-                                            $update,
-                                            $entity_name,
-                                            Self::Context
-                                                >(
-                                                    self.1,
-                                                    executor,
-                                                    arguments,
-                                                    concat!("Update", stringify!($entity_name))
-                                                )
-                                        }
-                                    )*
-                                )*
-                                $(
-                                    concat!("Delete", stringify!($entity_name)) => {
-                                        $crate::__expand_resolve_delete!($entity_name, executor, arguments, $($($delete)*)?)
-                                    }
-                                 )*
-                                e => Err($crate::juniper::FieldError::new(
-                                    "Unknown field:",
-                                    $crate::juniper::Value::scalar(e),
-                                )),
+                            $(
+                                concat!("Update", stringify!($entity_name)) => {
+                                    $crate::__expand_resolve_update!(
+                                        $entity_name,
+                                        executor,
+                                        arguments,
+                                        self.1,
+                                        $($update)*
+                                    )
+                                }
+                            )*
+                            $(
+                                concat!("Delete", stringify!($entity_name)) => {
+                                    $crate::__expand_resolve_delete!(
+                                        $entity_name,
+                                        executor,
+                                        arguments,
+                                        $($delete)?
+                                    )
+                                }
+                            )*
+                            e => Err($crate::juniper::FieldError::new(
+                                "Unknown field:",
+                                $crate::juniper::Value::scalar(e),
+                            )),
                         }
                     }
                 }
