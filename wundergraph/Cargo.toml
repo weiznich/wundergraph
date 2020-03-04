@@ -13,15 +13,19 @@ description = "A GraphQL ORM build on top of diesel"
 
 [dependencies]
 serde = "1"
-diesel = { version = "1.4", features = ["r2d2"]}
+diesel = { version = "1.4", features = ["r2d2"], default-features = false}
 juniper = "0.14"
 indexmap = "1"
-wundergraph_derive = "0.1"
 uuid_internal = { version = "0.7", optional = true, package = "uuid" }
 chrono_internal = { version = "0.4", optional = true, package = "chrono" }
 log = { version = "0.4", optional = true }
 paste = "0.1"
 thiserror = "1"
+
+[dependencies.wundergraph_derive]
+version = "0.1"
+path = "../wundergraph_derive"
+
 
 [dev-dependencies]
 wundergraph_example = { path = "../wundergraph_example", default-features = false }
