@@ -64,7 +64,7 @@ pub struct Filter<F, T> {
     or: Option<Vec<Filter<F, T>>>,
     not: Option<Box<Not<Filter<F, T>>>>,
     inner: F,
-    p: PhantomData<(T)>,
+    p: PhantomData<T>,
 }
 
 impl<F, T> Nameable for Filter<F, T>
