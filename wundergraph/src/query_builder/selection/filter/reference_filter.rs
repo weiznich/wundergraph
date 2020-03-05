@@ -108,9 +108,17 @@ NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>>: Query
 impl<C, I, C2, A> Nameable for ReferenceFilter<C, I, C2, A>
 where
     I: Nameable,
+    A: Nameable,
 {
     fn name() -> String {
-        I::name()
+        let a = A::name();
+        let i = I::name();
+
+        if a.is_empty() {
+            i
+        } else {
+            format!("{}_{}", a, i)
+        }
     }
 }
 
