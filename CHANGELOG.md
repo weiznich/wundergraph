@@ -4,6 +4,13 @@ All user visible changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/), as described
 for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/text/1105-api-evolution.md)
 
+## [0.1.2] - 2020-03-05
+
+* Add proper CI
+* Fix an issue with a missmatch between documentation and implemented featurs for the `wundergraph::mutation_object!` macro. It accepts now all documented options
+* Fix an issue with with missing filter options on nullable relations
+* Disable default features for diesel
+
 ## [0.1.1] - 2019-11-17
 
 * Small documentation fixes
@@ -15,3 +22,4 @@ for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/
 
 
 [0.1.1]: https://github.com/weiznich/wundergraph/compare/v0.1.0...v0.1.1
+[0.1.2]: https://github.com/weiznich/wundergraph/compare/v0.1.1...v0.1.2
