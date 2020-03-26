@@ -86,3 +86,43 @@ fn order_desc() {
 ]"###
     );
 }
+
+#[test]
+fn invalid_order() {
+    let (schema, pool) = get_example_schema();
+    let ctx = MyContext::new(pool.get().unwrap());
+
+    let res = execute_query(
+        &schema,
+        &ctx,
+        "
+{
+    Heros(order: {column: heroName, direction: DESC}) {
+        heroName
+    }
+}
+",
+    );
+    assert!(res.is_ok());
+    assert_json_snapshot!(
+        res.as_json(), @r###"
+    [
+      null,
+      [
+        {
+          "locations": [
+            {
+              "column": 5,
+              "line": 3
+            }
+          ],
+          "message": "Could not build filter from arguments",
+          "path": [
+            "Heros"
+          ]
+        }
+      ]
+    ]
+    "###
+    );
+}

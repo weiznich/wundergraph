@@ -58,6 +58,7 @@ jobs:
           brew update
           brew uninstall --ignore-dependencies libpq
           brew install postgres
+          /usr/local/Cellar/postgresql/12.2/bin/initdb --locale=C -E UTF-8 /usr/local/var/postgres
           /usr/local/opt/postgres/bin/pg_ctl -D /usr/local/var/postgres start
           sleep 3
           /usr/local/opt/postgres/bin/createuser -s postgres
