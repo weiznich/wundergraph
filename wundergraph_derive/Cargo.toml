@@ -21,6 +21,7 @@ proc-macro = true
 [features]
 default = []
 nightly = ["proc-macro2/nightly"]
+mysql = []
 postgres = []
 sqlite = []
 debug = []

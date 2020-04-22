@@ -39,6 +39,7 @@ insta = "0.12"
 [features]
 default = []
 debug = ["wundergraph_derive/debug", "log"]
+mysql = ["diesel/mysql", "wundergraph_derive/mysql"]
 sqlite = ["diesel/sqlite", "wundergraph_derive/sqlite"]
 postgres = ["diesel/postgres", "wundergraph_derive/postgres"]
 extras = ["uuid", "chrono"]
