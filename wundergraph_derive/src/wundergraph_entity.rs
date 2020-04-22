@@ -29,6 +29,16 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         None
     };
 
+    let mysql_loading_handler = if cfg!(feature = "mysql") {
+        Some(derive_loading_handler(
+            &model,
+            item,
+            &quote!(diesel::mysql::Mysql),
+        )?)
+    } else {
+        None
+    };
+
     let pg_non_table_field_filter = if cfg!(feature = "postgres") {
         Some(derive_non_table_filter(
             &model,
@@ -49,6 +59,17 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         None
     };
 
+
+    let mysql_non_table_field_filter = if cfg!(feature = "mysql") {
+        Some(derive_non_table_filter(
+            &model,
+            item,
+            &quote!(diesel::mysql::Mysql),
+        )?)
+    } else {
+        None
+    };
+
     let belongs_to = crate::belonging_to::derive_belonging_to(&model, item)?;
 
     Ok(wrap_in_dummy_mod(
@@ -61,8 +82,10 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
 
             #pg_loading_handler
             #sqlite_loading_handler
+            #mysql_loading_handler
             #pg_non_table_field_filter
             #sqlite_non_table_field_filter
+            #mysql_non_table_field_filter
 
             #(#belongs_to)*
         },
