@@ -56,8 +56,6 @@ jobs:
         if: runner.os == 'macOS' && matrix.backend == 'postgres'
         run: |
           brew update
-          brew uninstall --ignore-dependencies libpq
-          brew install postgres
           /usr/local/opt/postgres/bin/pg_ctl -D /usr/local/var/postgres start
           sleep 3
           /usr/local/opt/postgres/bin/createuser -s postgres
@@ -149,7 +147,7 @@ jobs:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly-2019-10-03
+            toolchain: 1.42.0
             profile: minimal
             components: clippy, rustfmt
       - name: Cache cargo registry
