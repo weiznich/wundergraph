@@ -375,24 +375,24 @@ where
         Self::Table: 'static,
     {
         use juniper::LookAheadMethods;
-        if let Some(LookAheadValue::List(order)) =
-            select.argument("order").map(LookAheadArgument::value)
-        {
-            let order_stmts = <Self::Columns as BuildOrder<Self::Table, DB>>::build_order(
-                order,
-                |local_index| {
-                    Self::FieldList::map_table_field(local_index, |global| {
-                        Self::FIELD_NAMES[global]
-                    })
-                    .expect("Field is there")
-                },
-            )?;
-            for s in order_stmts {
-                query = query.then_order_by(s);
+        match select.argument("order").map(LookAheadArgument::value) {
+            Some(LookAheadValue::List(order)) => {
+                let order_stmts = <Self::Columns as BuildOrder<Self::Table, DB>>::build_order(
+                    order,
+                    |local_index| {
+                        Self::FieldList::map_table_field(local_index, |global| {
+                            Self::FIELD_NAMES[global]
+                        })
+                        .expect("Field is there")
+                    },
+                )?;
+                for s in order_stmts {
+                    query = query.then_order_by(s);
+                }
+                Ok(query)
             }
-            Ok(query)
-        } else {
-            Ok(query)
+            Some(_) => Err(WundergraphError::CouldNotBuildFilterArgument),
+            None => Ok(query),
         }
     }
 
