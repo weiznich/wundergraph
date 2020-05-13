@@ -7,7 +7,7 @@ jobs:
     name: Check
     strategy:
       matrix:
-        rust: ["1.38.0", "stable", "beta", "nightly"]
+        rust: ["1.42.0", "stable", "beta", "nightly"]
         backend: ["postgres", "sqlite"]
         os: [ubuntu-18.04, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -58,12 +58,11 @@ jobs:
           brew update
           brew uninstall --ignore-dependencies libpq
           brew install postgres
-          /usr/local/Cellar/postgresql/12.2/bin/initdb --locale=C -E UTF-8 /usr/local/var/postgres
-          /usr/local/opt/postgres/bin/pg_ctl -D /usr/local/var/postgres start
+          pg_ctl -D /usr/local/var/postgres start
           sleep 3
-          /usr/local/opt/postgres/bin/createuser -s postgres
-          /usr/local/opt/postgres/bin/createdb wundergraph_test -O postgres
-          /usr/local/opt/postgres/bin/psql -c  "ALTER USER postgres PASSWORD 'postgres';" wundergraph_test
+          createuser -s postgres
+          createdb wundergraph_test -O postgres
+          psql -c  "ALTER USER postgres PASSWORD 'postgres';" wundergraph_test
 
       - name: Install sqlite (MacOS)
         if: runner.os == 'macOS' && matrix.backend == 'sqlite'
