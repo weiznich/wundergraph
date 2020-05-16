@@ -56,8 +56,6 @@ jobs:
         if: runner.os == 'macOS' && matrix.backend == 'postgres'
         run: |
           brew update
-          brew uninstall --ignore-dependencies libpq
-          brew install postgres
           pg_ctl -D /usr/local/var/postgres start
           sleep 3
           createuser -s postgres
