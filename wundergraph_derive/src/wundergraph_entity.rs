@@ -59,7 +59,6 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         None
     };
 
-
     let mysql_non_table_field_filter = if cfg!(feature = "mysql") {
         Some(derive_non_table_filter(
             &model,
