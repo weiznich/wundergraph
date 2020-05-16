@@ -10,7 +10,6 @@ use diesel::backend::Backend;
 use diesel::query_dsl::methods::LimitDsl;
 #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
 use diesel::query_dsl::methods::OffsetDsl;
-
 use juniper::LookAheadSelection;
 
 /// A trait abstracting over the different behaviour of limit/offset
@@ -93,6 +92,12 @@ impl ApplyOffset for diesel::mysql::Mysql {
             if select.argument("limit").is_some() {
                 Ok(q)
             } else {
+                // Mysql requires a limit clause in front of any offset clause
+                // The documentation proposes the following:
+                // > To retrieve all rows from a certain offset up to the end of the
+                // > result set, you can use some large number for the second parameter.
+                // https://dev.mysql.com/doc/refman/8.0/en/select.html
+                // Therefore we just use i64::MAX as limit here
                 Ok(<_ as LimitDsl>::limit(q, std::i64::MAX))
             }
         } else {
