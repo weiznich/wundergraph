@@ -86,7 +86,6 @@ wundergraph::query_object!{
 #[graphql(scalar = "WundergraphScalarValue")]
 #[table_name = "comments"]
 pub struct NewComment {
-    id: i32,
     post: Option<i32>,
     commenter: Option<i32>,
     content: String,
@@ -107,7 +106,6 @@ pub struct CommentChangeset {
 #[graphql(scalar = "WundergraphScalarValue")]
 #[table_name = "posts"]
 pub struct NewPost {
-    id: i32,
     author: Option<i32>,
     title: String,
     datetime: Option<chrono::naive::NaiveDateTime>,
@@ -130,7 +128,6 @@ pub struct PostChangeset {
 #[graphql(scalar = "WundergraphScalarValue")]
 #[table_name = "users"]
 pub struct NewUser {
-    id: i32,
     name: String,
 }
 
