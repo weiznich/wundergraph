@@ -311,41 +311,44 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         let query = "{\"query\": \"{ Users { id  name  } } \"}";
-        let mut r = client
-            .post(&format!("http://{}/graphql", listen_url))
-            .body(query)
-            .header(
-                reqwest::header::CONTENT_TYPE,
-                reqwest::header::HeaderValue::from_static("application/json"),
-            )
-            .send()
-            .unwrap();
-        insta::assert_json_snapshot!(r.json::<serde_json::Value>().unwrap());
-
         let mutation = r#"{"query":"mutation CreateUser {\n  CreateUser(NewUser: {name: \"Max\"}) {\n    id\n    name\n  }\n}","variables":null,"operationName":"CreateUser"}"#;
-        let mut r = client
-            .post(&format!("http://{}/graphql", listen_url))
-            .body(mutation)
-            .header(
-                reqwest::header::CONTENT_TYPE,
-                reqwest::header::HeaderValue::from_static("application/json"),
-            )
-            .send()
-            .unwrap();
-        insta::assert_json_snapshot!(r.json::<serde_json::Value>().unwrap());
-
-        let mut r = client
-            .post(&format!("http://{}/graphql", listen_url))
-            .body(query)
-            .header(
-                reqwest::header::CONTENT_TYPE,
-                reqwest::header::HeaderValue::from_static("application/json"),
-            )
-            .send()
-            .unwrap();
-        insta::assert_json_snapshot!(r.json::<serde_json::Value>().unwrap());
+        let t1 = request_test(&client, &listen_url, query);
+        let t2 = request_test(&client, &listen_url, mutation);
+        let t3 = request_test(&client, &listen_url, query);
 
         child.kill().unwrap();
         child.wait().unwrap();
+
+        if t1.is_err() || t2.is_err() || t3.is_err() {
+            panic!("round_trip failed")
+        }
+    }
+
+    fn request_test(client: &reqwest::Client, listen_url: &str, body: &'static str) -> Result<(), std::string::String> {
+        let r = client
+            .post(&format!("http://{}/graphql", listen_url))
+            .body(body)
+            .header(
+                reqwest::header::CONTENT_TYPE,
+                reqwest::header::HeaderValue::from_static("application/json"),
+            )
+            .send();
+
+        match r {
+            Ok(mut r) => {
+                let builder = std::thread::Builder::new().name("round_trip".into());
+                let handler = builder
+                    .spawn(move || {
+                        insta::assert_json_snapshot!(r.json::<serde_json::Value>().unwrap())
+                    })
+                    .unwrap();
+
+                match handler.join() {
+                    Err(e) => Err(format!("{:?}", e)),
+                    _ => Ok(()),
+                }
+            }
+            Err(e) => Err(format!("{:?}", e)),
+        }
     }
 }
