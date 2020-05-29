@@ -328,24 +328,22 @@ mod tests {
         client: &reqwest::Client,
         listen_url: &str,
         body: &'static str,
-    ) -> Result<(), std::string::String> {
-        let r = client
+    ) -> Result<(), String> {
+        fn error_mapper<T: std::fmt::Debug>(e: T) -> String {
+            format!("{:?}", e)
+        }
+
+        let mut r = client
             .post(&format!("http://{}/graphql", listen_url))
             .body(body)
             .header(
                 reqwest::header::CONTENT_TYPE,
                 reqwest::header::HeaderValue::from_static("application/json"),
             )
-            .send();
-        match r {
-            Ok(mut r) => match r.json::<serde_json::Value>() {
-                Ok(r) => match std::panic::catch_unwind(|| insta::assert_json_snapshot!(r)) {
-                    Ok(_) => Ok(()),
-                    Err(e) => Err(format!("{:?}", e)),
-                },
-                Err(e) => Err(format!("{:?}", e)),
-            },
-            Err(e) => Err(format!("{:?}", e)),
-        }
+            .send()
+            .map_err(error_mapper)?;
+        let r = r.json::<serde_json::Value>().map_err(error_mapper)?;
+        std::panic::catch_unwind(|| insta::assert_json_snapshot!(r)).map_err(error_mapper)?;
+        Ok(())
     }
 }
