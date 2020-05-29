@@ -324,7 +324,11 @@ mod tests {
         }
     }
 
-    fn request_test(client: &reqwest::Client, listen_url: &str, body: &'static str) -> Result<(), std::string::String> {
+    fn request_test(
+        client: &reqwest::Client,
+        listen_url: &str,
+        body: &'static str,
+    ) -> Result<(), std::string::String> {
         let r = client
             .post(&format!("http://{}/graphql", listen_url))
             .body(body)
@@ -333,21 +337,14 @@ mod tests {
                 reqwest::header::HeaderValue::from_static("application/json"),
             )
             .send();
-
         match r {
-            Ok(mut r) => {
-                let builder = std::thread::Builder::new().name("round_trip".into());
-                let handler = builder
-                    .spawn(move || {
-                        insta::assert_json_snapshot!(r.json::<serde_json::Value>().unwrap())
-                    })
-                    .unwrap();
-
-                match handler.join() {
+            Ok(mut r) => match r.json::<serde_json::Value>() {
+                Ok(r) => match std::panic::catch_unwind(|| insta::assert_json_snapshot!(r)) {
+                    Ok(_) => Ok(()),
                     Err(e) => Err(format!("{:?}", e)),
-                    _ => Ok(()),
-                }
-            }
+                },
+                Err(e) => Err(format!("{:?}", e)),
+            },
             Err(e) => Err(format!("{:?}", e)),
         }
     }
