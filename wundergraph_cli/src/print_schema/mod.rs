@@ -83,6 +83,12 @@ mod tests {
     }
 
     #[cfg(feature = "postgres")]
+    const BACKEND: &str = "postgres";
+
+    #[cfg(feature = "sqlite")]
+    const BACKEND: &str = "sqlite";
+
+    #[cfg(feature = "postgres")]
     const MIGRATION: &[&str] = &[
         "CREATE SCHEMA infer_test;",
         "CREATE TABLE infer_test.users(id SERIAL PRIMARY KEY, name TEXT NOT NULL);",
@@ -151,7 +157,9 @@ mod tests {
         print(&conn, None, &mut out).unwrap();
 
         let s = String::from_utf8(out).unwrap();
-        insta::assert_snapshot!(&s);
+        insta::with_settings!({snapshot_suffix => BACKEND}, {
+            insta::assert_snapshot!(&s);
+        });
     }
 
     #[test]
