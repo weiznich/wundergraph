@@ -327,9 +327,9 @@ mod tests {
         child.kill().unwrap();
         child.wait().unwrap();
 
-        if t1.is_err() || t2.is_err() || t3.is_err() {
-            panic!("round_trip failed")
-        }
+        t1.unwrap();
+        t2.unwrap();
+        t3.unwrap();
     }
 
     fn request_test(
