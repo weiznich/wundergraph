@@ -158,7 +158,7 @@ mod tests {
 
         let s = String::from_utf8(out).unwrap();
         insta::with_settings!({snapshot_suffix => BACKEND}, {
-            insta::assert_snapshot!(&s);
+            insta::assert_snapshot!("infer_schema", &s);
         });
     }
 
@@ -320,9 +320,9 @@ mod tests {
 
         let query = "{\"query\": \"{ Users { id  name  } } \"}";
         let mutation = r#"{"query":"mutation CreateUser {\n  CreateUser(NewUser: {name: \"Max\"}) {\n    id\n    name\n  }\n}","variables":null,"operationName":"CreateUser"}"#;
-        let t1 = request_test(&client, &listen_url, query);
-        let t2 = request_test(&client, &listen_url, mutation);
-        let t3 = request_test(&client, &listen_url, query);
+        let t1 = request_test(&client, &listen_url, query, "round_trip_test__query_1");
+        let t2 = request_test(&client, &listen_url, mutation, "round_trip_test__mutation");
+        let t3 = request_test(&client, &listen_url, query, "round_trip_test__query_2");
 
         child.kill().unwrap();
         child.wait().unwrap();
@@ -336,6 +336,7 @@ mod tests {
         client: &reqwest::Client,
         listen_url: &str,
         body: &'static str,
+        snapshot_name: &'static str,
     ) -> Result<(), String> {
         fn error_mapper<T: std::fmt::Debug>(e: T) -> String {
             format!("{:?}", e)
@@ -351,7 +352,12 @@ mod tests {
             .send()
             .map_err(error_mapper)?;
         let r = r.json::<serde_json::Value>().map_err(error_mapper)?;
-        std::panic::catch_unwind(|| insta::assert_json_snapshot!(r)).map_err(error_mapper)?;
+        std::panic::catch_unwind(|| {
+            insta::with_settings!({snapshot_suffix => ""}, {
+                insta::assert_json_snapshot!(snapshot_name, r)
+            })
+        })
+        .map_err(error_mapper)?;
         Ok(())
     }
 }
