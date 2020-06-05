@@ -83,6 +83,12 @@ mod tests {
     }
 
     #[cfg(feature = "postgres")]
+    const BACKEND: &str = "postgres";
+
+    #[cfg(feature = "sqlite")]
+    const BACKEND: &str = "sqlite";
+
+    #[cfg(feature = "postgres")]
     const MIGRATION: &[&str] = &[
         "CREATE SCHEMA infer_test;",
         "CREATE TABLE infer_test.users(id SERIAL PRIMARY KEY, name TEXT NOT NULL);",
@@ -151,7 +157,9 @@ mod tests {
         print(&conn, None, &mut out).unwrap();
 
         let s = String::from_utf8(out).unwrap();
-        insta::assert_snapshot!(&s);
+        insta::with_settings!({snapshot_suffix => BACKEND}, {
+            insta::assert_snapshot!("infer_schema", &s);
+        });
     }
 
     #[test]
@@ -311,41 +319,45 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         let query = "{\"query\": \"{ Users { id  name  } } \"}";
-        let mut r = client
-            .post(&format!("http://{}/graphql", listen_url))
-            .body(query)
-            .header(
-                reqwest::header::CONTENT_TYPE,
-                reqwest::header::HeaderValue::from_static("application/json"),
-            )
-            .send()
-            .unwrap();
-        insta::assert_json_snapshot!(r.json::<serde_json::Value>().unwrap());
-
         let mutation = r#"{"query":"mutation CreateUser {\n  CreateUser(NewUser: {name: \"Max\"}) {\n    id\n    name\n  }\n}","variables":null,"operationName":"CreateUser"}"#;
-        let mut r = client
-            .post(&format!("http://{}/graphql", listen_url))
-            .body(mutation)
-            .header(
-                reqwest::header::CONTENT_TYPE,
-                reqwest::header::HeaderValue::from_static("application/json"),
-            )
-            .send()
-            .unwrap();
-        insta::assert_json_snapshot!(r.json::<serde_json::Value>().unwrap());
-
-        let mut r = client
-            .post(&format!("http://{}/graphql", listen_url))
-            .body(query)
-            .header(
-                reqwest::header::CONTENT_TYPE,
-                reqwest::header::HeaderValue::from_static("application/json"),
-            )
-            .send()
-            .unwrap();
-        insta::assert_json_snapshot!(r.json::<serde_json::Value>().unwrap());
+        let t1 = request_test(&client, &listen_url, query, "round_trip_test__query_1");
+        let t2 = request_test(&client, &listen_url, mutation, "round_trip_test__mutation");
+        let t3 = request_test(&client, &listen_url, query, "round_trip_test__query_2");
 
         child.kill().unwrap();
         child.wait().unwrap();
+
+        t1.unwrap();
+        t2.unwrap();
+        t3.unwrap();
+    }
+
+    fn request_test(
+        client: &reqwest::Client,
+        listen_url: &str,
+        body: &'static str,
+        snapshot_name: &'static str,
+    ) -> Result<(), String> {
+        fn error_mapper<T: std::fmt::Debug>(e: T) -> String {
+            format!("{:?}", e)
+        }
+
+        let mut r = client
+            .post(&format!("http://{}/graphql", listen_url))
+            .body(body)
+            .header(
+                reqwest::header::CONTENT_TYPE,
+                reqwest::header::HeaderValue::from_static("application/json"),
+            )
+            .send()
+            .map_err(error_mapper)?;
+        let r = r.json::<serde_json::Value>().map_err(error_mapper)?;
+        std::panic::catch_unwind(|| {
+            insta::with_settings!({snapshot_suffix => ""}, {
+                insta::assert_json_snapshot!(snapshot_name, r)
+            })
+        })
+        .map_err(error_mapper)?;
+        Ok(())
     }
 }

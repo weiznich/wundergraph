@@ -475,7 +475,16 @@ impl<'a> Display for GraphqlInsertable<'a> {
         {
             let mut out = PadAdapter::new(f);
             writeln!(out)?;
-            for c in self.table.column_data.iter().filter(|c| !c.has_default) {
+            for c in self.table.column_data.iter().filter(|c| {
+                !c.has_default
+                    && self
+                        .table
+                        .primary_key
+                        .iter()
+                        .filter(|x| **x == c.sql_name)
+                        .count()
+                        == 0
+            }) {
                 let t = GraphqlType {
                     sql_type: &c.ty,
                     allow_option: true,
