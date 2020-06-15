@@ -15,6 +15,9 @@ mod pg;
 #[cfg(feature = "sqlite")]
 mod sqlite;
 
+#[cfg(feature = "mysql")]
+mod mysql;
+
 #[doc(hidden)]
 pub fn handle_insert<DB, I, R, Ctx>(
     selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,

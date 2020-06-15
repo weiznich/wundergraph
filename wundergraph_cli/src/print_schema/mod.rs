@@ -39,45 +39,6 @@ pub fn print<W: Write>(
     )?;
     writeln!(out, "use wundergraph::scalar::WundergraphScalarValue;")?;
     writeln!(out, "use wundergraph::WundergraphEntity;")?;
-    if cfg!(feature = "mysql") {
-        writeln!(out, "use diesel::dsl::SqlTypeOf;")?;
-        writeln!(out, "use diesel::mysql::Mysql;")?;
-        writeln!(out, "use diesel::query_dsl::methods::FilterDsl;")?;
-        writeln!(out, "use diesel::sql_types::{{Bigint, HasSqlType}};")?;
-        writeln!(out, "use diesel::{{")?;
-        writeln!(out, "    no_arg_sql_function, AppearsOnTable, Connection, EqAll, Identifiable, Insertable, RunQueryDsl,")?;
-        writeln!(out, "}};")?;
-        writeln!(
-            out,
-            "use juniper::{{ExecutionResult, Executor, Selection, Value}};"
-        )?;
-        writeln!(out, "use std::convert::TryFrom;")?;
-        writeln!(
-            out,
-            "use wundergraph::query_builder::mutations::{{HandleBatchInsert, HandleInsert}};"
-        )?;
-        writeln!(
-            out,
-            "use wundergraph::query_builder::selection::fields::WundergraphFieldList;"
-        )?;
-        writeln!(
-            out,
-            "use wundergraph::query_builder::selection::filter::BuildFilter;"
-        )?;
-        writeln!(
-            out,
-            "use wundergraph::query_builder::selection::order::BuildOrder;"
-        )?;
-        writeln!(
-            out,
-            "use wundergraph::query_builder::selection::select::BuildSelect;"
-        )?;
-        writeln!(out, "use wundergraph::query_builder::selection::{{LoadingHandler, QueryModifier, SqlTypeOfPlaceholder}};")?;
-        writeln!(out, "use wundergraph::WundergraphContext;")?;
-        writeln!(out)?;
-        writeln!(out, "diesel::no_arg_sql_function!(LAST_INSERT_ID, Bigint);")?;
-    }
-
     writeln!(out)?;
     writeln!(out, "{}", definitions)?;
     writeln!(out)?;

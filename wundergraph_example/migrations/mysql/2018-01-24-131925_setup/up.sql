@@ -1,39 +1,31 @@
-CREATE TABLE `species`(
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `name` TEXT NOT NULL,
-    PRIMARY KEY (`id`)
+CREATE TABLE species(
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name TEXT NOT NULL
 );
 
-CREATE TABLE `home_worlds`(
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `name` TEXT NOT NULL,
-    PRIMARY KEY (`id`)
+CREATE TABLE home_worlds(
+   id INT AUTO_INCREMENT PRIMARY KEY,
+   name TEXT NOT NULL
 );
 
-CREATE TABLE `heros`(
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `name` TEXT NOT NULL,
-    `hair_color` TEXT,
-    `species` INTEGER NOT NULL,
-    `home_world` INTEGER DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    FOREIGN KEY (`species`) REFERENCES `species` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
-    FOREIGN KEY (`home_world`) REFERENCES `home_worlds` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+CREATE TABLE heros(
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name TEXT NOT NULL,
+    hair_color TEXT,
+    species INTEGER NOT NULL REFERENCES species(id) ON DELETE CASCADE ON UPDATE RESTRICT,
+    home_world INTEGER REFERENCES home_worlds(id) ON DELETE CASCADE ON UPDATE RESTRICT
 );
 
-CREATE TABLE `appears_in`(
-    `hero_id` INTEGER NOT NULL,
-    `episode` SMALLINT(1) NOT NULL CHECK(episode IN (1,2,3)),
-    PRIMARY KEY(`hero_id`, `episode`),
-    FOREIGN KEY (`hero_id`) REFERENCES `heros` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+CREATE TABLE appears_in(
+    hero_id INTEGER NOT NULL REFERENCES heros(id) ON DELETE CASCADE ON UPDATE RESTRICT,
+    episode SMALLINT NOT NULL CHECK(episode IN (1,2,3)),
+    PRIMARY KEY(hero_id, episode)
 );
 
-CREATE TABLE `friends`(
-    `hero_id` INTEGER NOT NULL,
-    `friend_id` INTEGER NOT NULL,
-    PRIMARY KEY(`hero_id`, `friend_id`),
-    FOREIGN KEY (`hero_id`) REFERENCES `heros`(`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
-    FOREIGN KEY (`friend_id`) REFERENCES `heros` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+CREATE TABLE friends(
+    hero_id INTEGER NOT NULL REFERENCES heros(id) ON DELETE CASCADE ON UPDATE RESTRICT,
+    friend_id INTEGER NOT NULL REFERENCES heros(id) ON DELETE CASCADE ON UPDATE RESTRICT,
+    PRIMARY KEY(hero_id, friend_id)
 );
 
 INSERT INTO species(id, name) VALUES (1, 'Human'), (2, 'Robot');

@@ -59,15 +59,17 @@ pub struct HomeWorldChangeset {
     name: Option<String>,
 }
 
-#[derive(Insertable, GraphQLInputObject, Debug, Copy, Clone)]
-#[table_name = "friends"]
+#[cfg_attr(not(feature = "mysql"), derive(Insertable))]
+#[derive(GraphQLInputObject, Debug, Copy, Clone)]
+#[cfg_attr(not(feature = "mysql"), table_name = "friends")]
 pub struct NewFriend {
     hero_id: i32,
     friend_id: i32,
 }
 
-#[derive(Insertable, GraphQLInputObject, Debug, Copy, Clone)]
-#[table_name = "appears_in"]
+#[cfg_attr(not(feature = "mysql"), derive(Insertable))]
+#[derive(GraphQLInputObject, Debug, Copy, Clone)]
+#[cfg_attr(not(feature = "mysql"), table_name = "appears_in")]
 pub struct NewAppearsIn {
     hero_id: i32,
     episode: Episode,
