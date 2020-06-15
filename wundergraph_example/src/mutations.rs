@@ -11,6 +11,9 @@ use super::HomeWorld;
 use super::Species;
 use juniper::*;
 
+#[cfg(feature = "mysql")]
+pub mod mysql;
+
 #[derive(Insertable, GraphQLInputObject, Clone, Debug)]
 #[table_name = "heros"]
 pub struct NewHero {

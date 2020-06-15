@@ -83,7 +83,10 @@ fn run_migrations(conn: &DBConnection) {
         migration_path.push("pg");
     } else if cfg!(feature = "sqlite") {
         migration_path.push("sqlite");
+    } else if cfg!(feature = "mysql") {
+        migration_path.push("mysql");
     }
+
     let pending_migrations =
         ::diesel_migrations::mark_migrations_in_directory(conn, &migration_path)
             .unwrap()

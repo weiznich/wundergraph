@@ -29,5 +29,6 @@ default-features = false
 
 [features]
 default = ["postgres", "wundergraph/debug"]
-sqlite = ["wundergraph/sqlite", "diesel/sqlite"]
+mysql = ["wundergraph/mysql", "diesel/mysql"]
 postgres = ["wundergraph/postgres", "diesel/postgres"]
+sqlite = ["wundergraph/sqlite", "diesel/sqlite"]
