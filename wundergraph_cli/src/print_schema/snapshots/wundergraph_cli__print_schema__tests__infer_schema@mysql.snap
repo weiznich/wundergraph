@@ -5,24 +5,6 @@ expression: "&s"
 use wundergraph::query_builder::types::{HasMany, HasOne};
 use wundergraph::scalar::WundergraphScalarValue;
 use wundergraph::WundergraphEntity;
-use diesel::dsl::SqlTypeOf;
-use diesel::mysql::Mysql;
-use diesel::query_dsl::methods::FilterDsl;
-use diesel::sql_types::{Bigint, HasSqlType};
-use diesel::{
-    no_arg_sql_function, AppearsOnTable, Connection, EqAll, Identifiable, Insertable, RunQueryDsl,
-};
-use juniper::{ExecutionResult, Executor, Selection, Value};
-use std::convert::TryFrom;
-use wundergraph::query_builder::mutations::{HandleBatchInsert, HandleInsert};
-use wundergraph::query_builder::selection::fields::WundergraphFieldList;
-use wundergraph::query_builder::selection::filter::BuildFilter;
-use wundergraph::query_builder::selection::order::BuildOrder;
-use wundergraph::query_builder::selection::select::BuildSelect;
-use wundergraph::query_builder::selection::{LoadingHandler, QueryModifier, SqlTypeOfPlaceholder};
-use wundergraph::WundergraphContext;
-
-diesel::no_arg_sql_function!(LAST_INSERT_ID, Bigint);
 
 table! {
     comments (id) {
@@ -109,84 +91,6 @@ pub struct NewComment {
     content: String,
 }
 
-    impl<L, Ctx> HandleInsert<L, NewComment, Mysql, Ctx> for comments::table
-    where
-        L: LoadingHandler<Mysql, Ctx, Table = comments::table> + 'static,
-        L::FieldList: WundergraphFieldList<Mysql, L::PrimaryKeyIndex, comments::table, Ctx>,
-        <L::Filter as BuildFilter<Mysql>>::Ret: AppearsOnTable<comments::table>,
-        L::Columns: BuildOrder<comments::table, Mysql>
-            + BuildSelect<
-                comments::table,
-                Mysql,
-                SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, comments::table, Ctx>,
-            >,
-        &'static L: Identifiable,
-        Ctx: WundergraphContext + QueryModifier<L, Mysql>,
-        Ctx::Connection: Connection<Backend = Mysql>,
-        <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<comments::id>>
-            + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, comments::table, Ctx>>,
-    {
-        fn handle_insert(
-            selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
-            executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-            insertable: NewComment,
-        ) -> ExecutionResult<WundergraphScalarValue> {
-            let ctx = executor.context();
-            let conn = ctx.get_connection();
-            let look_ahead = executor.look_ahead();
-            insertable.insert_into(comments::table).execute(conn).unwrap();
-            let last_insert_id: i64 = diesel::select(LAST_INSERT_ID).first(conn)?;
-            let last_insert_id = i32::try_from(last_insert_id)?;
-            let q = L::build_query(&[], &look_ahead)?;
-            let q = FilterDsl::filter(q, comments::id.eq_all(last_insert_id));
-            let items = L::load(&look_ahead, selection, executor, q)?;
-            Ok(items.into_iter().next().unwrap_or(Value::Null))
-        }
-    }
-
-    impl<L, Ctx> HandleBatchInsert<L, NewComment, Mysql, Ctx> for comments::table
-    where
-        L: LoadingHandler<Mysql, Ctx, Table = comments::table> + 'static,
-        L::FieldList: WundergraphFieldList<Mysql, L::PrimaryKeyIndex, comments::table, Ctx>,
-        <L::Filter as BuildFilter<Mysql>>::Ret: AppearsOnTable<comments::table>,
-        L::Columns: BuildOrder<comments::table, Mysql>
-            + BuildSelect<
-                comments::table,
-                Mysql,
-                SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, comments::table, Ctx>,
-            >,
-        &'static L: Identifiable,
-        Ctx: WundergraphContext + QueryModifier<L, Mysql>,
-        Ctx::Connection: Connection<Backend = Mysql>,
-        <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<comments::id>>
-            + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, comments::table, Ctx>>,
-    {
-        fn handle_batch_insert(
-            selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
-            executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-            batch: Vec<NewComment>,
-        ) -> ExecutionResult<WundergraphScalarValue> {
-            let ctx = executor.context();
-            let conn = ctx.get_connection();
-            let look_ahead = executor.look_ahead();
-            let single_insert = |insertable: NewComment| -> ExecutionResult<WundergraphScalarValue> {
-                insertable.insert_into(comments::table).execute(conn).unwrap();
-                let last_insert_id: i64 = diesel::select(LAST_INSERT_ID).first(conn)?;
-                let last_insert_id = i32::try_from(last_insert_id)?;
-                let q = L::build_query(&[], &look_ahead)?;
-                let q = FilterDsl::filter(q, comments::id.eq_all(last_insert_id));
-                let items = L::load(&look_ahead, selection, executor, q)?;
-                Ok(items.into_iter().next().unwrap_or(Value::Null))
-            };
-          let r = batch
-              .into_iter()
-              .map(|i| single_insert(i))
-              .collect::<Result<Vec<_>, _>>()?;
-           Ok(Value::List(r))
-        }
-    }
-
-
 #[derive(AsChangeset, Identifiable, juniper::GraphQLInputObject, Clone, Debug)]
 #[graphql(scalar = "WundergraphScalarValue")]
 #[table_name = "comments"]
@@ -208,84 +112,6 @@ pub struct NewPost {
     content: Option<String>,
 }
 
-    impl<L, Ctx> HandleInsert<L, NewPost, Mysql, Ctx> for posts::table
-    where
-        L: LoadingHandler<Mysql, Ctx, Table = posts::table> + 'static,
-        L::FieldList: WundergraphFieldList<Mysql, L::PrimaryKeyIndex, posts::table, Ctx>,
-        <L::Filter as BuildFilter<Mysql>>::Ret: AppearsOnTable<posts::table>,
-        L::Columns: BuildOrder<posts::table, Mysql>
-            + BuildSelect<
-                posts::table,
-                Mysql,
-                SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, posts::table, Ctx>,
-            >,
-        &'static L: Identifiable,
-        Ctx: WundergraphContext + QueryModifier<L, Mysql>,
-        Ctx::Connection: Connection<Backend = Mysql>,
-        <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<posts::id>>
-            + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, posts::table, Ctx>>,
-    {
-        fn handle_insert(
-            selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
-            executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-            insertable: NewPost,
-        ) -> ExecutionResult<WundergraphScalarValue> {
-            let ctx = executor.context();
-            let conn = ctx.get_connection();
-            let look_ahead = executor.look_ahead();
-            insertable.insert_into(posts::table).execute(conn).unwrap();
-            let last_insert_id: i64 = diesel::select(LAST_INSERT_ID).first(conn)?;
-            let last_insert_id = i32::try_from(last_insert_id)?;
-            let q = L::build_query(&[], &look_ahead)?;
-            let q = FilterDsl::filter(q, posts::id.eq_all(last_insert_id));
-            let items = L::load(&look_ahead, selection, executor, q)?;
-            Ok(items.into_iter().next().unwrap_or(Value::Null))
-        }
-    }
-
-    impl<L, Ctx> HandleBatchInsert<L, NewPost, Mysql, Ctx> for posts::table
-    where
-        L: LoadingHandler<Mysql, Ctx, Table = posts::table> + 'static,
-        L::FieldList: WundergraphFieldList<Mysql, L::PrimaryKeyIndex, posts::table, Ctx>,
-        <L::Filter as BuildFilter<Mysql>>::Ret: AppearsOnTable<posts::table>,
-        L::Columns: BuildOrder<posts::table, Mysql>
-            + BuildSelect<
-                posts::table,
-                Mysql,
-                SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, posts::table, Ctx>,
-            >,
-        &'static L: Identifiable,
-        Ctx: WundergraphContext + QueryModifier<L, Mysql>,
-        Ctx::Connection: Connection<Backend = Mysql>,
-        <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<posts::id>>
-            + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, posts::table, Ctx>>,
-    {
-        fn handle_batch_insert(
-            selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
-            executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-            batch: Vec<NewPost>,
-        ) -> ExecutionResult<WundergraphScalarValue> {
-            let ctx = executor.context();
-            let conn = ctx.get_connection();
-            let look_ahead = executor.look_ahead();
-            let single_insert = |insertable: NewPost| -> ExecutionResult<WundergraphScalarValue> {
-                insertable.insert_into(posts::table).execute(conn).unwrap();
-                let last_insert_id: i64 = diesel::select(LAST_INSERT_ID).first(conn)?;
-                let last_insert_id = i32::try_from(last_insert_id)?;
-                let q = L::build_query(&[], &look_ahead)?;
-                let q = FilterDsl::filter(q, posts::id.eq_all(last_insert_id));
-                let items = L::load(&look_ahead, selection, executor, q)?;
-                Ok(items.into_iter().next().unwrap_or(Value::Null))
-            };
-          let r = batch
-              .into_iter()
-              .map(|i| single_insert(i))
-              .collect::<Result<Vec<_>, _>>()?;
-           Ok(Value::List(r))
-        }
-    }
-
-
 #[derive(AsChangeset, Identifiable, juniper::GraphQLInputObject, Clone, Debug)]
 #[graphql(scalar = "WundergraphScalarValue")]
 #[table_name = "posts"]
@@ -304,84 +130,6 @@ pub struct PostChangeset {
 pub struct NewUser {
     name: String,
 }
-
-    impl<L, Ctx> HandleInsert<L, NewUser, Mysql, Ctx> for users::table
-    where
-        L: LoadingHandler<Mysql, Ctx, Table = users::table> + 'static,
-        L::FieldList: WundergraphFieldList<Mysql, L::PrimaryKeyIndex, users::table, Ctx>,
-        <L::Filter as BuildFilter<Mysql>>::Ret: AppearsOnTable<users::table>,
-        L::Columns: BuildOrder<users::table, Mysql>
-            + BuildSelect<
-                users::table,
-                Mysql,
-                SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, users::table, Ctx>,
-            >,
-        &'static L: Identifiable,
-        Ctx: WundergraphContext + QueryModifier<L, Mysql>,
-        Ctx::Connection: Connection<Backend = Mysql>,
-        <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<users::id>>
-            + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, users::table, Ctx>>,
-    {
-        fn handle_insert(
-            selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
-            executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-            insertable: NewUser,
-        ) -> ExecutionResult<WundergraphScalarValue> {
-            let ctx = executor.context();
-            let conn = ctx.get_connection();
-            let look_ahead = executor.look_ahead();
-            insertable.insert_into(users::table).execute(conn).unwrap();
-            let last_insert_id: i64 = diesel::select(LAST_INSERT_ID).first(conn)?;
-            let last_insert_id = i32::try_from(last_insert_id)?;
-            let q = L::build_query(&[], &look_ahead)?;
-            let q = FilterDsl::filter(q, users::id.eq_all(last_insert_id));
-            let items = L::load(&look_ahead, selection, executor, q)?;
-            Ok(items.into_iter().next().unwrap_or(Value::Null))
-        }
-    }
-
-    impl<L, Ctx> HandleBatchInsert<L, NewUser, Mysql, Ctx> for users::table
-    where
-        L: LoadingHandler<Mysql, Ctx, Table = users::table> + 'static,
-        L::FieldList: WundergraphFieldList<Mysql, L::PrimaryKeyIndex, users::table, Ctx>,
-        <L::Filter as BuildFilter<Mysql>>::Ret: AppearsOnTable<users::table>,
-        L::Columns: BuildOrder<users::table, Mysql>
-            + BuildSelect<
-                users::table,
-                Mysql,
-                SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, users::table, Ctx>,
-            >,
-        &'static L: Identifiable,
-        Ctx: WundergraphContext + QueryModifier<L, Mysql>,
-        Ctx::Connection: Connection<Backend = Mysql>,
-        <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<users::id>>
-            + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, users::table, Ctx>>,
-    {
-        fn handle_batch_insert(
-            selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
-            executor: &Executor<'_, Ctx, WundergraphScalarValue>,
-            batch: Vec<NewUser>,
-        ) -> ExecutionResult<WundergraphScalarValue> {
-            let ctx = executor.context();
-            let conn = ctx.get_connection();
-            let look_ahead = executor.look_ahead();
-            let single_insert = |insertable: NewUser| -> ExecutionResult<WundergraphScalarValue> {
-                insertable.insert_into(users::table).execute(conn).unwrap();
-                let last_insert_id: i64 = diesel::select(LAST_INSERT_ID).first(conn)?;
-                let last_insert_id = i32::try_from(last_insert_id)?;
-                let q = L::build_query(&[], &look_ahead)?;
-                let q = FilterDsl::filter(q, users::id.eq_all(last_insert_id));
-                let items = L::load(&look_ahead, selection, executor, q)?;
-                Ok(items.into_iter().next().unwrap_or(Value::Null))
-            };
-          let r = batch
-              .into_iter()
-              .map(|i| single_insert(i))
-              .collect::<Result<Vec<_>, _>>()?;
-           Ok(Value::List(r))
-        }
-    }
-
 
 #[derive(AsChangeset, Identifiable, juniper::GraphQLInputObject, Clone, Debug)]
 #[graphql(scalar = "WundergraphScalarValue")]

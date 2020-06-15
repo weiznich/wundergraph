@@ -10,6 +10,7 @@ use diesel::backend::Backend;
 use diesel::query_dsl::methods::LimitDsl;
 #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
 use diesel::query_dsl::methods::OffsetDsl;
+
 use juniper::LookAheadSelection;
 
 /// A trait abstracting over the different behaviour of limit/offset

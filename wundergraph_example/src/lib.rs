@@ -262,7 +262,7 @@ pub type DBConnection = ::diesel::PgConnection;
 pub type DBConnection = ::diesel::SqliteConnection;
 
 #[cfg(feature = "mysql")]
-pub type DBConnection = ::diesel::MysqlConnection;
+pub type DBConnection = ::diesel::mysql::MysqlConnection;
 
 pub type DbBackend = <DBConnection as Connection>::Backend;
 
