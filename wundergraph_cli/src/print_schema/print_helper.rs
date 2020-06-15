@@ -494,6 +494,200 @@ impl<'a> Display for GraphqlInsertable<'a> {
             }
         }
         writeln!(f, "}}")?;
+        if cfg!(feature = "mysql") && self.table.primary_key.iter().len() == 1 {
+            let mut out = PadAdapter::new(f);
+            writeln!(out)?;
+            // FIXME ensure type of id is appropriate for i32
+            let id = self.table.primary_key.iter().next().unwrap();
+            let table_name = &self.table.name.name;
+
+            writeln!(
+                out,
+                "impl<L, Ctx> HandleInsert<L, New{}, Mysql, Ctx> for {}::table",
+                fix_table_name(&self.table.name.name),
+                &table_name
+            )?;
+            writeln!(out, "where")?;
+            writeln!(
+                out,
+                "    L: LoadingHandler<Mysql, Ctx, Table = {}::table> + 'static,",
+                &table_name
+            )?;
+            writeln!(out, "    L::FieldList: WundergraphFieldList<Mysql, L::PrimaryKeyIndex, {}::table, Ctx>,", &table_name)?;
+            writeln!(
+                out,
+                "    <L::Filter as BuildFilter<Mysql>>::Ret: AppearsOnTable<{}::table>,",
+                &table_name
+            )?;
+            writeln!(
+                out,
+                "    L::Columns: BuildOrder<{}::table, Mysql>",
+                &table_name
+            )?;
+            writeln!(out, "        + BuildSelect<")?;
+            writeln!(out, "            {}::table,", &table_name)?;
+            writeln!(out, "            Mysql,")?;
+            writeln!(out, "            SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, {}::table, Ctx>,", &table_name)?;
+            writeln!(out, "        >,")?;
+            writeln!(out, "    &'static L: Identifiable,")?;
+            writeln!(
+                out,
+                "    Ctx: WundergraphContext + QueryModifier<L, Mysql>,"
+            )?;
+            writeln!(out, "    Ctx::Connection: Connection<Backend = Mysql>,")?;
+            writeln!(
+                out,
+                "    <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<{}::id>>",
+                &table_name
+            )?;
+            writeln!(out, "        + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, {}::table, Ctx>>,", table_name)?;
+            writeln!(out, "{{")?;
+            writeln!(out, "    fn handle_insert(")?;
+            writeln!(
+                out,
+                "        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,"
+            )?;
+            writeln!(
+                out,
+                "        executor: &Executor<'_, Ctx, WundergraphScalarValue>,"
+            )?;
+            writeln!(
+                out,
+                "        insertable: New{},",
+                fix_table_name(&self.table.name.name)
+            )?;
+            writeln!(out, "    ) -> ExecutionResult<WundergraphScalarValue> {{")?;
+            writeln!(out, "        let ctx = executor.context();")?;
+            writeln!(out, "        let conn = ctx.get_connection();")?;
+            writeln!(out, "        let look_ahead = executor.look_ahead();")?;
+            writeln!(
+                out,
+                "        insertable.insert_into({}::table).execute(conn).unwrap();",
+                &table_name
+            )?;
+            writeln!(
+                out,
+                "        let last_insert_id: i64 = diesel::select(LAST_INSERT_ID).first(conn)?;"
+            )?;
+            writeln!(
+                out,
+                "        let last_insert_id = i32::try_from(last_insert_id)?;"
+            )?;
+            writeln!(out, "        let q = L::build_query(&[], &look_ahead)?;")?;
+            writeln!(
+                out,
+                "        let q = FilterDsl::filter(q, {}::{}.eq_all(last_insert_id));",
+                &table_name, &id
+            )?;
+            writeln!(
+                out,
+                "        let items = L::load(&look_ahead, selection, executor, q)?;"
+            )?;
+            writeln!(
+                out,
+                "        Ok(items.into_iter().next().unwrap_or(Value::Null))"
+            )?;
+            writeln!(out, "    }}")?;
+            writeln!(out, "}}")?;
+            writeln!(out)?;
+
+            writeln!(
+                out,
+                "impl<L, Ctx> HandleBatchInsert<L, New{}, Mysql, Ctx> for {}::table",
+                fix_table_name(&self.table.name.name),
+                &table_name
+            )?;
+            writeln!(out, "where")?;
+            writeln!(
+                out,
+                "    L: LoadingHandler<Mysql, Ctx, Table = {}::table> + 'static,",
+                &table_name
+            )?;
+            writeln!(out, "    L::FieldList: WundergraphFieldList<Mysql, L::PrimaryKeyIndex, {}::table, Ctx>,", &table_name)?;
+            writeln!(
+                out,
+                "    <L::Filter as BuildFilter<Mysql>>::Ret: AppearsOnTable<{}::table>,",
+                &table_name
+            )?;
+            writeln!(
+                out,
+                "    L::Columns: BuildOrder<{}::table, Mysql>",
+                &table_name
+            )?;
+            writeln!(out, "        + BuildSelect<")?;
+            writeln!(out, "            {}::table,", &table_name)?;
+            writeln!(out, "            Mysql,")?;
+            writeln!(out, "            SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, {}::table, Ctx>,", &table_name)?;
+            writeln!(out, "        >,")?;
+            writeln!(out, "    &'static L: Identifiable,")?;
+            writeln!(
+                out,
+                "    Ctx: WundergraphContext + QueryModifier<L, Mysql>,"
+            )?;
+            writeln!(out, "    Ctx::Connection: Connection<Backend = Mysql>,")?;
+            writeln!(
+                out,
+                "    <Ctx::Connection as Connection>::Backend: HasSqlType<SqlTypeOf<{}::id>>",
+                &table_name
+            )?;
+            writeln!(out, "        + HasSqlType<SqlTypeOfPlaceholder<L::FieldList, Mysql, L::PrimaryKeyIndex, {}::table, Ctx>>,", table_name)?;
+            writeln!(out, "{{")?;
+            writeln!(out, "    fn handle_batch_insert(")?;
+            writeln!(
+                out,
+                "        selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,"
+            )?;
+            writeln!(
+                out,
+                "        executor: &Executor<'_, Ctx, WundergraphScalarValue>,"
+            )?;
+            writeln!(
+                out,
+                "        batch: Vec<New{}>,",
+                fix_table_name(&self.table.name.name)
+            )?;
+            writeln!(out, "    ) -> ExecutionResult<WundergraphScalarValue> {{")?;
+            writeln!(out, "        let ctx = executor.context();")?;
+            writeln!(out, "        let conn = ctx.get_connection();")?;
+            writeln!(out, "        let look_ahead = executor.look_ahead();")?;
+            writeln!(out, "        let single_insert = |insertable: New{}| -> ExecutionResult<WundergraphScalarValue> {{", fix_table_name(&self.table.name.name))?;
+            writeln!(
+                out,
+                "            insertable.insert_into({}::table).execute(conn).unwrap();",
+                &table_name
+            )?;
+            writeln!(out, "            let last_insert_id: i64 = diesel::select(LAST_INSERT_ID).first(conn)?;")?;
+            writeln!(
+                out,
+                "            let last_insert_id = i32::try_from(last_insert_id)?;"
+            )?;
+            writeln!(
+                out,
+                "            let q = L::build_query(&[], &look_ahead)?;"
+            )?;
+            writeln!(
+                out,
+                "            let q = FilterDsl::filter(q, {}::{}.eq_all(last_insert_id));",
+                &table_name, &id
+            )?;
+            writeln!(
+                out,
+                "            let items = L::load(&look_ahead, selection, executor, q)?;"
+            )?;
+            writeln!(
+                out,
+                "            Ok(items.into_iter().next().unwrap_or(Value::Null))"
+            )?;
+            writeln!(out, "        }};")?;
+            writeln!(out, "      let r = batch")?;
+            writeln!(out, "          .into_iter()")?;
+            writeln!(out, "          .map(|i| single_insert(i))")?;
+            writeln!(out, "          .collect::<Result<Vec<_>, _>>()?;")?;
+            writeln!(out, "       Ok(Value::List(r))")?;
+            writeln!(out, "    }}")?;
+            writeln!(out, "}}")?;
+            writeln!(out)?;
+        }
         Ok(())
     }
 }
