@@ -7,7 +7,8 @@ Wundergraph provides a platform to easily expose your database through a GraphQL
 
 
 ## Example
-For a full example application see the [example project](https://github.com/weiznich/wundergraph/blob/master/wundergraph_example/src/bin/main.rs)
+
+For a full example application see the [example project](https://github.com/weiznich/wundergraph/blob/master/wundergraph_example/src/bin/wundergraph_example.rs)
 
 ```rust
 #[macro_use] extern crate diesel;
