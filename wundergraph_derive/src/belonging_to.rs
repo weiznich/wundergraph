@@ -70,9 +70,22 @@ pub fn derive_belonging_to(
             } else {
                 None
             };
+            let mysql = if cfg!(feature = "mysql") {
+                Some(derive_belongs_to(
+                    model,
+                    item,
+                    parent_ty,
+                    &key_ty,
+                    f.sql_name(),
+                    &quote!(diesel::mysql::Mysql),
+                )?)
+            } else {
+                None
+            };
             Ok(quote! {
                 #pg
                 #sqlite
+                #mysql
             })
         })
         .collect::<Result<Vec<_>, _>>()

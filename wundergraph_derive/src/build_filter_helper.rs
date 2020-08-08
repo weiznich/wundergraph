@@ -28,12 +28,23 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
         None
     };
 
+    let mysql = if cfg!(feature = "mysql") {
+        Some(derive_non_table_filter(
+            &model,
+            item,
+            &quote!(diesel::mysql::Mysql),
+        )?)
+    } else {
+        None
+    };
+
     Ok(wrap_in_dummy_mod(
         "build_filter_helper",
         &model.name,
         &quote! {
             #pg
             #sqlite
+            #mysql
         },
     ))
 }

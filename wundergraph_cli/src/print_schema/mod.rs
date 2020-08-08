@@ -85,6 +85,9 @@ mod tests {
     #[cfg(feature = "postgres")]
     const BACKEND: &str = "postgres";
 
+    #[cfg(feature = "mysql")]
+    const BACKEND: &str = "mysql";
+
     #[cfg(feature = "sqlite")]
     const BACKEND: &str = "sqlite";
 
@@ -125,6 +128,36 @@ mod tests {
         );"#,
     ];
 
+    #[cfg(feature = "mysql")]
+    const MIGRATION: &[&str] = &[
+        r#"DROP TABLE IF EXISTS comments;"#,
+        r#"DROP TABLE IF EXISTS posts;"#,
+        r#"DROP TABLE IF EXISTS users;"#,
+        r#"CREATE TABLE users(
+            id INTEGER NOT NULL AUTO_INCREMENT,
+            name TEXT NOT NULL,
+            PRIMARY KEY (`id`)
+        );"#,
+        r#"CREATE TABLE posts(
+            id INTEGER NOT NULL AUTO_INCREMENT,
+            author INTEGER DEFAULT NULL,
+            title TEXT NOT NULL,
+            datetime TIMESTAMP NULL DEFAULT NULL,
+            content TEXT,
+            PRIMARY KEY (`id`),
+            FOREIGN KEY (`author`) REFERENCES `users` (`id`)
+        );"#,
+        r#"CREATE TABLE comments(
+            id INTEGER NOT NULL AUTO_INCREMENT,
+            post INTEGER DEFAULT NULL,
+            commenter INTEGER DEFAULT NULL,
+            content TEXT NOT NULL,
+            PRIMARY KEY (`id`),
+            FOREIGN KEY (`post`) REFERENCES `posts` (`id`),
+            FOREIGN KEY (`commenter`) REFERENCES `users` (`id`)
+        );"#,
+    ];
+
     fn setup_simple_schema(conn: &InferConnection) {
         use diesel::prelude::*;
         use diesel::sql_query;
@@ -141,6 +174,12 @@ mod tests {
                     sql_query(*m).execute(conn).unwrap();
                 }
             }
+            #[cfg(feature = "mysql")]
+            InferConnection::Mysql(conn) => {
+                for m in MIGRATION {
+                    sql_query(*m).execute(conn).unwrap();
+                }
+            }
         }
     }
 
@@ -153,7 +192,7 @@ mod tests {
 
         #[cfg(feature = "postgres")]
         print(&conn, Some("infer_test"), &mut out).unwrap();
-        #[cfg(feature = "sqlite")]
+        #[cfg(any(feature = "mysql", feature = "sqlite"))]
         print(&conn, None, &mut out).unwrap();
 
         let s = String::from_utf8(out).unwrap();
@@ -187,7 +226,7 @@ mod tests {
         let mut api_file = File::create(api).unwrap();
         #[cfg(feature = "postgres")]
         print(&conn, Some("infer_test"), &mut api_file).unwrap();
-        #[cfg(feature = "sqlite")]
+        #[cfg(any(feature = "mysql", feature = "sqlite"))]
         print(&conn, None, &mut api_file).unwrap();
 
         let main = tmp_dir
@@ -218,6 +257,17 @@ mod tests {
             main_file,
             include_str!("template_main.rs"),
             conn = "SqliteConnection",
+            db_url = std::env::var("DATABASE_URL").unwrap(),
+            migrations = migrations,
+            listen_url = listen_url
+        )
+        .unwrap();
+
+        #[cfg(feature = "mysql")]
+        write!(
+            main_file,
+            include_str!("template_main.rs"),
+            conn = "MysqlConnection",
             db_url = std::env::var("DATABASE_URL").unwrap(),
             migrations = migrations,
             listen_url = listen_url
@@ -269,6 +319,21 @@ mod tests {
             )
             .unwrap();
         }
+        #[cfg(feature = "mysql")]
+        {
+            writeln!(
+                cargo_toml_file,
+                r#"diesel = {{version = "1.4", features = ["mysql", "chrono"]}}"#
+            )
+            .unwrap();
+
+            writeln!(
+                cargo_toml_file,
+                "wundergraph = {{path = \"{}\", features = [\"mysql\", \"chrono\"] }}",
+                wundergraph_dir
+            )
+            .unwrap();
+        }
         writeln!(cargo_toml_file, r#"juniper = "0.14""#).unwrap();
         writeln!(cargo_toml_file, r#"failure = "0.1""#).unwrap();
         writeln!(cargo_toml_file, r#"actix-web = "1""#).unwrap();
@@ -316,7 +381,7 @@ mod tests {
         println!("Started server");
 
         let client = reqwest::Client::new();
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(5));
 
         let query = "{\"query\": \"{ Users { id  name  } } \"}";
         let mutation = r#"{"query":"mutation CreateUser {\n  CreateUser(NewUser: {name: \"Max\"}) {\n    id\n    name\n  }\n}","variables":null,"operationName":"CreateUser"}"#;

@@ -261,6 +261,9 @@ pub type DBConnection = ::diesel::PgConnection;
 #[cfg(feature = "sqlite")]
 pub type DBConnection = ::diesel::SqliteConnection;
 
+#[cfg(feature = "mysql")]
+pub type DBConnection = ::diesel::mysql::MysqlConnection;
+
 pub type DbBackend = <DBConnection as Connection>::Backend;
 
 pub type Schema<Ctx> =

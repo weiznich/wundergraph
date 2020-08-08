@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 repository = "https://github.com/weiznich/wundergraph"
 readme = "../README.md"
-keywords = ["GraphQL", "ORM", "PostgreSQL", "SQLite"]
+keywords = ["GraphQL", "ORM", "PostgreSQL", "SQLite", "Mysql"]
 categories = ["database", "web-programming"]
 description = "A GraphQL ORM build on top of diesel"
 edition = "2018"
@@ -29,5 +29,6 @@ default-features = false
 
 [features]
 default = ["postgres", "wundergraph/debug"]
-sqlite = ["wundergraph/sqlite", "diesel/sqlite"]
+mysql = ["wundergraph/mysql", "diesel/mysql"]
 postgres = ["wundergraph/postgres", "diesel/postgres"]
+sqlite = ["wundergraph/sqlite", "diesel/sqlite"]
