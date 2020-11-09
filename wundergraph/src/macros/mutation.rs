@@ -54,7 +54,7 @@ macro_rules! __expand_resolve_delete {
     };
     ($entity_name: ident, $executor: ident, $arguments: ident, $($delete:tt)*) => {
        $crate::query_builder::mutations::handle_delete::<
-           DB,
+           _,
        $($delete)*,
        $entity_name,
        Self::Context,
@@ -72,7 +72,7 @@ macro_rules! __expand_register_insert {
     ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, $($insert:tt)*) => {{
         let new = $registry.arg::<$($insert)*>(concat!("New", stringify!($entity_name)), $info);
         let new = $registry
-            .field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
+            .field::<Option<<$entity_name as $crate::graphql_type::WundergraphGraphqlMapper<_, Ctx>>::GraphQLType>>(
                 concat!("Create", stringify!($entity_name)),
                 $info,
             )
@@ -81,7 +81,7 @@ macro_rules! __expand_register_insert {
         let new =
             $registry.arg::<Vec<$($insert)*>>(concat!("New", stringify!($entity_name), "s"), $info);
         let new = $registry
-            .field::<Vec<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
+            .field::<Vec<<$entity_name as $crate::graphql_type::WundergraphGraphqlMapper<_, Ctx>>::GraphQLType>>(
                 concat!("Create", stringify!($entity_name), "s"),
                 $info,
             )
@@ -132,7 +132,7 @@ macro_rules! __expand_resolve_insert {
     ) => {
         if $tpe == concat!("Create", stringify!($entity_name)) {
             $crate::query_builder::mutations::handle_insert::<
-                DB,
+                _,
                 $($insert)*,
                 $entity_name,
                 Self::Context,
@@ -144,7 +144,7 @@ macro_rules! __expand_resolve_insert {
             )
         } else {
             $crate::query_builder::mutations::handle_batch_insert::<
-                DB,
+                _,
                 $($insert)*,
                 $entity_name,
                 Self::Context,
@@ -168,7 +168,7 @@ macro_rules! __expand_register_update {
     ($entity_name: ident, $registry: ident, $fields: ident, $info: ident, $($update:tt)*) => {{
         let update = $registry.arg::<$($update)*>(concat!("Update", stringify!($entity_name)), $info);
         let update = $registry
-            .field::<Option<$crate::graphql_type::GraphqlWrapper<$entity_name, DB, Ctx>>>(
+            .field::<Option<<$entity_name as $crate::graphql_type::WundergraphGraphqlMapper<_, Ctx>>::GraphQLType>>(
                 concat!("Update", stringify!($entity_name)),
                 $info,
             )
@@ -207,7 +207,7 @@ macro_rules! __expand_resolve_update {
         $selection: expr,
         $($update:tt)*
     ) => {
-        $crate::query_builder::mutations::handle_update::<DB, $($update)*, $entity_name, Self::Context>(
+        $crate::query_builder::mutations::handle_update::<_, $($update)*, $entity_name, Self::Context>(
             $selection,
             $executor,
             $arguments,
@@ -229,7 +229,8 @@ macro_rules! __build_mutation_trait_bounds {
         $(lt = $lt: tt,)?
         body = {
             $($inner: tt)*
-        }
+        },
+        db = [$db: ty],
     ) => {
         $crate::paste::item! {
             $crate::__build_mutation_trait_bounds! {
@@ -250,6 +251,7 @@ macro_rules! __build_mutation_trait_bounds {
                         }
                 ],
                 additional_bound = [],
+                db = [$db],
             }
         }
     };
@@ -264,6 +266,7 @@ macro_rules! __build_mutation_trait_bounds {
         },
         original = [ $($orig: tt)* ],
         additional_bound = [$({$($bounds:tt)*},)*],
+        db = [$db:ty],
     ) => {
         $crate::__build_mutation_trait_bounds! {
             input = {
@@ -272,6 +275,7 @@ macro_rules! __build_mutation_trait_bounds {
             },
             original = [ $($orig)*],
             additional_bound = [$({$($bounds)*},)*],
+            db = [$db],
         }
     };
     (
@@ -285,6 +289,7 @@ macro_rules! __build_mutation_trait_bounds {
         },
         original = [ $($orig: tt)* ],
         additional_bound = [$({$($bounds:tt)*},)*],
+        db = [$db: ty],
     ) => {
         $crate::__build_mutation_trait_bounds! {
             input = {
@@ -295,12 +300,13 @@ macro_rules! __build_mutation_trait_bounds {
             additional_bound = [
                 $({$($bounds)*},)*
                 {
-                    $($table)*: $crate::query_builder::mutations::HandleInsert<$entity_name, $insert, DB, Ctx>
+                    $($table)*: $crate::query_builder::mutations::HandleInsert<$entity_name, $insert, $db, Ctx>
                 },
                 {
-                    $($table)*: $crate::query_builder::mutations::HandleBatchInsert<$entity_name, $insert, DB, Ctx>
+                    $($table)*: $crate::query_builder::mutations::HandleBatchInsert<$entity_name, $insert, $db, Ctx>
                 },
             ],
+            db = [$db],
         }
     };
     (
@@ -314,6 +320,7 @@ macro_rules! __build_mutation_trait_bounds {
         },
         original = [ $($orig: tt)* ],
         additional_bound = [$({$($bounds:tt)*},)*],
+        db = [$db: ty],
     ) => {
         $crate::__build_mutation_trait_bounds! {
             input = {
@@ -322,6 +329,7 @@ macro_rules! __build_mutation_trait_bounds {
             },
             original = [ $($orig)*],
             additional_bound = [$({$($bounds)*},)*],
+            db = [$db],
         }
     };
     (
@@ -335,6 +343,7 @@ macro_rules! __build_mutation_trait_bounds {
         },
         original = [ $($orig: tt)* ],
         additional_bound = [$({$($bounds:tt)*},)*],
+        db = [$db: ty],
     ) => {
         $crate::__build_mutation_trait_bounds! {
             input = {
@@ -345,9 +354,10 @@ macro_rules! __build_mutation_trait_bounds {
             additional_bound = [
                 $({$($bounds)*},)*
                 {
-                    $($table)*: $crate::query_builder::mutations::HandleUpdate<$entity_name, $update, DB, Ctx>
+                    $($table)*: $crate::query_builder::mutations::HandleUpdate<$entity_name, $update, $db, Ctx>
                 },
             ],
+            db = [$db],
         }
     };
     (
@@ -357,6 +367,7 @@ macro_rules! __build_mutation_trait_bounds {
         },
         original = [ $($orig: tt)*],
         additional_bound = [$({$($bounds:tt)*},)*],
+        db = [$db: ty],
     ) => {
         $crate::__build_mutation_trait_bounds! {
             input = {
@@ -365,6 +376,7 @@ macro_rules! __build_mutation_trait_bounds {
             },
             original = [$($orig)*],
             additional_bound = [$({$($bounds)*},)*],
+            db = [$db],
         }
     };
     (
@@ -374,6 +386,7 @@ macro_rules! __build_mutation_trait_bounds {
         },
         original = [ $($orig: tt)*],
         additional_bound = [$({$($bounds:tt)*},)*],
+        db = [$db:ty],
     ) => {
         $crate::__build_mutation_trait_bounds! {
             input = {
@@ -390,6 +403,7 @@ macro_rules! __build_mutation_trait_bounds {
             },
             original = [$($orig)*],
             additional_bound = [$({$($bounds)*},)*],
+            db = [$db],
         }
     };
     (
@@ -399,6 +413,7 @@ macro_rules! __build_mutation_trait_bounds {
         },
         original = [ $($orig: tt)*],
         additional_bound = [$({$($bounds:tt)*},)*],
+        db = [$db: ty],
     ) => {
         $crate::__build_mutation_trait_bounds! {
             input = {
@@ -406,6 +421,7 @@ macro_rules! __build_mutation_trait_bounds {
             },
             original = [$($orig)*],
             additional_bound = [$({$($bounds)*},)*],
+            db = [$db],
         }
     };
     (
@@ -415,6 +431,7 @@ macro_rules! __build_mutation_trait_bounds {
         },
         original = [ $($orig: tt)*],
         additional_bound = [$({$($bounds:tt)*},)*],
+        db = [$db: ty],
     ) => {
         $crate::__build_mutation_trait_bounds! {
             input = {
@@ -423,9 +440,10 @@ macro_rules! __build_mutation_trait_bounds {
             original = [$($orig)*],
             additional_bound = [$({$($bounds)*},)*
                 {
-                    $($table)*: $crate::query_builder::mutations::HandleDelete<$entity_name, $($delete)*, DB, Ctx>
+                    $($table)*: $crate::query_builder::mutations::HandleDelete<$entity_name, $($delete)*, $db, Ctx>
                 },
             ],
+            db = [$db],
         }
     };
     (
@@ -441,6 +459,7 @@ macro_rules! __build_mutation_trait_bounds {
             }
         ],
         additional_bound = [$({$($bounds:tt)*},)*],
+        db = [$db: ty],
     ) => {
         $crate::__impl_graphql_obj_for_mutation! {
             mutation_name = {$($mutation_name)*},
@@ -451,9 +470,120 @@ macro_rules! __build_mutation_trait_bounds {
             $(lt = $lt,)?
             body = {
                 $($inner)*
-            }
+            },
+            db = [$db],
         }
     };
+}
+
+#[macro_export]
+#[doc(hidden)]
+#[cfg(feature = "postgres")]
+macro_rules! __impl_graphql_obj_for_mutation_and_db {
+    (
+        mutation_name = {$($mutation_name:tt)*},
+        structs = [$($entity_name: ident(
+            $(insert = $insert: ident,)?
+            $(update = $update: ident,)?
+            $(delete = $($delete:tt)*)?
+        ),)*],
+        $(lt = $lt: tt,)?
+        body = {
+            $($inner: tt)*
+        }
+    ) => {
+        $crate::__impl_graphql_obj_for_mutation! {
+            mutation_name =  {$($mutation_name)*},
+            structs = [$($entity_name (
+                $(insert = $insert,)?
+                $(update = $update,)?
+                $(delete = $($delete)*)?
+            ),)*],
+            $(lt = $lt,)?
+            body = {
+                $($inner)*
+            },
+            db = [$crate::diesel::pg::Pg],
+        }
+    }
+}
+
+#[macro_export]
+#[doc(hidden)]
+#[cfg(feature = "sqlite")]
+macro_rules! __impl_graphql_obj_for_mutation_and_db {
+    (
+        mutation_name = {$($mutation_name:tt)*},
+        structs = [$($entity_name: ident(
+            $(insert = $insert: ident,)?
+            $(update = $update: ident,)?
+            $(delete = $($delete:tt)*)?
+        ),)*],
+        $(lt = $lt: tt,)?
+        body = {
+            $($inner: tt)*
+        }
+    ) => {
+        $crate::__impl_graphql_obj_for_mutation! {
+            mutation_name =  {$($mutation_name)*},
+            structs = [$($entity_name (
+                $(insert = $insert,)?
+                $(update = $update,)?
+                $(delete = $($delete)*)?
+            ),)*],
+            $(lt = $lt,)?
+            body = {
+                $($inner)*
+            },
+            db = [$crate::diesel::sqlite::Sqlite],
+        }
+    }
+}
+
+#[macro_export]
+#[doc(hidden)]
+#[cfg(all(feature = "postgres", feature = "sqlite"))]
+macro_rules! __impl_graphql_obj_for_mutation_and_db {
+    (
+        mutation_name = {$($mutation_name:tt)*},
+        structs = [$($entity_name: ident(
+            $(insert = $insert: ident,)?
+            $(update = $update: ident,)?
+            $(delete = $($delete:tt)*)?
+        ),)*],
+        $(lt = $lt: tt,)?
+        body = {
+            $($inner: tt)*
+        }
+    ) => {
+        $crate::__impl_graphql_obj_for_mutation! {
+            mutation_name =  {$($mutation_name)*},
+            structs = [$($entity_name (
+                $(insert = $insert,)?
+                $(update = $update,)?
+                $(delete = $($delete)*)?
+            ),)*],
+            $(lt = $lt,)?
+            body = {
+                $($inner)*
+            },
+            db = [$crate::diesel::pg::Pg],
+        }
+
+        $crate::__impl_graphql_obj_for_mutation! {
+            mutation_name =  {$($mutation_name)*},
+            structs = [$($entity_name (
+                $(insert = $insert,)?
+                $(update = $update,)?
+                $(delete = $($delete)*)?
+            ),)*],
+            $(lt = $lt,)?
+            body = {
+                $($inner)*
+            },
+            db = [$crate::diesel::sqlite::Sqlite],
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -471,6 +601,32 @@ macro_rules! __impl_graphql_obj_for_mutation {
             $($inner: tt)*
         }
     ) => {
+        $crate::__impl_graphql_obj_for_mutation_and_db! {
+           mutation_name =  {$($mutation_name)*},
+            structs = [$($entity_name (
+                $(insert = $insert,)?
+                $(update = $update,)?
+                $(delete = $($delete)*)?
+            ),)*],
+            $(lt = $lt,)?
+            body = {
+                $($inner)*
+            }
+        }
+    };
+    (
+        mutation_name = {$($mutation_name:tt)*},
+        structs = [$($entity_name: ident(
+            $(insert = $insert: ident,)?
+            $(update = $update: ident,)?
+            $(delete = $($delete:tt)*)?
+        ),)*],
+        $(lt = $lt: tt,)?
+        body = {
+            $($inner: tt)*
+        },
+        db = [$db: ty],
+    ) => {
         $crate::__build_mutation_trait_bounds! {
             mutation_name = {$($mutation_name)*},
             structs = [
@@ -479,7 +635,8 @@ macro_rules! __impl_graphql_obj_for_mutation {
             $(lt = $lt,)?
             body = {
                 $($inner)*
-            }
+            },
+            db = [$db],
         }
     };
     (
@@ -489,45 +646,23 @@ macro_rules! __impl_graphql_obj_for_mutation {
         $(lt = $lt: tt,)?
         body = {
             $($inner: tt)*
-        }
+        },
+        db = [$db: ty],
     ) => {
         $crate::paste::item! {
-            impl<$($lt,)? Ctx, DB, $([<$entity_name _table>],)* $([<$entity_name _id>],)*> $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
+            impl<$($lt,)? Ctx, $([<$entity_name _table>],)*> $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue>
                 for $($mutation_name)*<$($lt,)? Ctx>
-            where Ctx: $crate::WundergraphContext,
-                  DB: $crate::diesel::backend::Backend + $crate::query_builder::selection::offset::ApplyOffset + 'static,
-                  DB::QueryBuilder: std::default::Default,
-                  Ctx::Connection: $crate::diesel::Connection<Backend = DB>,
-                  $($entity_name: $crate::query_builder::selection::LoadingHandler<DB, Ctx> + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
-                  $([<$entity_name _table>]: $crate::diesel::Table + 'static +
-                      $crate::diesel::QuerySource +  $crate::diesel::Table + $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
-                  $([<$entity_name _table>]::FromClause: $crate::helper::NamedTable + $crate::diesel::query_builder::QueryFragment<DB>,)*
-                  $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Columns: $crate::query_builder::selection::order::BuildOrder<[<$entity_name _table>], DB>,)*
-                  $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Columns: $crate::query_builder::selection::select::BuildSelect<
-                      [<$entity_name _table>],
-                      DB,
-                      $crate::query_builder::selection::SqlTypeOfPlaceholder<
-                      <$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList,
-                      DB,
-                      <$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
-                      [<$entity_name _table>],
-                      Ctx,
-                      >
-                  >,)*
-                  $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList: $crate::query_builder::selection::fields::WundergraphFieldList<
-                      DB,
-                      <$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::PrimaryKeyIndex,
-                      [<$entity_name _table>],
-                      Ctx
-                  >,)*
-                  $(<$entity_name as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList:
-                      $crate::graphql_type::WundergraphGraphqlHelper<$entity_name, DB, Ctx> +
-                    $crate::query_builder::selection::fields::FieldListExtractor,)*
-                  $(&'static $entity_name: $crate::diesel::Identifiable<Id = [<$entity_name _id>]>,)*
-                  $([<$entity_name _id>]: std::hash::Hash + std::cmp::Eq + $crate::helper::UnRef<'static>,)*
-                  $([<$entity_name _table>]::PrimaryKey: $crate::helper::PrimaryKeyInputObject<
-                    <[<$entity_name _id>] as $crate::helper::UnRef<'static>>::UnRefed, ()
-                  >,)*
+            where Ctx: $crate::WundergraphContext + 'static,
+                  Ctx::Connection: $crate::diesel::Connection<Backend = $db>,
+                  $($entity_name: $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
+                  $($entity_name: $crate::graphql_type::WundergraphGraphqlMapper<$db, Ctx>, )*
+                  $(<$entity_name as $crate::graphql_type::WundergraphGraphqlMapper<$db, Ctx>>::GraphQLType: $crate::juniper::GraphQLType<$crate::scalar::WundergraphScalarValue, TypeInfo = (), Context = ()>,)*
+                $([<$entity_name _table>]: $crate::diesel::Table +
+                  'static +
+                  $crate::diesel::QuerySource +
+                  $crate::diesel::associations::HasTable<Table = [<$entity_name _table>]>,)*
+                $([<$entity_name _table>]::FromClause: $crate::helper::NamedTable + $crate::diesel::query_builder::QueryFragment<$db>,)*
+                $([<$entity_name _table>]::AllColumns: $crate::diesel::SelectableExpression<[<$entity_name _table>]>,)*
                   $($($bounds)*,)*
 
             {

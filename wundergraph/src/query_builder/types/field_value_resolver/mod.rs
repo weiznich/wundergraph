@@ -1,23 +1,25 @@
-use super::WundergraphValue;
+use super::WundergraphSqlValue;
 use crate::error::Result;
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use juniper::{Executor, Selection};
 
 mod direct_resolver;
-mod has_one_resolver;
+pub mod has_one_resolver;
 
 /// A internal helper trait indicating how to resolve a given type while query
 /// execution
-pub trait ResolveWundergraphFieldValue<DB: Backend, Ctx>: WundergraphValue + Sized {
+pub trait ResolveWundergraphFieldValue<DB: Backend, Ctx>: WundergraphSqlValue + Sized {
     /// A type implementing `FieldValueResolver` used to resolve values of
     /// this type during query execution
     type Resolver: FieldValueResolver<Self, DB, Ctx>;
 }
 
+pub trait DirectResolveable {}
+
 pub trait FieldValueResolver<T, DB, Ctx>
 where
-    T: WundergraphValue,
+    T: WundergraphSqlValue,
     DB: Backend,
 {
     fn new(elements: usize) -> Self;
@@ -38,3 +40,12 @@ where
         executor: &Executor<'_, Ctx, WundergraphScalarValue>,
     ) -> Result<Option<Vec<juniper::Value<WundergraphScalarValue>>>>;
 }
+
+impl DirectResolveable for i16 {}
+impl DirectResolveable for i32 {}
+impl DirectResolveable for i64 {}
+impl DirectResolveable for bool {}
+impl DirectResolveable for String {}
+impl DirectResolveable for f32 {}
+impl DirectResolveable for f64 {}
+impl<T> DirectResolveable for Vec<T> {}

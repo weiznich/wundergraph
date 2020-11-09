@@ -1,5 +1,7 @@
 use crate::helper::tuple::AppendToTuple;
-use crate::query_builder::types::{HasMany, WundergraphValue};
+use crate::query_builder::types::{
+    AssociatedValue, HasMany, TableField, WundergraphSqlValue, WundergraphValue,
+};
 
 /// A helper trait to collect extracted graphql fields which represents a
 /// database value
@@ -91,7 +93,7 @@ impl NonTableFieldExtractor for () {
 
 impl<T> TableFieldCollector<T> for ()
 where
-    T: WundergraphValue,
+    T: WundergraphSqlValue,
 {
     type Out = (T,);
 
@@ -118,7 +120,7 @@ impl<T, FK> TableFieldCollector<HasMany<T, FK>> for () {
 
 impl<T> NonTableFieldCollector<T> for ()
 where
-    T: WundergraphValue,
+    T: WundergraphSqlValue,
 {
     type Out = ();
 
@@ -198,6 +200,9 @@ macro_rules! wundergraph_impl_field_extractor {
     };
 }
 
+#[allow(missing_debug_implementations)]
+pub struct FieldCollectorHelper<T, N, A>(std::marker::PhantomData<(T, N, A)>);
+
 macro_rules! wundergraph_impl_field_extractors {
     ($(
         $Tuple:tt {
@@ -207,8 +212,22 @@ macro_rules! wundergraph_impl_field_extractors {
         $(
             wundergraph_impl_field_extractor!($($T,)*);
 
-            impl<$($T,)* Next> TableFieldCollector<Next> for ($($T,)*)
-            where Next: WundergraphValue,
+            impl<$($T,)+ Next> TableFieldCollector<Next> for ($($T,)*)
+            where
+                Next: WundergraphValue,
+            FieldCollectorHelper<($($T,)*), Next, Next::ValueType>: TableFieldCollector<Next> {
+                type Out = <FieldCollectorHelper<($($T,)*), Next, Next::ValueType> as TableFieldCollector<Next>>::Out;
+
+                const FIELD_COUNT: usize = <FieldCollectorHelper<($($T,)*), Next, Next::ValueType> as TableFieldCollector<Next>>::FIELD_COUNT;
+
+                fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret>
+                {
+                    <FieldCollectorHelper<($($T,)*), Next, Next::ValueType> as TableFieldCollector<Next>>::map(local_index, callback)
+                }
+            }
+
+            impl<$($T,)* Next> TableFieldCollector<Next> for FieldCollectorHelper<($($T,)*), Next, TableField>
+            where Next: WundergraphValue<ValueType = TableField>,
                   ($($T,)*): FieldListExtractor,
                   <($($T,)*) as FieldListExtractor>::Out: AppendToTuple<Next>,
             {
@@ -225,8 +244,10 @@ macro_rules! wundergraph_impl_field_extractors {
                 }
             }
 
-            impl<$($T,)* Next, ForeignKey> TableFieldCollector<HasMany<Next, ForeignKey>> for ($($T,)*)
-                where ($($T,)*): FieldListExtractor,
+            impl<$($T,)* Next> TableFieldCollector<Next> for FieldCollectorHelper<($($T,)*), Next, AssociatedValue>
+            where
+                Next: WundergraphValue<ValueType = AssociatedValue>,
+                ($($T,)*): FieldListExtractor,
             {
                 type Out = <($($T,)*) as FieldListExtractor>::Out;
 
@@ -237,8 +258,22 @@ macro_rules! wundergraph_impl_field_extractors {
                 }
             }
 
-            impl<$($T,)* Next> NonTableFieldCollector<Next> for ($($T,)*)
-            where Next: WundergraphValue,
+            impl<$($T,)+ Next> NonTableFieldCollector<Next> for ($($T,)*)
+            where
+                Next: WundergraphValue,
+            FieldCollectorHelper<($($T,)*), Next, Next::ValueType>: NonTableFieldCollector<Next> {
+                type Out = <FieldCollectorHelper<($($T,)*), Next, Next::ValueType> as NonTableFieldCollector<Next>>::Out;
+
+                const FIELD_COUNT: usize = <FieldCollectorHelper<($($T,)*), Next, Next::ValueType> as NonTableFieldCollector<Next>>::FIELD_COUNT;
+
+                fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret>
+                {
+                    <FieldCollectorHelper<($($T,)*), Next, Next::ValueType> as NonTableFieldCollector<Next>>::map(local_index, callback)
+                }
+            }
+
+            impl<$($T,)* Next> NonTableFieldCollector<Next> for FieldCollectorHelper<($($T,)*), Next, TableField>
+            where Next: WundergraphValue<ValueType = TableField>,
                   ($($T,)*): NonTableFieldExtractor,
             {
                 type Out = <($($T,)*) as NonTableFieldExtractor>::Out;
@@ -250,16 +285,18 @@ macro_rules! wundergraph_impl_field_extractors {
                 }
             }
 
-            impl<$($T,)* Next, ForeignKey> NonTableFieldCollector<HasMany<Next, ForeignKey>> for ($($T,)*)
-            where ($($T,)*): NonTableFieldExtractor,
-                  <($($T,)*) as NonTableFieldExtractor>::Out: AppendToTuple<HasMany<Next, ForeignKey>>,
+            impl<$($T,)* Next> NonTableFieldCollector<Next> for FieldCollectorHelper<($($T,)*), Next, AssociatedValue>
+            where
+                  Next: WundergraphValue<ValueType = AssociatedValue>,
+                  ($($T,)*): NonTableFieldExtractor,
+                  <($($T,)*) as NonTableFieldExtractor>::Out: AppendToTuple<Next>,
             {
-                type Out = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next, ForeignKey>>>::Out;
+                type Out = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<Next>>::Out;
 
-                const FIELD_COUNT: usize = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next, ForeignKey>>>::LENGHT;
+                const FIELD_COUNT: usize = <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<Next>>::LENGHT;
 
                 fn map<Func: Fn(usize) -> Ret, Ret>(local_index: usize, callback: Func) -> Option<Ret> {
-                    if local_index == <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<HasMany<Next, ForeignKey>>>::LENGHT - 1 {
+                    if local_index == <<($($T,)*) as NonTableFieldExtractor>::Out as AppendToTuple<Next>>::LENGHT - 1 {
                         Some(callback(wundergraph_add_one_to_index!($($idx)*)))
                     } else {
                         <($($T,)*) as NonTableFieldExtractor>::map(local_index, callback)

@@ -1,9 +1,12 @@
-use crate::juniper_ext::{FromLookAheadValue, Nameable};
 use crate::query_builder::selection::filter::filter_helper::AsColumnFilter;
 use crate::query_builder::selection::filter::filter_value::FilterValue;
 use crate::query_builder::selection::filter::FilterOption;
-use crate::query_builder::types::{PlaceHolder, WundergraphValue};
+use crate::query_builder::types::{AsInputType, PlaceHolder, WundergraphSqlValue};
 use crate::scalar::WundergraphScalarValue;
+use crate::{
+    juniper_ext::{FromLookAheadValue, Nameable},
+    query_builder::types::field_value_resolver::DirectResolveable,
+};
 use chrono_internal::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use diesel::sql_types::{Date, Nullable, Timestamp};
 use juniper::{FromInputValue, LookAheadValue, ToInputValue};
@@ -77,18 +80,18 @@ impl FromLookAheadValue for NaiveDate {
     }
 }
 
-impl WundergraphValue for NaiveDateTime {
+impl WundergraphSqlValue for NaiveDateTime {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Timestamp>;
 }
 
 #[cfg(feature = "postgres")]
-impl WundergraphValue for DateTime<Utc> {
+impl WundergraphSqlValue for DateTime<Utc> {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<diesel::sql_types::Timestamptz>;
 }
 
-impl WundergraphValue for NaiveDate {
+impl WundergraphSqlValue for NaiveDate {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Date>;
 }
@@ -125,3 +128,19 @@ impl<C, DB, Ctx> AsColumnFilter<C, DB, Ctx> for DateTime<Utc> {
 impl<C, DB, Ctx> AsColumnFilter<C, DB, Ctx> for NaiveDate {
     type Filter = FilterOption<Self, C>;
 }
+
+impl AsInputType for NaiveDateTime {
+    type InputType = Self;
+}
+
+impl AsInputType for DateTime<Utc> {
+    type InputType = Self;
+}
+
+impl AsInputType for NaiveDate {
+    type InputType = Self;
+}
+
+impl DirectResolveable for NaiveDateTime {}
+impl DirectResolveable for DateTime<Utc> {}
+impl DirectResolveable for NaiveDate {}

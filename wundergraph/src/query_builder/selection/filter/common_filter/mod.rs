@@ -62,12 +62,13 @@ where
 
 impl<V, C> InnerFilter for FilterOption<V, C>
 where
-    V: GraphQLType<WundergraphScalarValue, TypeInfo = ()>
+    V: GraphQLType<WundergraphScalarValue>
         + FromInputValue<WundergraphScalarValue>
         + ToInputValue<WundergraphScalarValue>
         + FromLookAheadValue
         + FilterValue<C>
         + 'static,
+    V::TypeInfo: Default,
     Self: Nameable,
     V::AdditionalFilter: InnerFilter,
 {

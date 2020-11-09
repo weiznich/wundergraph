@@ -1,4 +1,5 @@
 use crate::juniper_ext::FromLookAheadValue;
+use crate::query_builder::types::as_input_type::AsInputType;
 use crate::scalar::WundergraphScalarValue;
 use diesel::associations::HasTable;
 use diesel::query_builder::nodes::Identifier;
@@ -84,10 +85,9 @@ macro_rules! unref_impl {
 __diesel_for_each_tuple!(unref_impl);
 
 #[doc(hidden)]
-pub trait PrimaryKeyInputObject<V, I> {
+pub trait PrimaryKeyInputObject<V> {
     fn register<'r>(
         registry: &mut Registry<'r, WundergraphScalarValue>,
-        info: &I,
     ) -> Vec<Argument<'r, WundergraphScalarValue>>;
 
     fn from_input_value(value: &InputValue<WundergraphScalarValue>) -> Option<V>;
@@ -95,19 +95,19 @@ pub trait PrimaryKeyInputObject<V, I> {
     fn to_input_value(values: &V) -> InputValue<WundergraphScalarValue>;
 }
 
-impl<A, V1, I> PrimaryKeyInputObject<V1, I> for A
+impl<A, V1> PrimaryKeyInputObject<V1> for A
 where
     A: Column,
-    V1: GraphQLType<WundergraphScalarValue, TypeInfo = I>
+    V1: GraphQLType<WundergraphScalarValue>
         + FromInputValue<WundergraphScalarValue>
         + ToInputValue<WundergraphScalarValue>
         + FromLookAheadValue,
+    V1::TypeInfo: Default,
 {
     fn register<'r>(
         registry: &mut Registry<'r, WundergraphScalarValue>,
-        info: &I,
     ) -> Vec<Argument<'r, WundergraphScalarValue>> {
-        vec![registry.arg::<V1>(Self::NAME, info)]
+        vec![registry.arg::<V1>(Self::NAME, &Default::default())]
     }
 
     fn from_input_value(value: &InputValue<WundergraphScalarValue>) -> Option<V1> {
@@ -144,18 +144,17 @@ macro_rules! primary_key_input_object_impl {
         }
     )+) => {
         $(
-            impl<$($T,)+ $($ST,)+ __I> PrimaryKeyInputObject<($($ST,)+), __I> for ($($T,)+)
+            impl<$($T,)+ $($ST,)+ > PrimaryKeyInputObject<($($ST,)+)> for ($($T,)+)
             where
                 $($T: Column,)+
-                $($T: PrimaryKeyInputObject<$ST, __I>,)+
+                $($T: PrimaryKeyInputObject<$ST>,)+
             {
                 fn register<'r>(
                     registry: &mut Registry<'r, WundergraphScalarValue>,
-                    info: &__I
                 ) -> Vec<Argument<'r, WundergraphScalarValue>> {
                     let mut ret = Vec::new();
                     $(
-                        ret.extend($T::register(registry, info));
+                        ret.extend($T::register(registry));
                     )*
                     ret
                 }
@@ -269,15 +268,17 @@ fn uppercase_first_letter(s: Cow<'_, str>) -> Cow<'_, str> {
 pub struct PrimaryKeyArgument<'a, T, Ctx, V>
 where
     V: UnRef<'a>,
+    V::UnRefed: AsInputType,
 {
-    pub(crate) values: V::UnRefed,
+    pub(crate) values: <V::UnRefed as AsInputType>::InputType,
     _marker: PhantomData<(&'a T, Ctx)>,
 }
 
 impl<'a, T, Ctx, V> Debug for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     V: UnRef<'a>,
-    V::UnRefed: Debug,
+    V::UnRefed: AsInputType,
+    <V::UnRefed as AsInputType>::InputType: Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PrimaryKeyArgument")
@@ -289,8 +290,9 @@ where
 impl<'a, T, Ctx, V> GraphQLType<WundergraphScalarValue> for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     T: Table + 'a,
-    T::PrimaryKey: PrimaryKeyInputObject<V::UnRefed, ()>,
+    T::PrimaryKey: PrimaryKeyInputObject<<V::UnRefed as AsInputType>::InputType>,
     V: UnRef<'a>,
+    V::UnRefed: AsInputType,
 {
     type Context = Ctx;
     type TypeInfo = PrimaryKeyInfo<T>;
@@ -306,7 +308,7 @@ where
     where
         WundergraphScalarValue: 'r,
     {
-        let fields = T::PrimaryKey::register(registry, &());
+        let fields = T::PrimaryKey::register(registry);
         registry
             .build_input_object_type::<Self>(info, &fields)
             .into_meta()
@@ -316,8 +318,9 @@ where
 impl<'a, T, Ctx, V> ToInputValue<WundergraphScalarValue> for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     T: Table,
-    T::PrimaryKey: PrimaryKeyInputObject<V::UnRefed, ()>,
+    T::PrimaryKey: PrimaryKeyInputObject<<V::UnRefed as AsInputType>::InputType>,
     V: UnRef<'a>,
+    V::UnRefed: AsInputType,
 {
     fn to_input_value(&self) -> InputValue<WundergraphScalarValue> {
         T::PrimaryKey::to_input_value(&self.values)
@@ -327,8 +330,9 @@ where
 impl<'a, T, Ctx, V> FromInputValue<WundergraphScalarValue> for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     T: Table,
-    T::PrimaryKey: PrimaryKeyInputObject<V::UnRefed, ()>,
+    T::PrimaryKey: PrimaryKeyInputObject<<V::UnRefed as AsInputType>::InputType>,
     V: UnRef<'a>,
+    V::UnRefed: AsInputType,
 {
     fn from_input_value(value: &InputValue<WundergraphScalarValue>) -> Option<Self> {
         T::PrimaryKey::from_input_value(value).map(|values| Self {
@@ -341,8 +345,9 @@ where
 impl<'a, T, Ctx, V> FromLookAheadValue for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     T: Table,
-    T::PrimaryKey: PrimaryKeyInputObject<V::UnRefed, ()>,
+    T::PrimaryKey: PrimaryKeyInputObject<<V::UnRefed as AsInputType>::InputType>,
     V: UnRef<'a>,
+    V::UnRefed: AsInputType,
 {
     fn from_look_ahead(v: &LookAheadValue<'_, WundergraphScalarValue>) -> Option<Self> {
         T::PrimaryKey::from_look_ahead(v).map(|values| Self {
@@ -356,6 +361,7 @@ impl<'a, T, Ctx, V> HasTable for PrimaryKeyArgument<'a, T, Ctx, V>
 where
     T: Table + HasTable<Table = T>,
     V: UnRef<'a>,
+    V::UnRefed: AsInputType,
 {
     type Table = T;
 
@@ -368,10 +374,11 @@ impl<'a, T, Ctx, V> Identifiable for &'a PrimaryKeyArgument<'a, T, Ctx, V>
 where
     Self: HasTable,
     V: UnRef<'a> + Hash + Eq,
+    V::UnRefed: AsInputType,
 {
     type Id = V;
 
     fn id(self) -> Self::Id {
-        V::as_ref(&self.values)
+        todo!()
     }
 }

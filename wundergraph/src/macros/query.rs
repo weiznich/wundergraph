@@ -261,11 +261,12 @@ macro_rules! __impl_graphql_obj_for_query {
                   >>,)*
                 $(&'static $graphql_struct: $crate::diesel::Identifiable<Id = [<$graphql_struct _id>]>,)*
                 $([<$graphql_struct _id>]: std::hash::Hash + std::cmp::Eq + $crate::helper::UnRef<'static>,)*
+                $(<[<$graphql_struct _id>] as $crate::helper::UnRef<'static>>::UnRefed: $crate::query_builder::types::AsInputType,)*
                 $([<$graphql_struct _table>]::PrimaryKey: std::default::Default + $crate::helper::PrimaryKeyInputObject<
-                  <[<$graphql_struct _id>] as $crate::helper::UnRef<'static>>::UnRefed, ()
+                  <<[<$graphql_struct _id>] as $crate::helper::UnRef<'static>>::UnRefed as $crate::query_builder::types::AsInputType>::InputType
                   >,)*
-                $([<$graphql_struct _table>]::PrimaryKey: $crate::diesel::EqAll<<[<$graphql_struct _id>] as $crate::helper::UnRef<'static>>::UnRefed>,)*
-                $(<[<$graphql_struct _table>]::PrimaryKey as $crate::diesel::EqAll<<[<$graphql_struct _id>] as $crate::helper::UnRef<'static>>::UnRefed>>::Output: $crate::diesel::AppearsOnTable<[<$graphql_struct _table>]> + $crate::diesel::query_builder::QueryFragment<DB> + $crate::diesel::expression::NonAggregate,)*
+                $([<$graphql_struct _table>]::PrimaryKey: $crate::diesel::EqAll<<<[<$graphql_struct _id>] as $crate::helper::UnRef<'static>>::UnRefed as $crate::query_builder::types::AsInputType>::InputType>,)*
+                $(<[<$graphql_struct _table>]::PrimaryKey as $crate::diesel::EqAll<<<[<$graphql_struct _id>] as $crate::helper::UnRef<'static>>::UnRefed as $crate::query_builder::types::AsInputType>::InputType>>::Output: $crate::diesel::AppearsOnTable<[<$graphql_struct _table>]> + $crate::diesel::query_builder::QueryFragment<DB> + $crate::diesel::expression::NonAggregate,)*
                 $(<<$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::Filter as $crate::query_builder::selection::filter::BuildFilter<DB>>::Ret: $crate::diesel::AppearsOnTable<[<$graphql_struct _table>]>,)*
                 $(<<$graphql_struct as $crate::query_builder::selection::LoadingHandler<DB, Ctx>>::FieldList as $crate::query_builder::selection::fields::FieldListExtractor>::Out:
                   $crate::graphql_type::WundergraphGraphqlHelper<$graphql_struct, DB, Ctx> +

@@ -2,7 +2,7 @@ use crate::error::Result;
 use crate::query_builder::selection::fields::WundergraphFieldList;
 use crate::query_builder::types::field_value_resolver::FieldValueResolver;
 use crate::query_builder::types::placeholder::{PlaceHolder, PlaceHolderMarker};
-use crate::query_builder::types::{ResolveWundergraphFieldValue, WundergraphValue};
+use crate::query_builder::types::{ResolveWundergraphFieldValue, WundergraphSqlValue};
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use juniper::parser::SourcePosition;
@@ -52,7 +52,7 @@ macro_rules! wundergraph_value_impl {
         $(
             #[allow(clippy::use_self)]
             impl<Back, $($T,)+ $($ST,)+ Ctx> WundergraphResolvePlaceHolderList<($($ST,)*), Back, Ctx> for Vec<($(PlaceHolder<$T>,)+)>
-            where $($ST: WundergraphValue<PlaceHolder = PlaceHolder<$T>> +
+            where $($ST: WundergraphSqlValue<PlaceHolder = PlaceHolder<$T>> +
                     ResolveWundergraphFieldValue<Back, Ctx> ,)*
                   $($T: 'static,)*
                   Back: Backend,

@@ -4,12 +4,11 @@ use crate::error::Result;
 use crate::helper::tuple::TupleIndex;
 use crate::query_builder::selection::query_resolver::WundergraphResolvePlaceHolderList;
 use crate::query_builder::types::placeholder::PlaceHolderMarker;
-use crate::query_builder::types::WundergraphValue;
+use crate::query_builder::types::WundergraphSqlValue;
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::{Connection, Queryable};
 use juniper::{Executor, Selection};
-use std::hash::Hash;
 
 /// A internal trait
 pub trait WundergraphFieldList<DB: Backend, Key, Table, Ctx> {
@@ -60,19 +59,19 @@ macro_rules! wundergraph_impl_field_list {
             impl<Back, Key, Table, Ctx, $($T,)*> WundergraphFieldList<Back, Key, Table, Ctx> for ($($T,)*)
             where Back: Backend,
                   ($($T,)*): FieldListExtractor + NonTableFieldExtractor,
-                  <($($T,)*) as FieldListExtractor>::Out: WundergraphValue,
-                  <<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder: TupleIndex<Key> +
-                      Queryable<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::SqlType, Back> + 'static,
-            Vec<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder>:
+                  <($($T,)*) as FieldListExtractor>::Out: WundergraphSqlValue,
+                  <<($($T,)*) as FieldListExtractor>::Out as WundergraphSqlValue>::PlaceHolder: TupleIndex<Key> +
+                      Queryable<<<($($T,)*) as FieldListExtractor>::Out as WundergraphSqlValue>::SqlType, Back> + 'static,
+            Vec<<<($($T,)*) as FieldListExtractor>::Out as WundergraphSqlValue>::PlaceHolder>:
             WundergraphResolvePlaceHolderList<<($($T,)*) as FieldListExtractor>::Out, Back, Ctx>,
-            <<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value: PlaceHolderMarker,
-            <<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType: Eq + Hash + Clone,
-            <($($T,)*) as NonTableFieldExtractor>::Out: WundergraphResolveAssociations<<<<<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType, Table, Back, Ctx>,
+            <<<($($T,)*) as FieldListExtractor>::Out as WundergraphSqlValue>::PlaceHolder as TupleIndex<Key>>::Value: PlaceHolderMarker,
+            <<<<($($T,)*) as FieldListExtractor>::Out as WundergraphSqlValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType: Clone,
+            <($($T,)*) as NonTableFieldExtractor>::Out: WundergraphResolveAssociations<<<<<($($T,)*) as FieldListExtractor>::Out as WundergraphSqlValue>::PlaceHolder as TupleIndex<Key>>::Value as PlaceHolderMarker>::InnerType, Table, Back, Ctx>,
             Ctx: WundergraphContext,
             Ctx::Connection: Connection<Backend = Back>,
             {
-                type PlaceHolder = <<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::PlaceHolder;
-                type SqlType = <<($($T,)*) as FieldListExtractor>::Out as WundergraphValue>::SqlType;
+                type PlaceHolder = <<($($T,)*) as FieldListExtractor>::Out as WundergraphSqlValue>::PlaceHolder;
+                type SqlType = <<($($T,)*) as FieldListExtractor>::Out as WundergraphSqlValue>::SqlType;
 
                 const TABLE_FIELD_COUNT: usize = <($($T,)*) as FieldListExtractor>::FIELD_COUNT;
                 const NON_TABLE_FIELD_COUNT: usize = <($($T,)*) as NonTableFieldExtractor>::FIELD_COUNT;

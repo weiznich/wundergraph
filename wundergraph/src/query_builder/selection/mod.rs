@@ -30,6 +30,7 @@ use crate::helper::{PrimaryKeyArgument, UnRef};
 use crate::juniper_ext::FromLookAheadValue;
 use crate::query_builder::selection::order::BuildOrder;
 use crate::query_builder::selection::select::BuildSelect;
+use crate::query_builder::types::AsInputType;
 use crate::scalar::WundergraphScalarValue;
 use diesel::associations::HasTable;
 use diesel::backend::Backend;
@@ -240,10 +241,11 @@ where
         Ctx: WundergraphContext + QueryModifier<Self, DB>,
         Ctx::Connection: Connection<Backend = DB>,
         <&'static Self as Identifiable>::Id: UnRef<'static>,
+        <<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed: AsInputType,
         <Self::Table as Table>::PrimaryKey:
-            EqAll<<<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed> + Default,
+            EqAll<<<<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed as AsInputType>::InputType> + Default,
         <<Self::Table as Table>::PrimaryKey as EqAll<
-            <<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed,
+            <<<&'static Self as Identifiable>::Id as UnRef<'static>>::UnRefed as AsInputType>::InputType,
         >>::Output: AppearsOnTable<Self::Table> + NonAggregate + QueryFragment<DB>,
         PrimaryKeyArgument<'static, Self::Table, (), <&'static Self as Identifiable>::Id>:
             FromLookAheadValue,

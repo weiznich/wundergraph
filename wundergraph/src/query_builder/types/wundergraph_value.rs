@@ -147,7 +147,7 @@ pub use wundergraph_derive::WundergraphValue;
 /// # }
 /// # fn main() {}
 /// ```
-pub trait WundergraphValue {
+pub trait WundergraphSqlValue {
     /// A type used to load values of the specified sql type into
     ///
     /// For common cases this should be `PlaceHolder<Self>`
@@ -158,62 +158,79 @@ pub trait WundergraphValue {
     type SqlType: 'static;
 }
 
-impl WundergraphValue for i16 {
+pub trait WundergraphValue {
+    type ValueType;
+}
+
+impl<T> WundergraphValue for T
+where
+    T: WundergraphSqlValue,
+{
+    type ValueType = TableField;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TableField;
+
+#[derive(Clone, Copy, Debug)]
+pub struct AssociatedValue;
+
+impl WundergraphSqlValue for i16 {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<SmallInt>;
 }
 
-impl WundergraphValue for i32 {
+impl WundergraphSqlValue for i32 {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Integer>;
 }
 
-impl WundergraphValue for i64 {
+impl WundergraphSqlValue for i64 {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<BigInt>;
 }
 
-impl WundergraphValue for bool {
+impl WundergraphSqlValue for bool {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Bool>;
 }
 
-impl WundergraphValue for String {
+impl WundergraphSqlValue for String {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Text>;
 }
 
-impl WundergraphValue for f32 {
+impl WundergraphSqlValue for f32 {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Float4>;
 }
 
-impl WundergraphValue for f64 {
+impl WundergraphSqlValue for f64 {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<Float8>;
 }
 
 #[cfg(feature = "postgres")]
-impl<T, Inner> WundergraphValue for Vec<T>
+impl<T, Inner> WundergraphSqlValue for Vec<T>
 where
-    T: WundergraphValue<SqlType = Nullable<Inner>> + 'static,
+    T: WundergraphSqlValue<SqlType = Nullable<Inner>> + 'static,
     Inner: diesel::sql_types::NotNull + 'static,
 {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<diesel::sql_types::Array<Inner>>;
 }
 
-impl<T> WundergraphValue for Option<T>
+impl<T> WundergraphSqlValue for Option<T>
 where
-    T: WundergraphValue,
+    T: WundergraphSqlValue,
 {
     type PlaceHolder = T::PlaceHolder;
     type SqlType = T::SqlType;
 }
 
-impl<R, T> WundergraphValue for HasOne<R, T>
+impl<R, T> WundergraphSqlValue for HasOne<R, T>
 where
-    R: WundergraphValue + Clone + Eq + Hash,
+    R: WundergraphSqlValue + Clone + Eq + Hash,
     for<'a> &'a T: Identifiable<Id = &'a R>,
 {
     type PlaceHolder = R::PlaceHolder;
@@ -227,8 +244,8 @@ macro_rules! wundergraph_value_impl {
         }
     )+) => {
         $(
-            impl<$($T,)+> WundergraphValue for ($($T,)+)
-                where $($T: WundergraphValue,)+
+            impl<$($T,)+> WundergraphSqlValue for ($($T,)+)
+                where $($T: WundergraphSqlValue,)+
             {
                 type PlaceHolder = ($($T::PlaceHolder,)+);
                 type SqlType = ($($T::SqlType,)+);

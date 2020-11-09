@@ -12,6 +12,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let look_ahead = from_look_ahead(item)?;
     let wundergraph_value = wundergraph_value(item)?;
     let as_filter = as_column_filter(item);
+    let direct_resolvable = direct_resolveable(item);
 
     Ok(wrap_in_dummy_mod(
         "wundergraph_value",
@@ -23,8 +24,9 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
             use wundergraph::juniper::{self, LookAheadValue};
             use wundergraph::juniper_ext::{FromLookAheadValue, Nameable};
             use wundergraph::scalar::WundergraphScalarValue;
-            use wundergraph::query_builder::types::{WundergraphValue, PlaceHolder};
+            use wundergraph::query_builder::types::{WundergraphSqlValue, PlaceHolder};
             use wundergraph::diesel::sql_types::Nullable;
+            use wundergraph::query_builder::types::field_value_resolver::DirectResolveable;
 
 
             #filter_value
@@ -32,8 +34,20 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
             #look_ahead
             #wundergraph_value
             #as_filter
+            #direct_resolvable
         },
     ))
+}
+
+fn direct_resolveable(item: &syn::DeriveInput) -> TokenStream {
+    let item_name = &item.ident;
+    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
+
+    quote! {
+        impl #impl_generics DirectResolveable for #item_name #ty_generics
+            #where_clause
+        {  }
+    }
 }
 
 fn as_column_filter(item: &syn::DeriveInput) -> TokenStream {
@@ -65,7 +79,7 @@ fn wundergraph_value(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic>
     let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
 
     Ok(quote! {
-        impl #impl_generics WundergraphValue for #item_name #ty_generics
+        impl #impl_generics WundergraphSqlValue for #item_name #ty_generics
             #where_clause
         {
             type PlaceHolder = PlaceHolder<Self>;

@@ -1,5 +1,7 @@
-use crate::query_builder::selection::offset::ApplyOffset;
 use crate::query_builder::selection::LoadingHandler;
+use crate::query_builder::{
+    selection::offset::ApplyOffset, types::field_value_resolver::DirectResolveable,
+};
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
@@ -44,7 +46,7 @@ where
 
 #[doc(hidden)]
 pub trait WundergraphGraphqlMapper<DB, Ctx> {
-    type GraphQLType: GraphQLType<WundergraphScalarValue, TypeInfo = ()>;
+    type GraphQLType: GraphQLType<WundergraphScalarValue>;
 
     fn register_arguments<'r>(
         _registry: &mut Registry<'r, WundergraphScalarValue>,
@@ -52,13 +54,20 @@ pub trait WundergraphGraphqlMapper<DB, Ctx> {
     ) -> meta::Field<'r, WundergraphScalarValue> {
         field
     }
+
+    fn type_info() -> <Self::GraphQLType as GraphQLType<WundergraphScalarValue>>::TypeInfo;
 }
 
 impl<T, DB, Ctx> WundergraphGraphqlMapper<DB, Ctx> for T
 where
-    T: GraphQLType<WundergraphScalarValue, TypeInfo = ()>,
+    T: GraphQLType<WundergraphScalarValue> + DirectResolveable,
+    T::TypeInfo: Default,
 {
     type GraphQLType = Self;
+
+    fn type_info() -> <Self::GraphQLType as GraphQLType<WundergraphScalarValue>>::TypeInfo {
+        Default::default()
+    }
 }
 
 #[doc(hidden)]
@@ -68,7 +77,8 @@ pub trait WundergraphGraphqlHelper<L, DB, Ctx> {
         registry: &mut Registry<'r, WundergraphScalarValue>,
     ) -> meta::MetaType<'r, WundergraphScalarValue>
     where
-        T: GraphQLType<WundergraphScalarValue, TypeInfo = ()>;
+        T: GraphQLType<WundergraphScalarValue>,
+        T::TypeInfo: Default;
 }
 
 macro_rules! wundergraph_graphql_helper_impl {
@@ -90,11 +100,15 @@ macro_rules! wundergraph_graphql_helper_impl {
                     names: &[&str],
                     registry: &mut Registry<'r, WundergraphScalarValue>,
                 ) -> meta::MetaType<'r, WundergraphScalarValue>
-                    where Type: GraphQLType<WundergraphScalarValue, TypeInfo = ()>
+                where Type: GraphQLType<WundergraphScalarValue>,
+                      Type::TypeInfo: Default
                 {
                     let fields  = [
                         $({
-                            let mut field = registry.field::<<$T as WundergraphGraphqlMapper<Back, Ctx>>::GraphQLType>(names[$idx], &());
+                            let mut field = registry.field::<<$T as WundergraphGraphqlMapper<Back, Ctx>>::GraphQLType>(
+                                names[$idx],
+                                &$T::type_info(),
+                            );
                             field = <$T as WundergraphGraphqlMapper<Back, Ctx>>::register_arguments(registry, field);
                             if let Some(doc) = Loading::field_description($idx) {
                                 field = field.description(doc);
@@ -106,7 +120,7 @@ macro_rules! wundergraph_graphql_helper_impl {
                         },)*
                     ];
                     let mut ty = registry.build_object_type::<Type>(
-                        &(),
+                        &Type::TypeInfo::default(),
                         &fields,
                     );
                     if let Some(doc) = Loading::TYPE_DESCRIPTION {

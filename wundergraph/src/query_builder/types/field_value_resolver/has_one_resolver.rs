@@ -5,7 +5,7 @@ use crate::query_builder::selection::fields::WundergraphFieldList;
 use crate::query_builder::selection::filter::build_filter::BuildFilter;
 use crate::query_builder::selection::offset::ApplyOffset;
 use crate::query_builder::selection::{LoadingHandler, SqlTypeOfPlaceholder};
-use crate::query_builder::types::{HasOne, WundergraphValue};
+use crate::query_builder::types::{HasOne, WundergraphSqlValue};
 use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::dsl::SqlTypeOf;
@@ -40,9 +40,9 @@ where
         + 'static,
     Option<R>: Queryable<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>, DB>
         + ToSql<SqlTypeOf<NullableExpression<<T::Table as Table>::PrimaryKey>>, DB>,
-    HasOne<R, T>: WundergraphValue,
-    <HasOne<R, T> as WundergraphValue>::PlaceHolder: Into<Option<R>>,
-    R: WundergraphValue + Clone + Eq + Hash,
+    HasOne<R, T>: WundergraphSqlValue,
+    <HasOne<R, T> as WundergraphSqlValue>::PlaceHolder: Into<Option<R>>,
+    R: WundergraphSqlValue + Clone + Eq + Hash,
     for<'b> &'b T: Identifiable<Id = &'b R>,
     T: LoadingHandler<DB, Ctx>,
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
@@ -80,7 +80,7 @@ where
 
     fn resolve_value(
         &mut self,
-        value: <HasOne<R, T> as WundergraphValue>::PlaceHolder,
+        value: <HasOne<R, T> as WundergraphSqlValue>::PlaceHolder,
         _look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         _selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         _executor: &Executor<'_, Ctx, WundergraphScalarValue>,
@@ -109,6 +109,10 @@ where
                 T::get_select(look_ahead)?,
             ));
 
+        #[cfg(feature = "debug")]
+        {
+            log::debug!("{:?}", diesel::debug_query(&q));
+        }
         let items = q.load::<(
             Option<R>,
             <T::FieldList as WundergraphFieldList<_, _, _, Ctx>>::PlaceHolder,
@@ -142,7 +146,7 @@ where
 impl<R, T, DB, Ctx> FieldValueResolver<Option<HasOne<R, T>>, DB, Ctx> for HasOneResolver<R, T, Ctx>
 where
     DB: Backend,
-    R: WundergraphValue + Clone + Hash + Eq,
+    R: WundergraphSqlValue + Clone + Hash + Eq,
     Self: FieldValueResolver<HasOne<R, T>, DB, Ctx>,
     for<'b> &'b T: Identifiable<Id = &'b R>,
     R::PlaceHolder: Into<Option<R>>,
@@ -156,7 +160,7 @@ where
 
     fn resolve_value(
         &mut self,
-        value: <Option<HasOne<R, T>> as WundergraphValue>::PlaceHolder,
+        value: <Option<HasOne<R, T>> as WundergraphSqlValue>::PlaceHolder,
         _look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
         _selection: Option<&'_ [Selection<'_, WundergraphScalarValue>]>,
         _executor: &Executor<'_, Ctx, WundergraphScalarValue>,
@@ -182,14 +186,13 @@ where
     }
 }
 
-impl<R, T, DB, Ctx> ResolveWundergraphFieldValue<DB, Ctx> for Option<HasOne<R, T>>
+impl<T, DB, Ctx, R> ResolveWundergraphFieldValue<DB, Ctx> for Option<HasOne<R, T>>
 where
-    HasOneResolver<R, T, Ctx>: FieldValueResolver<HasOne<R, T>, DB, Ctx>
-        + FieldValueResolver<Option<HasOne<R, T>>, DB, Ctx>,
-    R: WundergraphValue + Clone + Eq + Hash,
-    <HasOne<R, T> as WundergraphValue>::PlaceHolder: Into<Option<R>>,
-    HasOne<R, T>: WundergraphValue,
     DB: Backend,
+    R: WundergraphSqlValue + Clone + Eq + Hash,
+    HasOneResolver<R, T, Ctx>: FieldValueResolver<Option<HasOne<R, T>>, DB, Ctx>,
+    Self::PlaceHolder: Into<Option<R>>,
+    Self: WundergraphSqlValue,
 {
     type Resolver = HasOneResolver<R, T, Ctx>;
 }
@@ -197,9 +200,9 @@ where
 impl<R, T, DB, Ctx> ResolveWundergraphFieldValue<DB, Ctx> for HasOne<R, T>
 where
     HasOneResolver<R, T, Ctx>: FieldValueResolver<HasOne<R, T>, DB, Ctx>,
-    R: WundergraphValue + Clone + Eq + Hash,
+    R: WundergraphSqlValue + Clone + Eq + Hash,
     Self::PlaceHolder: Into<Option<R>>,
-    Self: WundergraphValue,
+    Self: WundergraphSqlValue,
     DB: Backend,
 {
     type Resolver = HasOneResolver<R, T, Ctx>;

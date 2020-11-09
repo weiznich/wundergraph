@@ -4,7 +4,7 @@ use crate::scalar::WundergraphScalarValue;
 use diesel::backend::Backend;
 use diesel::expression::NonAggregate;
 use diesel::query_builder::QueryFragment;
-use diesel::{BoxableExpression, Column, Expression, ExpressionMethods, SelectableExpression};
+use diesel::{BoxableExpression, Expression, SelectableExpression};
 use juniper::LookAheadMethods;
 use juniper::LookAheadSelection;
 
@@ -31,9 +31,16 @@ macro_rules! impl_select_builder {
                 Table, DB, ($(<MaybeNull<$T> as Expression>::SqlType,)+ ),
                 > for ($($T,)+)
             where Table: ::diesel::Table,
-                DB: Backend,
-            $($T: Column<Table = Table> + Default + ExpressionMethods +
-              SelectableExpression<Table> + NonAggregate + QueryFragment<DB> + 'static ,)+
+                  DB: Backend,
+                  DB::QueryBuilder: Default,
+            $(
+                $T: Default +
+                    SelectableExpression<Table> +
+                    NonAggregate +
+                    QueryFragment<DB> +
+                    QueryFragment<crate::diesel_ext::FakeBackend<DB>> +
+                    'static ,
+            )+
                 $(MaybeNull<$T>: Expression,)+
             {
                 fn build_select(
@@ -50,15 +57,15 @@ macro_rules! impl_select_builder {
                 >>
                 {
                     Ok(Box::new((
-                        $(
+                        $({
                             if select.has_child(get_field_name($idx)) ||
                                 (is_primary_key_index($idx) && should_select_primary_key)
                             {
-                                MaybeNull::Expr($T::default())
+                                MaybeNull::<$T>::expr()
                             } else {
-                                MaybeNull::Null
-                            },
-                        )+
+                                MaybeNull::<$T>::as_null()
+                            }
+                        },)+
                     )) as Box<_>)
                 }
             }

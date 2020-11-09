@@ -2,7 +2,8 @@ use crate::juniper_ext::{FromLookAheadValue, Nameable};
 use crate::query_builder::selection::filter::filter_helper::AsColumnFilter;
 use crate::query_builder::selection::filter::filter_value::FilterValue;
 use crate::query_builder::selection::filter::FilterOption;
-use crate::query_builder::types::{PlaceHolder, WundergraphValue};
+use crate::query_builder::types::field_value_resolver::DirectResolveable;
+use crate::query_builder::types::{AsInputType, PlaceHolder, WundergraphSqlValue};
 use crate::scalar::WundergraphScalarValue;
 use diesel::sql_types::Nullable;
 use juniper::LookAheadValue;
@@ -24,7 +25,7 @@ impl FromLookAheadValue for Uuid {
     }
 }
 
-impl WundergraphValue for Uuid {
+impl WundergraphSqlValue for Uuid {
     type PlaceHolder = PlaceHolder<Self>;
     type SqlType = Nullable<::diesel::sql_types::Uuid>;
 }
@@ -37,3 +38,9 @@ impl<C> FilterValue<C> for Uuid {
     type RawValue = Self;
     type AdditionalFilter = ();
 }
+
+impl AsInputType for Uuid {
+    type InputType = Self;
+}
+
+impl DirectResolveable for Uuid {}

@@ -180,6 +180,10 @@ fn derive_loading_handler(
                     );
                 field.argument(arg)
             }
+
+            fn type_info() -> () {
+                ()
+            }
         }
 
         impl #impl_generics LoadingHandler<#backend, __Ctx> for #struct_type #ty_generics

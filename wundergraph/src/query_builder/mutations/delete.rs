@@ -31,16 +31,10 @@ pub fn handle_delete<DB, D, R, Ctx>(
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
-    R: LoadingHandler<DB, Ctx>,
+    R: HasTable,
     R::Table: HandleDelete<R, D, DB, Ctx> + 'static,
     DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
-    R::Columns: BuildOrder<R::Table, DB>
-        + BuildSelect<
-            R::Table,
-            DB,
-            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table, Ctx>,
-        >,
     <R::Table as QuerySource>::FromClause: QueryFragment<DB>,
     D: FromInputValue<WundergraphScalarValue>,
 {

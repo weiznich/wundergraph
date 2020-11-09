@@ -104,6 +104,6 @@ where
 
 impl Nameable for () {
     fn name() -> String {
-        String::new()
+        String::from("Void")
     }
 }

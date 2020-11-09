@@ -72,7 +72,7 @@
 
 #![deny(missing_debug_implementations, missing_copy_implementations)]
 #![warn(
-    missing_docs,
+//    missing_docs,
     clippy::option_unwrap_used,
     clippy::result_unwrap_used,
     clippy::print_stdout,

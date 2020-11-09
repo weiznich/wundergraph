@@ -28,7 +28,7 @@ pub(crate) mod filter_value;
 pub(crate) mod inner_filter;
 mod not;
 mod nullable_filter;
-mod reference_filter;
+pub mod reference_filter;
 mod string_filter;
 
 use self::collector::{AndCollector, FilterCollector, OrCollector};

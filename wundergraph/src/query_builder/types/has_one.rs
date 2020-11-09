@@ -9,7 +9,7 @@ use diesel::expression::bound::Bound;
 use diesel::expression::AsExpression;
 use diesel::Queryable;
 use juniper::meta::Argument;
-use juniper::{FromInputValue, InputValue, LookAheadValue, Registry};
+use juniper::{FromInputValue, GraphQLType, InputValue, LookAheadValue, Registry};
 use std::hash::{Hash, Hasher};
 
 /// Type used to indicate that a given field references a single
@@ -103,19 +103,6 @@ where
     }
 }
 
-// impl<R, T> ToInputValue<WundergraphScalarValue> for HasOne<R, T>
-// where
-//     R: ToInputValue<WundergraphScalarValue>,
-//     T: ToInputValue<WundergraphScalarValue>,
-// {
-//     fn to_input_value(&self) -> InputValue {
-//         match *self {
-//             HasOne::Id(ref i) => i.to_input_value(),
-//             HasOne::Item(ref i) => i.to_input_value(),
-//         }
-//     }
-// }
-
 impl<R, T, DB, ST> FromSql<ST, DB> for HasOne<R, T>
 where
     DB: Backend,
@@ -195,27 +182,33 @@ where
     T: WundergraphGraphqlMapper<DB, Ctx>,
 {
     type GraphQLType = T::GraphQLType;
+
+    fn type_info() -> <Self::GraphQLType as GraphQLType<WundergraphScalarValue>>::TypeInfo {
+        T::type_info()
+    }
 }
 
-#[allow(clippy::use_self)]
-impl<R, T, DB, Ctx> WundergraphGraphqlMapper<DB, Ctx> for Option<HasOne<R, T>>
+impl<T, DB, Ctx> WundergraphGraphqlMapper<DB, Ctx> for Option<T>
 where
     T: WundergraphGraphqlMapper<DB, Ctx>,
 {
     type GraphQLType = Option<T::GraphQLType>;
+
+    fn type_info() -> <Self::GraphQLType as GraphQLType<WundergraphScalarValue>>::TypeInfo {
+        T::type_info()
+    }
 }
 
-impl<R, T, C, I> PrimaryKeyInputObject<HasOne<R, T>, I> for C
+impl<R, T, C> PrimaryKeyInputObject<HasOne<R, T>> for C
 where
-    C: PrimaryKeyInputObject<R, I>,
+    C: PrimaryKeyInputObject<R>,
     R: Eq + Hash,
     for<'a> &'a T: Identifiable<Id = &'a R>,
 {
     fn register<'r>(
         registry: &mut Registry<'r, WundergraphScalarValue>,
-        info: &I,
     ) -> Vec<Argument<'r, WundergraphScalarValue>> {
-        Self::register(registry, info)
+        Self::register(registry)
     }
 
     fn from_input_value(value: &InputValue<WundergraphScalarValue>) -> Option<HasOne<R, T>> {

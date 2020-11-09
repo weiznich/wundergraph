@@ -14,20 +14,65 @@ use juniper::{Executor, LookAheadMethods, Selection};
 use std::collections::HashMap;
 use std::hash::Hash;
 
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct AssociationsReturn<'a, K: Eq + Hash> {
-    keys: Vec<Option<K>>,
-    fields: Vec<&'a str>,
-    values: HashMap<Option<K>, Vec<(usize, Vec<juniper::Value<WundergraphScalarValue>>)>>,
+pub trait AssociationsLookup<K> {
+    fn new() -> Self;
+
+    fn insert(
+        &mut self,
+        key: Option<K>,
+        len: usize,
+        values: Vec<juniper::Value<WundergraphScalarValue>>,
+    );
+
+    fn get(
+        &self,
+        key: &Option<K>,
+    ) -> Option<Vec<(usize, Vec<juniper::Value<WundergraphScalarValue>>)>>;
 }
 
-impl<'a, K: Eq + Hash> AssociationsReturn<'a, K> {
+impl<K> AssociationsLookup<K>
+    for HashMap<Option<K>, Vec<(usize, Vec<juniper::Value<WundergraphScalarValue>>)>>
+where
+    K: Eq + Hash,
+{
+    fn new() -> Self {
+        HashMap::new()
+    }
+
+    fn insert(
+        &mut self,
+        key: Option<K>,
+        len: usize,
+        values: Vec<juniper::Value<WundergraphScalarValue>>,
+    ) {
+        self.entry(key).or_insert_with(Vec::new).push((len, values));
+    }
+
+    fn get(
+        &self,
+        key: &Option<K>,
+    ) -> Option<Vec<(usize, Vec<juniper::Value<WundergraphScalarValue>>)>> {
+        self.get(key).cloned()
+    }
+}
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct AssociationsReturn<'a, K, C> {
+    keys: Vec<Option<K>>,
+    fields: Vec<&'a str>,
+    values: C,
+}
+
+impl<'a, K, C> AssociationsReturn<'a, K, C>
+where
+    C: AssociationsLookup<K>,
+{
     fn empty() -> Self {
         Self {
             keys: Vec::new(),
             fields: Vec::new(),
-            values: HashMap::new(),
+            values: C::new(),
         }
     }
 
@@ -58,7 +103,7 @@ impl<'a, K: Eq + Hash> AssociationsReturn<'a, K> {
         self.fields.push(alias);
 
         for (k, v) in values {
-            self.values.entry(k).or_insert_with(Vec::new).push((len, v));
+            self.values.insert(k, len, v);
         }
         Ok(())
     }
@@ -80,27 +125,23 @@ impl<'a, K: Eq + Hash> AssociationsReturn<'a, K> {
                 .map(|(mut obj, key)| {
                     let values = values.get(&key);
                     if let Some(values) = values {
-                        let mut value_iter = values.iter().peekable();
                         for (idx, field_name) in fields.iter().enumerate() {
-                            match value_iter.peek() {
-                                Some((field_idx, _)) if idx == *field_idx => {
-                                    let value = value_iter
-                                        .next()
-                                        .expect("It's there because peekable")
-                                        .1
-                                        .clone();
-                                    obj.add_field(
-                                        field_name.to_owned(),
-                                        juniper::Value::List(value),
-                                    );
-                                }
-                                None | Some(_) => {
-                                    obj.add_field(
-                                        field_name.to_owned(),
-                                        juniper::Value::List(Vec::new()),
-                                    );
-                                }
-                            }
+                            let vals = values
+                                .iter()
+                                .filter_map(
+                                    |(field_idx, val)| {
+                                        if idx == *field_idx {
+                                            Some(val)
+                                        } else {
+                                            None
+                                        }
+                                    },
+                                )
+                                .cloned()
+                                .flatten()
+                                .collect::<Vec<_>>();
+
+                            obj.add_field(field_name.to_owned(), juniper::Value::List(vals));
                         }
                     } else {
                         for f in &fields {
@@ -118,9 +159,10 @@ impl<'a, K: Eq + Hash> AssociationsReturn<'a, K> {
 #[doc(hidden)]
 pub trait WundergraphResolveAssociations<K, Other, DB, Ctx>
 where
-    K: Eq + Hash,
     DB: Backend,
 {
+    type Container: AssociationsLookup<K>;
+
     fn resolve<'a>(
         global_args: &'a [juniper::LookAheadArgument<WundergraphScalarValue>],
         look_ahead: &'a juniper::LookAheadSelection<'a, WundergraphScalarValue>,
@@ -128,7 +170,7 @@ where
         get_name: impl Fn(usize) -> &'static str,
         get_keys: impl Fn() -> Vec<Option<K>>,
         executor: &'a Executor<'a, Ctx, WundergraphScalarValue>,
-    ) -> Result<AssociationsReturn<'a, K>>;
+    ) -> Result<AssociationsReturn<'a, K, Self::Container>>;
 }
 
 impl<K, Other, DB, Ctx> WundergraphResolveAssociations<K, Other, DB, Ctx> for ()
@@ -136,6 +178,8 @@ where
     K: Eq + Hash,
     DB: Backend,
 {
+    type Container = HashMap<Option<K>, Vec<(usize, Vec<juniper::Value<WundergraphScalarValue>>)>>;
+
     fn resolve<'a>(
         _global_args: &'a [juniper::LookAheadArgument<WundergraphScalarValue>],
         _look_ahead: &'a juniper::LookAheadSelection<'a, WundergraphScalarValue>,
@@ -143,13 +187,15 @@ where
         _get_name: impl Fn(usize) -> &'static str,
         _get_keys: impl Fn() -> Vec<Option<K>>,
         _executor: &'a Executor<'a, Ctx, WundergraphScalarValue>,
-    ) -> Result<AssociationsReturn<'a, K>> {
+    ) -> Result<AssociationsReturn<'a, K, Self::Container>> {
         Ok(AssociationsReturn::empty())
     }
 }
 
 #[doc(hidden)]
 pub trait WundergraphResolveAssociation<K, Other, DB: Backend, Ctx> {
+    type Container: AssociationsLookup<K>;
+
     fn resolve(
         global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
         look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
@@ -354,6 +400,8 @@ where
     <T::Table as QuerySource>::FromClause: QueryFragment<DB>,
     DB::QueryBuilder: Default,
 {
+    type Container = HashMap<Option<K>, Vec<(usize, Vec<juniper::Value<WundergraphScalarValue>>)>>;
+
     fn resolve(
         global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
         look_ahead: &juniper::LookAheadSelection<'_, WundergraphScalarValue>,
@@ -372,12 +420,14 @@ macro_rules! wundergraph_impl_resolve_association {
         }
     )+) => {
         $(
-            impl<Key, Back, Other, Ctx, $($T,)*> WundergraphResolveAssociations<Key, Other, Back, Ctx> for ($($T,)*)
+            impl<Key, Back, Other, Ctx, $($T,)* Container> WundergraphResolveAssociations<Key, Other, Back, Ctx> for ($($T,)*)
             where Back: Backend,
-                  Key: Eq + Hash,
-                $($T: WundergraphResolveAssociation<Key, Other, Back, Ctx>,)*
+                  Container: AssociationsLookup<Key>,
+                $($T: WundergraphResolveAssociation<Key, Other, Back, Ctx, Container = Container>,)*
 
             {
+                type Container = Container;
+
                 fn resolve<'a>(
                     global_args: &[juniper::LookAheadArgument<WundergraphScalarValue>],
                     look_ahead: &'a juniper::LookAheadSelection<'a, WundergraphScalarValue>,
@@ -385,7 +435,7 @@ macro_rules! wundergraph_impl_resolve_association {
                     get_name: impl Fn(usize) -> &'static str,
                     get_keys: impl Fn() -> Vec<Option<Key>>,
                     executor: &'a Executor<'a, Ctx, WundergraphScalarValue>,
-                ) -> Result<AssociationsReturn<'a, Key>>
+                ) -> Result<AssociationsReturn<'a, Key, Container>>
                 {
                     let mut ret = AssociationsReturn::empty();
                     $(

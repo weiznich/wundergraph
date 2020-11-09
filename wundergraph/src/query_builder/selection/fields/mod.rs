@@ -16,4 +16,6 @@ pub use self::field_list::WundergraphFieldList;
 #[doc(inline)]
 pub use wundergraph_derive::WundergraphBelongsTo;
 
+pub use self::associations::AssociationsLookup;
+pub use self::associations::WundergraphResolveAssociation;
 pub(crate) use self::associations::WundergraphResolveAssociations;

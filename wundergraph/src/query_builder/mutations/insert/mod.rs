@@ -1,9 +1,6 @@
 use crate::query_builder::selection::offset::ApplyOffset;
-use crate::query_builder::selection::order::BuildOrder;
-use crate::query_builder::selection::select::BuildSelect;
-use crate::query_builder::selection::LoadingHandler;
-use crate::query_builder::selection::SqlTypeOfPlaceholder;
 use crate::scalar::WundergraphScalarValue;
+use diesel::associations::HasTable;
 use diesel::backend::Backend;
 use diesel::query_builder::QueryFragment;
 use diesel::QuerySource;
@@ -23,16 +20,10 @@ pub fn handle_insert<DB, I, R, Ctx>(
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
-    R: LoadingHandler<DB, Ctx>,
+    R: HasTable,
     R::Table: HandleInsert<R, I, DB, Ctx> + 'static,
     DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
-    R::Columns: BuildOrder<R::Table, DB>
-        + BuildSelect<
-            R::Table,
-            DB,
-            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table, Ctx>,
-        >,
     <R::Table as QuerySource>::FromClause: QueryFragment<DB>,
     I: FromInputValue<WundergraphScalarValue>,
 {
@@ -52,16 +43,10 @@ pub fn handle_batch_insert<DB, I, R, Ctx>(
     field_name: &'static str,
 ) -> ExecutionResult<WundergraphScalarValue>
 where
-    R: LoadingHandler<DB, Ctx>,
+    R: HasTable,
     R::Table: HandleBatchInsert<R, I, DB, Ctx> + 'static,
     DB: Backend + ApplyOffset + 'static,
     DB::QueryBuilder: Default,
-    R::Columns: BuildOrder<R::Table, DB>
-        + BuildSelect<
-            R::Table,
-            DB,
-            SqlTypeOfPlaceholder<R::FieldList, DB, R::PrimaryKeyIndex, R::Table, Ctx>,
-        >,
     <R::Table as QuerySource>::FromClause: QueryFragment<DB>,
     I: FromInputValue<WundergraphScalarValue>,
 {
