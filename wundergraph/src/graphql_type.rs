@@ -126,6 +126,7 @@ macro_rules! wundergraph_graphql_helper_impl {
                     if let Some(doc) = Loading::TYPE_DESCRIPTION {
                         ty = ty.description(doc);
                     }
+
                     meta::MetaType::Object(ty)
                 }
             }

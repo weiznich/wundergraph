@@ -1,10 +1,10 @@
+#![allow(warnings)]
 use crate::diesel_ext::BoxableFilter;
 use crate::juniper_ext::{FromLookAheadValue, NameBuilder, Nameable};
 use crate::query_builder::selection::filter::build_filter::BuildFilter;
 use crate::query_builder::selection::filter::collector::{AndCollector, FilterCollector};
 use crate::query_builder::selection::filter::inner_filter::InnerFilter;
 use crate::scalar::WundergraphScalarValue;
-use diesel::associations::HasTable;
 use diesel::backend::Backend;
 use diesel::dsl::{EqAny, Filter, NullableSelect, Select, SqlTypeOf};
 use diesel::expression::array_comparison::AsInExpression;
@@ -13,6 +13,7 @@ use diesel::expression::NonAggregate;
 use diesel::query_builder::{AsQuery, BoxedSelectStatement, Query, QueryFragment};
 use diesel::query_dsl::methods::{BoxedDsl, FilterDsl, SelectDsl, SelectNullableDsl};
 use diesel::sql_types::{Bool, SingleValue};
+use diesel::{associations::HasTable, Expression};
 use diesel::{AppearsOnTable, Column, ExpressionMethods, NullableExpressionMethods, QueryDsl};
 use indexmap::IndexMap;
 use juniper::meta::{Argument, MetaType};
@@ -41,63 +42,89 @@ where
     }
 }
 
+pub trait AsReferenceFilterExpression<C2, DB: Backend, F> {
+    type Expr: BoxableFilter<Self::Table, DB, SqlType = Bool>;
+    type Table: 'static;
+
+    fn as_filter(f: F) -> Self::Expr;
+}
+
+impl<C1, C2, DB, F> AsReferenceFilterExpression<C2, DB, F> for C1
+where
+    DB: Backend + 'static,
+    C1: Column + Default + 'static,
+    C2: Column + Default,
+    C1::Table: 'static,
+    C2::Table: 'static,
+    C1::Table: HasTable<Table = C1::Table>,
+    C2::Table: HasTable<Table = C2::Table>,
+    Nullable<C1>: ExpressionMethods,
+    <Nullable<C1> as Expression>::SqlType: 'static,
+    <C2::Table as AsQuery>::Query: FilterDsl<F>,
+    F: Expression<SqlType = Bool> + NonAggregate + QueryFragment<DB>,
+    Filter<<C2::Table as AsQuery>::Query, F>: QueryDsl + SelectDsl<C2>,
+    Select<Filter<<C2::Table as AsQuery>::Query, F>, C2>: QueryDsl + SelectNullableDsl,
+    NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, F>, C2>>: QueryDsl + Query
+        + BoxedDsl<
+            'static,
+        DB,
+        Output = BoxedSelectStatement<
+                'static,
+            <NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, F>, C2>> as Query>::SqlType,
+            C2::Table,
+            DB,
+            >,
+    > + 'static,
+        EqAny<Nullable<C1>, BoxedSelectStatement<
+            'static,
+            <NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, F>, C2>> as Query>::SqlType,
+            C2::Table,
+            DB,
+            >>: BoxableFilter<C1::Table, DB, SqlType = Bool>,
+        BoxedSelectStatement<
+            'static,
+            <NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, F>, C2>> as Query>::SqlType,
+            C2::Table,
+            DB,
+        >: AsInExpression<SqlTypeOf<Nullable<C1>>>,
+{
+    type Expr = Box<dyn BoxableFilter<Self::Table, DB, SqlType = Bool>>;
+
+    type Table = C1::Table;
+
+    fn as_filter(f: F) -> Self::Expr {
+        let f = <_ as QueryDsl>::filter(C2::Table::table(), f);
+        let f = <_ as QueryDsl>::select(f, C2::default());
+        let q = <_ as SelectNullableDsl>::nullable(f).into_boxed();
+        Box::new(C1::default().nullable().eq_any(q)) as Box<_>
+    }
+}
+
 impl<C, DB, I, C2, A> BuildFilter<DB> for ReferenceFilter<C, I, C2, A>
 where
-    C: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
-    Nullable<C>: ExpressionMethods,
-    C::SqlType: SingleValue,
-    A: BuildFilter<DB> + 'static,
-    C::Table: 'static,
+    C: AsReferenceFilterExpression<C2, DB, I::Ret>,
+    C::Expr: BuildFilter<DB> + 'static,
+    <C::Expr as BuildFilter<DB>>::Ret: AppearsOnTable<C::Table>,
     DB: Backend + 'static,
     I: BuildFilter<DB> + InnerFilter,
-    C2: Column + NonAggregate + QueryFragment<DB> + Default + 'static,
-    C2::Table: HasTable<Table = C2::Table>,
-    <C2::Table as AsQuery>::Query: FilterDsl<I::Ret>,
-    Filter<<C2::Table as AsQuery>::Query, I::Ret>: QueryDsl + SelectDsl<C2>,
-    Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>: QueryDsl + SelectNullableDsl,
-NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>>: QueryDsl + Query
-    + BoxedDsl<
-        'static,
-    DB,
-    Output = BoxedSelectStatement<
-            'static,
-        <NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>> as Query>::SqlType,
-        C2::Table,
-        DB,
-        >,
-    > + 'static,
-    BoxedSelectStatement<
-        'static,
-        <NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>> as Query>::SqlType,
-        C2::Table,
-        DB,
-    >: AsInExpression<SqlTypeOf<Nullable<C>>>,
-    <BoxedSelectStatement<
-        'static,
-        <NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>> as Query>::SqlType,
-        C2::Table,
-        DB,
-        > as AsInExpression<SqlTypeOf<Nullable<C>>>>::InExpression: AppearsOnTable<C::Table> + QueryFragment<DB>,
-    EqAny<Nullable<C>, BoxedSelectStatement<
-        'static,
-        <NullableSelect<Select<Filter<<C2::Table as AsQuery>::Query, I::Ret>, C2>> as Query>::SqlType,
-        C2::Table,
-        DB,
-        >>: BoxableFilter<C::Table, DB, SqlType = Bool>,
-        <A as BuildFilter<DB>>::Ret: AppearsOnTable<C::Table> + 'static,
+    A: BuildFilter<DB> + 'static,
+    <A as BuildFilter<DB>>::Ret: AppearsOnTable<C::Table> + 'static,
 {
     type Ret = Box<dyn BoxableFilter<C::Table, DB, SqlType = Bool>>;
 
     fn into_filter(self) -> Option<Self::Ret> {
         let mut and = AndCollector::default();
+        dbg!(std::any::type_name::<I>());
 
-        let inner = self
-            .inner
-            .into_filter()
-            .map(|f| <_ as QueryDsl>::filter(C2::Table::table(), f))
-            .map(|f| <_ as QueryDsl>::select(f, C2::default()))
-            .map(|f| <_ as SelectNullableDsl>::nullable(f).into_boxed())
-            .map(|q| Box::new(C::default().nullable().eq_any(q)) as Box<_>);
+        let inner = self.inner.into_filter();
+
+        if inner.is_some() {
+            dbg!("SOME")
+        } else {
+            dbg!("None")
+        };
+
+        let inner = inner.map(|f| C::as_filter(f));
         and.append_filter(inner);
         and.append_filter(self.additional);
 

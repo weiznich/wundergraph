@@ -116,6 +116,8 @@ where
 use diesel::serialize::{self, ToSql};
 use std::io::Write;
 
+use super::AsInputType;
+
 impl<R, T, DB, ST> ToSql<ST, DB> for HasOne<R, T>
 where
     DB: Backend,
@@ -225,4 +227,11 @@ where
             HasOne::Item(ref i) => C::to_input_value(i.id()),
         }
     }
+}
+
+impl<R, T> AsInputType for HasOne<R, T>
+where
+    R: AsInputType,
+{
+    type InputType = <R as AsInputType>::InputType;
 }

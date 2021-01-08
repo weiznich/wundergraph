@@ -1,13 +1,13 @@
 use super::offset::ApplyOffset;
 use super::LoadingHandler;
-use crate::error::Result;
 use crate::error::WundergraphError;
 use crate::juniper_ext::FromLookAheadValue;
 use crate::query_builder::selection::fields::FieldListExtractor;
 use crate::scalar::WundergraphScalarValue;
-use diesel::backend::Backend;
-use diesel::expression::NonAggregate;
+use crate::{diesel_ext::MultipleColumnHelper, error::Result};
 use diesel::query_builder::QueryFragment;
+use diesel::{backend::Backend, ExpressionMethods};
+use diesel::{expression::NonAggregate, Column};
 use diesel::{BoxableExpression, QuerySource, SelectableExpression};
 use juniper::{
     meta, FromInputValue, GraphQLEnum, GraphQLType, LookAheadValue, Registry, ToInputValue,
@@ -192,6 +192,49 @@ pub trait WundergraphGraphqlOrderHelper<L, DB, Ctx> {
         F: Fn(usize) -> &'static str;
 }
 
+pub trait AsOrderExpression<T, DB> {
+    fn as_order_expression(order: Order) -> Box<dyn BoxableExpression<T, DB, SqlType = ()>>;
+}
+
+impl<T, DB, C> AsOrderExpression<T, DB> for C
+where
+    DB: Backend,
+    C: ExpressionMethods
+        + Column
+        + Default
+        + QueryFragment<DB>
+        + SelectableExpression<T>
+        + NonAggregate
+        + 'static,
+{
+    fn as_order_expression(order: Order) -> Box<dyn BoxableExpression<T, DB, SqlType = ()>> {
+        if order == Order::Desc {
+            Box::new(C::default().desc()) as Box<dyn BoxableExpression<T, DB, SqlType = ()>>
+        } else {
+            Box::new(C::default().asc()) as Box<_>
+        }
+    }
+}
+
+impl<T, DB, PK, V> AsOrderExpression<T, DB> for MultipleColumnHelper<(PK, V)>
+where
+    DB: Backend,
+    PK: ExpressionMethods
+        + Default
+        + QueryFragment<DB>
+        + SelectableExpression<T>
+        + NonAggregate
+        + 'static,
+{
+    fn as_order_expression(order: Order) -> Box<dyn BoxableExpression<T, DB, SqlType = ()>> {
+        if order == Order::Desc {
+            Box::new(PK::default().desc()) as Box<dyn BoxableExpression<T, DB, SqlType = ()>>
+        } else {
+            Box::new(PK::default().asc()) as Box<_>
+        }
+    }
+}
+
 macro_rules! impl_order_traits {
     ($(
         $Tuple:tt {
@@ -204,49 +247,37 @@ macro_rules! impl_order_traits {
             where Table: ::diesel::Table,
                   DB: Backend,
             $(
-                $T: //ExpressionMethods +
-                    Copy +
-                    Default +
-                    SelectableExpression<Table> +
-                    NonAggregate +
-                    QueryFragment<DB> +
-                    'static,
+                $T: AsOrderExpression<Table, DB>,
             )+
             {
                 fn build_order(
                     fields: &[LookAheadValue<'_, WundergraphScalarValue>],
-                    _field_name: impl Fn(usize) -> &'static str,
+                    field_name: impl Fn(usize) -> &'static str,
                 ) -> Result<Vec<Box<dyn BoxableExpression<Table, DB, SqlType = ()>>>>
                 {
-                    let ret = Vec::with_capacity(fields.len());
+                    let mut ret = Vec::with_capacity(fields.len());
                     for f in fields {
                         if let LookAheadValue::Object(o) = f {
-                            let _column = o.iter().find(|(k, _)| *k == "column")
+                            let column = o.iter().find(|(k, _)| *k == "column")
                                 .and_then(|(_, v)| if let LookAheadValue::Enum(c) = v {
                                     Some(c)
                                 } else {
                                     None
                                 })
                                 .ok_or(WundergraphError::CouldNotBuildFilterArgument)?;
-                            let _order = o.iter().find(|(k, _)| *k == "direction")
+                            let order = o.iter().find(|(k, _)| *k == "direction")
                                 .and_then(|(_, v)| Order::from_look_ahead(v))
                                 .unwrap_or(Order::Asc);
-                            todo!()
-                            // match *column {
-                            // $(
-                            //     x if x == field_name($idx) => if order == Order::Desc {
-                            //         ret.push(Box::new($T::default().desc())
-                            //                  as Box<dyn BoxableExpression<Table, DB, SqlType = ()>>)
-                            //     } else {
-                            //         ret.push(Box::new($T::default().asc()) as Box<_>)
-                            //     }
-                            // )+
-                            //     x => {
-                            //         return Err(WundergraphError::UnknownDatabaseField {
-                            //                 name: x.to_owned()
-                            //             });
-                            //     }
-                            // }
+                            match *column {
+                            $(
+                                x if x == field_name($idx) => ret.push($T::as_order_expression(order)),
+                            )+
+                                x => {
+                                    return Err(WundergraphError::UnknownDatabaseField {
+                                            name: x.to_owned()
+                                        });
+                                }
+                            }
                         } else {
                             return Err(
                                 WundergraphError::CouldNotBuildFilterArgument

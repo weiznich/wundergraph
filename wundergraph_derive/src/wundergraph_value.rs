@@ -13,6 +13,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
     let wundergraph_value = wundergraph_value(item)?;
     let as_filter = as_column_filter(item);
     let direct_resolvable = direct_resolveable(item);
+    let as_input_type = as_input_type(item);
 
     Ok(wrap_in_dummy_mod(
         "wundergraph_value",
@@ -27,6 +28,7 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
             use wundergraph::query_builder::types::{WundergraphSqlValue, PlaceHolder};
             use wundergraph::diesel::sql_types::Nullable;
             use wundergraph::query_builder::types::field_value_resolver::DirectResolveable;
+            use wundergraph::query_builder::types::AsInputType;
 
 
             #filter_value
@@ -35,8 +37,22 @@ pub fn derive(item: &syn::DeriveInput) -> Result<TokenStream, Diagnostic> {
             #wundergraph_value
             #as_filter
             #direct_resolvable
+            #as_input_type
         },
     ))
+}
+
+fn as_input_type(item: &syn::DeriveInput) -> TokenStream {
+    let item_name = &item.ident;
+    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
+
+    quote! {
+        impl #impl_generics AsInputType for #item_name #ty_generics
+            #where_clause
+        {
+            type InputType = Self;
+        }
+    }
 }
 
 fn direct_resolveable(item: &syn::DeriveInput) -> TokenStream {

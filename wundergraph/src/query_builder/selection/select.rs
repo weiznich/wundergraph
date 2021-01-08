@@ -38,10 +38,9 @@ macro_rules! impl_select_builder {
                     SelectableExpression<Table> +
                     NonAggregate +
                     QueryFragment<DB> +
-                    QueryFragment<crate::diesel_ext::FakeBackend<DB>> +
                     'static ,
             )+
-                $(MaybeNull<$T>: Expression,)+
+                $(MaybeNull<$T>: Expression + QueryFragment<DB>,)+
             {
                 fn build_select(
                     select: &LookAheadSelection<'_, WundergraphScalarValue>,
