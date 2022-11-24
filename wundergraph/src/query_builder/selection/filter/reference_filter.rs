@@ -114,15 +114,8 @@ where
 
     fn into_filter(self) -> Option<Self::Ret> {
         let mut and = AndCollector::default();
-        dbg!(std::any::type_name::<I>());
 
         let inner = self.inner.into_filter();
-
-        if inner.is_some() {
-            dbg!("SOME")
-        } else {
-            dbg!("None")
-        };
 
         let inner = inner.map(|f| C::as_filter(f));
         and.append_filter(inner);
